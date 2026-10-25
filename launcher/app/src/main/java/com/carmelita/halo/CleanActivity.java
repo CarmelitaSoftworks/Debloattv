@@ -106,6 +106,7 @@ public class CleanActivity extends Activity {
     }
 
     private void connect() {
+        if (busy) return;
         if (adb != null) adb.close();
         adb = null;
         tv = null;

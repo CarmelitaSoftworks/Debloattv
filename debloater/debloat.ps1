@@ -60,19 +60,24 @@ if (-not (Get-Command adb -ErrorAction SilentlyContinue)) {
   Die 'no se encontró adb. Instala Android platform-tools: https://developer.android.com/tools/releases/platform-tools'
 }
 
+# Los fallos se juzgan por la salida. En Windows PowerShell 5.1, con 'Stop', cualquier texto que
+# adb escriba en stderr detendría el script, así que aquí se relaja la preferencia.
+function Invoke-Adb([string[]]$argv) {
+  $ErrorActionPreference = 'Continue'
+  ((& adb @AdbArgs @argv 2>&1) | ForEach-Object { "$_" } | Out-String).Trim()
+}
+function Tv([string[]]$cmd) { Invoke-Adb (@('shell') + $cmd) }
+
 $AdbArgs = @()
 if ($Ip) {
   if ($Ip -notmatch ':') { $Ip = "${Ip}:5555" }
   Info "Conectando a $Ip (acepta el aviso de depuración en la TV si aparece)"
-  adb connect $Ip | Out-Null
+  Invoke-Adb @('connect', $Ip) | Out-Null
   $Serial = $Ip
 }
 if ($Serial) { $AdbArgs = @('-s', $Serial) }
 
-# adb shell devuelve el código del comando remoto; los fallos se juzgan por la salida
-function Tv([string[]]$cmd) { ((& adb @AdbArgs shell @cmd 2>&1) | Out-String).Trim() }
-
-$state = ((& adb @AdbArgs get-state 2>&1) | Out-String).Trim()
+$state = Invoke-Adb @('get-state')
 if ($state -ne 'device') { Die 'no hay ningún dispositivo conectado. Activa la depuración por red/USB en la TV.' }
 
 $Manufacturer = (Tv @('getprop', 'ro.product.manufacturer')).ToLower()
@@ -167,7 +172,12 @@ function Invoke-Launcher {
     $path = Find-Apk
     if (-not $path) { Die 'no encuentro el APK de Halo. Compílalo (launcher\) o pásalo: -Launcher -Apk ruta.apk' }
     Info "Instalando $(Split-Path $path -Leaf)"
-    if (-not $DryRun) { & adb @AdbArgs install -r $path | Select-Object -Last 1 }
+    if (-not $DryRun) {
+      $out = Invoke-Adb @('install', '-r', $path)
+      # Sin Halo instalado no se puede tocar el launcher de stock: la TV se quedaría sin inicio
+      if ($out -notmatch 'Success') { Die "no se pudo instalar Halo: $(($out -split "`r?`n")[-1])" }
+      Ok 'Halo instalado'
+    }
   } else { Ok 'Halo ya está instalado' }
 
   $stock = $StockLaunchers | Where-Object { $Installed.ContainsKey($_) }

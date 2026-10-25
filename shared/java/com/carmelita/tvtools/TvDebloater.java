@@ -19,6 +19,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Las mismas reglas que debloater/debloat.sh. Lo usan la app del teléfono (ADB por WiFi)
@@ -36,6 +38,12 @@ public final class TvDebloater {
             "com.google.android.leanbacklauncher",     // Android TV antiguo
             "com.tcl.waterfall.overseas",              // TCL Home (Android TV)
             "com.mitv.tvhome"));                       // Xiaomi PatchWall
+
+    /** Paquetes que declaran HOME pero no son un launcher (pantallas de arranque de Ajustes). */
+    private static final Set<String> NOT_LAUNCHERS = new HashSet<>(Arrays.asList(
+            "android", "com.android.settings", "com.android.tv.settings", HALO_PKG));
+
+    private static final Pattern COMPONENT = Pattern.compile("^\\s*([A-Za-z0-9_.]+)/[A-Za-z0-9_.$]+\\s*$");
 
     private static final Set<String> PROTECTED = new HashSet<>(Arrays.asList(
             "android", "com.android.systemui", "com.android.settings", "com.android.tv.settings",
@@ -179,6 +187,27 @@ public final class TvDebloater {
         refreshInstalled();
     }
 
+    /**
+     * Launchers de esta TV: la lista conocida más cualquier app del sistema que responda a HOME
+     * (así también se encuentra el inicio de marcas con nombres de paquete que no conocemos).
+     */
+    private List<String> stockLaunchers() throws IOException {
+        List<String> out = new ArrayList<>(STOCK_LAUNCHERS);
+        Set<String> system = new HashSet<>();
+        for (String line : adb.shell("pm list packages -s").split("\n")) {
+            if (line.startsWith("package:")) system.add(line.substring(8).trim());
+        }
+        String homes = adb.shell("cmd package query-activities --brief -a android.intent.action.MAIN"
+                + " -c android.intent.category.HOME");
+        for (String line : homes.split("\n")) {
+            Matcher m = COMPONENT.matcher(line);
+            if (!m.matches()) continue;
+            String pkg = m.group(1);
+            if (system.contains(pkg) && !NOT_LAUNCHERS.contains(pkg) && !out.contains(pkg)) out.add(pkg);
+        }
+        return out;
+    }
+
     /** Instala Halo si hace falta (desde el teléfono) y lo deja como pantalla de inicio. */
     public void installHaloAndSetHome() throws IOException {
         if (!installed.contains(HALO_PKG)) {
@@ -193,10 +222,10 @@ public final class TvDebloater {
         }
 
         adb.shell("cmd package set-home-activity " + HALO_HOME);
-        for (String pkg : STOCK_LAUNCHERS) {
+        for (String pkg : stockLaunchers()) {
             if (!installed.contains(pkg)) continue;
             if (adb.shell("pm disable-user --user 0 " + pkg).contains("disabled")) {
-                record("disable", pkg);
+                record("home", pkg);
                 log.line("✔ desactivado " + pkg);
             } else {
                 log.line("! no se pudo desactivar " + pkg);
@@ -208,7 +237,13 @@ public final class TvDebloater {
     }
 
     public void restoreStockLauncher() throws IOException {
-        for (String pkg : STOCK_LAUNCHERS) {
+        // Los conocidos más los que se desactivaron desde aquí (un launcher desactivado ya no
+        // aparece al consultar HOME, así que se leen del registro).
+        Set<String> launchers = new HashSet<>(STOCK_LAUNCHERS);
+        for (String[] entry : backupEntries()) {
+            if ("home".equals(entry[0])) launchers.add(entry[1]);
+        }
+        for (String pkg : launchers) {
             if (!installed.contains(pkg)) continue;
             log.line(adb.shell("pm enable " + pkg).contains("enabled")
                     ? "✔ activado " + pkg : "! no se pudo activar " + pkg);
@@ -227,19 +262,13 @@ public final class TvDebloater {
             log.line("No hay nada que restaurar en esta TV.");
             return;
         }
-        List<String> lines = new ArrayList<>();
-        try (BufferedReader r = new BufferedReader(new FileReader(backupFile))) {
-            for (String l; (l = r.readLine()) != null; ) lines.add(l);
-        }
-        for (String line : lines) {
-            String[] parts = line.trim().split("\\s+");
-            if (parts.length != 2) continue;
+        for (String[] parts : backupEntries()) {
             String pkg = parts[1];
             if ("uninstall".equals(parts[0])) {
                 String out = adb.shell("cmd package install-existing " + pkg);
                 if (!out.contains("installed")) out = adb.shell("pm install-existing " + pkg);
                 log.line(out.contains("installed") ? "✔ reinstalado " + pkg : "! " + pkg + ": " + out);
-            } else if ("disable".equals(parts[0])) {
+            } else if ("disable".equals(parts[0]) || "home".equals(parts[0])) {
                 log.line(adb.shell("pm enable " + pkg).contains("enabled")
                         ? "✔ activado " + pkg : "! no se pudo activar " + pkg);
             }
@@ -249,6 +278,19 @@ public final class TvDebloater {
         backupFile.renameTo(done);
         refreshInstalled();
         log.line("Restauración terminada.");
+    }
+
+    /** Líneas "operación paquete" del registro de esta TV. */
+    private List<String[]> backupEntries() throws IOException {
+        List<String[]> out = new ArrayList<>();
+        if (!backupFile.exists()) return out;
+        try (BufferedReader r = new BufferedReader(new FileReader(backupFile))) {
+            for (String l; (l = r.readLine()) != null; ) {
+                String[] parts = l.trim().split("\\s+");
+                if (parts.length == 2) out.add(parts);
+            }
+        }
+        return out;
     }
 
     private void record(String op, String pkg) throws IOException {

@@ -227,7 +227,13 @@ do_launcher() {
     local apk; apk="$(find_apk)"
     [[ -n "$apk" ]] || die "no encuentro el APK de Halo. Compílalo (launcher/) o pásalo: --launcher ruta.apk"
     info "Instalando $(basename "$apk")"
-    [[ "$DRY_RUN" -eq 1 ]] || "${ADB[@]}" install -r "$apk" | tr -d '\r' | tail -1
+    if [[ "$DRY_RUN" -eq 0 ]]; then
+      local out
+      out="$("${ADB[@]}" install -r "$apk" 2>&1 | tr -d '\r' || true)"
+      # Sin Halo instalado no se puede tocar el launcher de stock: la TV se quedaría sin inicio
+      [[ "$out" == *Success* ]] || die "no se pudo instalar Halo: $(tail -1 <<<"$out")"
+      ok "Halo instalado"
+    fi
   else
     ok "Halo ya está instalado"
   fi
