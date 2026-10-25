@@ -189,16 +189,31 @@ function Invoke-Launcher {
   foreach ($p in $stock) {
     if ($DryRun) { Ok "(simulado) desactivar $p"; continue }
     if ((Tv @('pm', 'disable-user', '--user', '0', $p)) -match 'disabled') { Record 'disable' $p; Ok "desactivado $p" }
+    elseif ((Tv @('pm', 'uninstall', '-k', '--user', '0', $p)) -match 'Success') {
+      # Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
+      Record 'uninstall' $p; Ok "quitado $p (se recupera con -Restore)"
+    }
     else { Warn "no se pudo desactivar $p" }
   }
   if ($DryRun) { return }
+  Tv @('cmd', 'package', 'set-home-activity', $HaloHome) | Out-Null
+  $currentHome = ((Tv @('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME')) -split "`r?`n" |
+    Where-Object { $_ -match '^\s*[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+\s*$' } | Select-Object -Last 1)
+  if ($currentHome) { $currentHome = $currentHome.Trim() }
+  if ($currentHome -like "$HaloPkg/*") { Ok 'El botón Inicio abre Halo' }
+  else { Warn "El botón Inicio sigue abriendo: $(if ($currentHome) { $currentHome } else { 'desconocido' }). Activa «Botón Inicio → Halo» en Accesibilidad." }
   Tv @('am', 'start', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME') | Out-Null
-  Info 'Listo. Pulsa HOME en el mando: debería abrirse Halo.'
+  Info 'Listo. Pulsa HOME en el mando.'
   Info 'Para volver al launcher original: .\debloat.ps1 -RestoreLauncher'
 }
 
 function Invoke-RestoreLauncher {
-  foreach ($p in $StockLaunchers | Where-Object { $Installed.ContainsKey($_) }) {
+  foreach ($p in $StockLaunchers) {
+    if (-not $Installed.ContainsKey($p)) {
+      # Quitado para el usuario con el plan B de -Launcher: se recupera si existe en el sistema
+      if ($DryRun -or (Tv @('cmd', 'package', 'install-existing', $p)) -notmatch 'installed') { continue }
+      Ok "reinstalado $p"
+    }
     if ($DryRun) { Ok "(simulado) activar $p"; continue }
     if ((Tv @('pm', 'enable', $p)) -match 'enabled') { Ok "activado $p" } else { Warn "no se pudo activar $p" }
   }

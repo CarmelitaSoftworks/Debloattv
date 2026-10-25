@@ -251,20 +251,34 @@ do_launcher() {
     if [[ "$DRY_RUN" -eq 1 ]]; then ok "${c_dim}(simulado)${c_off} desactivar $p"; continue; fi
     if [[ "$(sh_tv pm disable-user --user 0 "$p")" == *disabled* ]]; then
       record disable "$p"; ok "desactivado $p"
+    elif [[ "$(sh_tv pm uninstall -k --user 0 "$p")" == *Success* ]]; then
+      # Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
+      record uninstall "$p"; ok "quitado $p ${c_dim}(se recupera con --restore)${c_off}"
     else
       warn "no se pudo desactivar $p"
     fi
   done
   [[ "$DRY_RUN" -eq 1 ]] && return
+  sh_tv cmd package set-home-activity "$HALO_HOME" >/dev/null || true
+  local home
+  home="$(sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | grep -E '^ *[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+ *$' | tail -1 | tr -d ' ')"
+  if [[ "$home" == "$HALO_PKG/"* ]]; then
+    ok "El botón Inicio abre Halo"
+  else
+    warn "El botón Inicio sigue abriendo: ${home:-desconocido}. Activa «Botón Inicio → Halo» en Accesibilidad."
+  fi
   sh_tv am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null || true
-  info "Listo. Pulsa HOME en el mando: debería abrirse Halo."
+  info "Listo. Pulsa HOME en el mando."
   info "Para volver al launcher original: $(basename "$0") --restore-launcher"
 }
 
 do_restore_launcher() {
   local p
   for p in "${STOCK_LAUNCHERS[@]}"; do
-    is_installed "$p" || continue
+    if ! is_installed "$p"; then
+      # Quitado para el usuario con el plan B de --launcher: se recupera si existe en el sistema
+      [[ "$DRY_RUN" -eq 0 && "$(sh_tv cmd package install-existing "$p")" == *installed* ]] && ok "reinstalado $p" || continue
+    fi
     if [[ "$DRY_RUN" -eq 1 ]]; then ok "${c_dim}(simulado)${c_off} activar $p"; continue; fi
     [[ "$(sh_tv pm enable "$p")" == *enabled* ]] && ok "activado $p" || warn "no se pudo activar $p"
   done

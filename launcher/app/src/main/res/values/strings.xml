@@ -26,10 +26,10 @@
     <string name="clean_connecting">Conectando con la propia TV…</string>
     <string name="clean_approve">Acepta el aviso «¿Permitir depuración?» con el mando y marca «Permitir siempre».</string>
     <string name="clean_connected">Conectado. Elige qué quitar y pulsa «Quitar seleccionadas». Todo se puede deshacer.</string>
-    <string name="clean_manual">Modo manual: esta TV no permite ADB desde las apps. Pulsa cada app de la lista para abrir sus ajustes y elige «Desactivar».</string>
-    <string name="clean_manual_help">Para que el botón Inicio del mando abra Halo, activa «Botón Inicio → Halo».
+    <string name="clean_manual">Modo manual: esta TV no permite ADB desde las apps. Sin ADB, Android no deja que ninguna app desinstale ni desactive el launcher de Google.
 
-Para el modo automático (quitar apps con un clic): Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» y «Depuración por red» si existe, y pulsa «Reintentar conexión».</string>
+Para usar Halo como inicio, activa «Botón Inicio → Halo». Para quitar apps, pulsa cada una de la lista y elige «Desactivar».</string>
+    <string name="clean_manual_help">Para quitar el launcher de Google de verdad hace falta el modo automático: Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» (y «Depuración por red» si existe) y pulsa «Reintentar conexión». Si no aparece ninguna de las dos, la única vía es conectar la TV una vez a un PC por USB y usar los scripts.</string>
     <string name="clean_nothing">Nada que quitar en este nivel.</string>
     <string name="clean_remove">Quitar seleccionadas</string>
     <string name="clean_set_home">Usar Halo como inicio</string>

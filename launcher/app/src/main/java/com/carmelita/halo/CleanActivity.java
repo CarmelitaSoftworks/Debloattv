@@ -80,7 +80,7 @@ public class CleanActivity extends Activity {
 
         levels.setOnCheckedChangeListener((group, id) -> renderPackages());
         remove.setOnClickListener(v -> removeSelected());
-        setHome.setOnClickListener(v -> runTask(() -> tv.installHaloAndSetHome()));
+        setHome.setOnClickListener(v -> runTask(() -> tv.installHaloAndSetHome(false)));
         restoreLauncher.setOnClickListener(v -> runTask(() -> tv.restoreStockLauncher()));
         restoreAll.setOnClickListener(v -> runTask(() -> {
             tv.restoreAll();

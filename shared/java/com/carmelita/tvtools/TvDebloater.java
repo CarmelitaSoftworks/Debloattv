@@ -208,8 +208,12 @@ public final class TvDebloater {
         return out;
     }
 
-    /** Instala Halo si hace falta (desde el teléfono) y lo deja como pantalla de inicio. */
-    public void installHaloAndSetHome() throws IOException {
+    /**
+     * Instala Halo si hace falta y lo deja como pantalla de inicio. Desde el teléfono se pulsa
+     * HOME al final; desde la propia TV no, para que el registro quede a la vista.
+     * Devuelve true si al terminar el botón Inicio abre Halo.
+     */
+    public boolean installHaloAndSetHome(boolean pressHome) throws IOException {
         if (!installed.contains(HALO_PKG)) {
             log.line("Copiando Halo a la TV…");
             adb.push(readAsset(context, "halo-launcher.apk"), HALO_TMP, 0100644);
@@ -224,25 +228,67 @@ public final class TvDebloater {
         adb.shell("cmd package set-home-activity " + HALO_HOME);
         for (String pkg : stockLaunchers()) {
             if (!installed.contains(pkg)) continue;
-            if (adb.shell("pm disable-user --user 0 " + pkg).contains("disabled")) {
+            String out = adb.shell("pm disable-user --user 0 " + pkg);
+            if (out.contains("disabled")) {
                 record("home", pkg);
                 log.line("✔ desactivado " + pkg);
+                continue;
+            }
+            // Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
+            String out2 = adb.shell("pm uninstall -k --user 0 " + pkg);
+            if (out2.contains("Success")) {
+                record("home-uninstall", pkg);
+                log.line("✔ quitado " + pkg);
             } else {
-                log.line("! no se pudo desactivar " + pkg);
+                log.line("! no se pudo desactivar " + pkg + ": " + firstLine(out) + " / " + firstLine(out2));
             }
         }
-        adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
+        // Otra vez, por si el sistema eligió otro inicio al desaparecer el de stock
+        String setHome = adb.shell("cmd package set-home-activity " + HALO_HOME);
         refreshInstalled();
-        log.line("Listo. Pulsa HOME en el mando de la TV.");
+
+        String home = currentHome();
+        boolean ok = home.startsWith(HALO_PKG + "/");
+        if (ok) {
+            log.line("✔ El botón Inicio abre Halo.");
+        } else {
+            log.line("! El botón Inicio sigue abriendo: " + (home.isEmpty() ? "(desconocido)" : home));
+            if (!setHome.isEmpty() && !setHome.contains("Success")) log.line("  set-home-activity: " + firstLine(setHome));
+            log.line("  Activa «Botón Inicio → Halo» en Accesibilidad como alternativa.");
+        }
+        if (pressHome) adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
+        return ok;
+    }
+
+    /** Componente que abre ahora mismo el botón Inicio ("" si no se pudo averiguar). */
+    private String currentHome() throws IOException {
+        String out = adb.shell("cmd package resolve-activity --brief -a android.intent.action.MAIN"
+                + " -c android.intent.category.HOME");
+        String last = "";
+        for (String line : out.split("\n")) {
+            if (COMPONENT.matcher(line).matches()) last = line.trim();
+        }
+        return last;
+    }
+
+    private static String firstLine(String s) {
+        int nl = s.indexOf('\n');
+        return nl < 0 ? s : s.substring(0, nl);
     }
 
     public void restoreStockLauncher() throws IOException {
-        // Los conocidos más los que se desactivaron desde aquí (un launcher desactivado ya no
+        // Los conocidos más los que se quitaron desde aquí (un launcher desactivado ya no
         // aparece al consultar HOME, así que se leen del registro).
         Set<String> launchers = new HashSet<>(STOCK_LAUNCHERS);
         for (String[] entry : backupEntries()) {
             if ("home".equals(entry[0])) launchers.add(entry[1]);
+            if ("home-uninstall".equals(entry[0])) {
+                String out = adb.shell("cmd package install-existing " + entry[1]);
+                if (!out.contains("installed")) out = adb.shell("pm install-existing " + entry[1]);
+                log.line(out.contains("installed") ? "✔ reinstalado " + entry[1] : "! " + entry[1] + ": " + out);
+            }
         }
+        refreshInstalled();
         for (String pkg : launchers) {
             if (!installed.contains(pkg)) continue;
             log.line(adb.shell("pm enable " + pkg).contains("enabled")
@@ -264,7 +310,7 @@ public final class TvDebloater {
         }
         for (String[] parts : backupEntries()) {
             String pkg = parts[1];
-            if ("uninstall".equals(parts[0])) {
+            if ("uninstall".equals(parts[0]) || "home-uninstall".equals(parts[0])) {
                 String out = adb.shell("cmd package install-existing " + pkg);
                 if (!out.contains("installed")) out = adb.shell("pm install-existing " + pkg);
                 log.line(out.contains("installed") ? "✔ reinstalado " + pkg : "! " + pkg + ": " + out);

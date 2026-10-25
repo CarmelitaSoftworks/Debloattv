@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
         installHalo.setOnClickListener(v -> confirm(
                 "¿Instalar Halo?",
                 "Se instalará Halo en la TV y se desactivará el launcher de stock. Puedes volver atrás con «Volver al original».",
-                () -> runTask(() -> tv.installHaloAndSetHome())));
+                () -> runTask(() -> tv.installHaloAndSetHome(true))));
         restoreLauncher.setOnClickListener(v -> runTask(() -> tv.restoreStockLauncher()));
         restoreAll.setOnClickListener(v -> runTask(() -> {
             tv.restoreAll();
