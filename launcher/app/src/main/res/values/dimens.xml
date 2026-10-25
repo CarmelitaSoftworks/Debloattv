@@ -2,6 +2,8 @@
 <resources>
     <!-- Margen lateral seguro para el overscan de los televisores -->
     <dimen name="side_padding">64dp</dimen>
-    <dimen name="tile_gap">28dp</dimen>
-    <dimen name="tile_radius">14dp</dimen>
+    <dimen name="tile_gap">20dp</dimen>
+    <dimen name="tile_radius">10dp</dimen>
+    <!-- El dock de cristal sobresale de la cuadrícula este margen por cada lado -->
+    <dimen name="dock_inset">24dp</dimen>
 </resources>

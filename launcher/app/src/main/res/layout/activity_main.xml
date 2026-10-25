@@ -3,11 +3,27 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-    <!-- Lavado de color que sigue a la app enfocada, como el "Top Shelf" de tvOS -->
+    <!-- Resplandor que toma el color de la app enfocada -->
     <View
         android:id="@+id/backdrop"
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
+
+    <!-- "Top Shelf": portada grande de la app enfocada, fundida con el fondo -->
+    <FrameLayout
+        android:id="@+id/shelf"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end">
+
+        <ImageView
+            android:id="@+id/shelf_art"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
 
     <com.carmelita.halo.HaloScrollView
         android:id="@+id/scroll"
@@ -34,27 +50,38 @@
                 android:layout_height="wrap_content"
                 android:gravity="bottom|start"
                 android:orientation="vertical"
-                android:paddingBottom="36dp">
+                android:paddingBottom="40dp">
+
+                <TextView
+                    android:id="@+id/hero_overline"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="sans-serif-medium"
+                    android:letterSpacing="0.12"
+                    android:text="@string/hero_overline"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="10sp" />
 
                 <TextView
                     android:id="@+id/hero_title"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
                     android:ellipsize="end"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="sans-serif"
                     android:letterSpacing="-0.02"
                     android:maxLines="1"
                     android:textColor="@color/text_primary"
-                    android:textSize="44sp" />
+                    android:textSize="48sp"
+                    android:textStyle="bold" />
 
-                <TextView
-                    android:id="@+id/hero_subtitle"
+                <LinearLayout
+                    android:id="@+id/hero_hints"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:fontFamily="sans-serif"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="16sp" />
+                    android:layout_marginTop="8dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal" />
             </LinearLayout>
 
             <LinearLayout
@@ -67,16 +94,32 @@
         </LinearLayout>
     </com.carmelita.halo.HaloScrollView>
 
-    <TextClock
+    <LinearLayout
         android:id="@+id/clock"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|end"
-        android:layout_marginEnd="@dimen/side_padding"
-        android:layout_marginTop="32dp"
-        android:fontFamily="sans-serif-medium"
-        android:format12Hour="h:mm"
-        android:format24Hour="HH:mm"
-        android:textColor="@color/text_primary"
-        android:textSize="24sp" />
+        android:layout_marginTop="24dp"
+        android:layout_marginEnd="48dp"
+        android:baselineAligned="true"
+        android:orientation="horizontal">
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:format12Hour="EEE d MMM"
+            android:format24Hour="EEE d MMM"
+            android:textColor="@color/text_secondary"
+            android:textSize="11sp" />
+
+        <TextClock
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:format12Hour="h:mm"
+            android:format24Hour="HH:mm"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp" />
+    </LinearLayout>
 </FrameLayout>

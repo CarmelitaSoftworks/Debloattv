@@ -20,6 +20,8 @@ import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -43,7 +45,9 @@ public class MainActivity extends Activity {
     private View hero;
     private View clock;
     private TextView heroTitle;
-    private TextView heroSubtitle;
+    private LinearLayout heroHints;
+    private View shelf;
+    private ImageView shelfArt;
     private GradientDrawable backdrop;
     private ValueAnimator backdropAnim;
     private int backdropColor = 0xFF1C1C24;
@@ -74,9 +78,24 @@ public class MainActivity extends Activity {
         hero = findViewById(R.id.hero);
         clock = findViewById(R.id.clock);
         heroTitle = findViewById(R.id.hero_title);
-        heroSubtitle = findViewById(R.id.hero_subtitle);
-        backdrop = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, backdropColors(backdropColor));
+        heroHints = findViewById(R.id.hero_hints);
+        shelf = findViewById(R.id.shelf);
+        shelfArt = findViewById(R.id.shelf_art);
+
+        // Resplandor radial arriba a la derecha, detrás de la portada
+        backdrop = new GradientDrawable();
+        backdrop.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        backdrop.setGradientCenter(0.72f, 0f);
+        backdrop.setColors(backdropColors(backdropColor));
         findViewById(R.id.backdrop).setBackground(backdrop);
+
+        shelfArt.setOutlineProvider(new android.view.ViewOutlineProvider() {
+            @Override
+            public void getOutline(View view, android.graphics.Outline outline) {
+                outline.setRoundRect(0, 0, view.getWidth(), view.getHeight(),
+                        getResources().getDimension(R.dimen.tile_radius));
+            }
+        });
 
         store = new AppStore(this);
         settings = store.settingsEntry();
@@ -132,7 +151,13 @@ public class MainActivity extends Activity {
         gap = getResources().getDimensionPixelSize(R.dimen.tile_gap);
         tileWidth = (dm.widthPixels - 2 * side - (COLUMNS - 1) * gap) / COLUMNS;
         tileHeight = tileWidth * 9 / 16;
-        hero.setMinimumHeight(Math.round(dm.heightPixels * 0.46f));
+        hero.setMinimumHeight(Math.round(dm.heightPixels * 0.48f));
+        backdrop.setGradientRadius(dm.widthPixels * 0.62f);
+        // La portada ocupa la parte superior derecha, como el "Top Shelf" de tvOS
+        ViewGroup.LayoutParams shelfLp = shelf.getLayoutParams();
+        shelfLp.width = Math.round(dm.widthPixels * 0.56f);
+        shelfLp.height = Math.round(dm.heightPixels * 0.52f);
+        shelf.setLayoutParams(shelfLp);
         // Espacio al final para que la última fila pueda subir hasta arriba
         grid.setPadding(0, 0, 0, dm.heightPixels / 2);
     }
@@ -170,8 +195,17 @@ public class MainActivity extends Activity {
                 row.setOrientation(LinearLayout.HORIZONTAL);
                 row.setClipChildren(false);
                 row.setClipToPadding(false);
-                grid.addView(row, new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                if (i == 0) {
+                    // Dock de cristal detrás de la primera fila, un poco más ancho que la cuadrícula
+                    int inset = getResources().getDimensionPixelSize(R.dimen.dock_inset);
+                    rowLp.leftMargin = rowLp.rightMargin = -inset;
+                    rowLp.bottomMargin = gap;
+                    row.setPadding(inset, inset, inset, 0);
+                    row.setBackgroundResource(R.drawable.glass);
+                }
+                grid.addView(row, rowLp);
             }
             AppEntry e = items.get(i);
             TileView tile = addCell(row, e, i);
@@ -227,8 +261,9 @@ public class MainActivity extends Activity {
         AppEntry e = tile.entry;
         focusKey = e.key;
         heroTitle.setText(e.label);
-        heroSubtitle.setText(movingKey != null ? R.string.hint_move : R.string.hint_open);
+        setHints(movingKey != null);
         animateBackdrop(e.color);
+        showOnShelf(e);
 
         // Primera fila: se ve la cabecera. Resto: la fila enfocada sube cerca del borde superior.
         final int rowIndex = tile.index / COLUMNS;
@@ -240,6 +275,7 @@ public class MainActivity extends Activity {
         // Cabecera y reloj solo con la primera fila, como en tvOS
         float topAlpha = rowIndex == 0 ? 1f : 0f;
         hero.animate().alpha(topAlpha).setDuration(200).start();
+        shelf.animate().alpha(topAlpha).setDuration(200).start();
         clock.animate().alpha(topAlpha).setDuration(200).start();
     }
 
@@ -256,7 +292,60 @@ public class MainActivity extends Activity {
 
     private static int[] backdropColors(int color) {
         int rgb = color & 0x00FFFFFF;
-        return new int[]{0x99000000 | rgb, 0x33000000 | rgb, 0x00000000, 0x00000000};
+        return new int[]{0x80000000 | rgb, 0x2E000000 | rgb, 0x00000000};
+    }
+
+    /** Portada: el banner de la app como un póster, o su icono en grande si no tiene banner. */
+    private void showOnShelf(AppEntry e) {
+        int w = shelf.getLayoutParams().width;
+        int h = shelf.getLayoutParams().height;
+        boolean banner = e.banner != null;
+        FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) shelfArt.getLayoutParams();
+        lp.width = banner ? Math.round(w * 0.5f) : Math.round(h * 0.36f);
+        lp.height = banner ? lp.width * 9 / 16 : lp.width;
+        lp.leftMargin = Math.round(w * 0.12f);
+        shelfArt.setLayoutParams(lp);
+        shelfArt.setClipToOutline(banner);
+        shelfArt.setElevation(banner ? getResources().getDisplayMetrics().density * 16 : 0);
+        shelfArt.setImageDrawable(banner ? e.banner : e.icon);
+        shelfArt.setAlpha(0f);
+        shelfArt.animate().alpha(1f).setDuration(220).start();
+    }
+
+    /** Atajos con aspecto de tecla bajo el título: [OK] Abrir  [Mantener OK] Opciones. */
+    private void setHints(boolean moving) {
+        heroHints.removeAllViews();
+        if (moving) {
+            addHint(R.string.key_arrows, R.string.hint_arrows_move);
+            addHint(R.string.key_ok, R.string.hint_ok_done);
+        } else {
+            addHint(R.string.key_ok, R.string.hint_ok_open);
+            addHint(R.string.key_hold_ok, R.string.hint_hold_ok);
+        }
+    }
+
+    private void addHint(int key, int label) {
+        float d = getResources().getDisplayMetrics().density;
+        TextView cap = new TextView(this);
+        cap.setText(key);
+        cap.setTextSize(10);
+        cap.setTextColor(getColor(R.color.text_primary));
+        cap.setTypeface(android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL));
+        cap.setBackgroundResource(R.drawable.keycap);
+        cap.setPadding(Math.round(6 * d), Math.round(2 * d), Math.round(6 * d), Math.round(2 * d));
+        LinearLayout.LayoutParams capLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        capLp.leftMargin = heroHints.getChildCount() == 0 ? 0 : Math.round(12 * d);
+        heroHints.addView(cap, capLp);
+
+        TextView text = new TextView(this);
+        text.setText(label);
+        text.setTextSize(11);
+        text.setTextColor(getColor(R.color.text_secondary));
+        LinearLayout.LayoutParams textLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        textLp.leftMargin = Math.round(5 * d);
+        heroHints.addView(text, textLp);
     }
 
     private void goToTop() {

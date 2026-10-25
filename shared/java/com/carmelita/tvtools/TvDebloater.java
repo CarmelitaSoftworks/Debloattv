@@ -11,6 +11,8 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,7 +31,13 @@ import java.util.regex.Pattern;
 public final class TvDebloater {
     public static final String HALO_PKG = "com.carmelita.halo";
     private static final String HALO_HOME = HALO_PKG + "/.MainActivity";
-    private static final String HALO_TMP = "/data/local/tmp/halo.apk";
+    private static final String TMP_APK = "/data/local/tmp/debloattv.apk";
+
+    /** Launcher alternativo de código abierto (GPL-3.0): https://github.com/leanbitlab-org/LtvLauncher */
+    public static final String LTV_PKG = "com.leanbitlab.ltvL";
+    private static final String LTV_URL =
+            "https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-%s-release.apk";
+    private static final int MAX_DOWNLOAD = 64 * 1024 * 1024;
 
     public static final List<String> STOCK_LAUNCHERS = Collections.unmodifiableList(Arrays.asList(
             "com.google.android.apps.tv.launcherx",    // Google TV
@@ -216,41 +224,69 @@ public final class TvDebloater {
     public boolean installHaloAndSetHome(boolean pressHome) throws IOException {
         if (!installed.contains(HALO_PKG)) {
             log.line("Copiando Halo a la TV…");
-            adb.push(readAsset(context, "halo-launcher.apk"), HALO_TMP, 0100644);
-            String result = adb.shell("pm install -r " + HALO_TMP);
-            adb.shell("rm -f " + HALO_TMP);
-            if (!result.contains("Success")) throw new IOException("No se pudo instalar Halo: " + result);
-            log.line("✔ Halo instalado");
+            installApk(readAsset(context, "halo-launcher.apk"), "Halo");
         } else {
             log.line("✔ Halo ya estaba instalado");
         }
+        return setHome(HALO_PKG, "Halo", pressHome);
+    }
 
-        adb.shell("cmd package set-home-activity " + HALO_HOME);
-        for (String pkg : stockLaunchers()) {
-            if (!installed.contains(pkg)) continue;
-            String out = adb.shell("pm disable-user --user 0 " + pkg);
+    /** Descarga la última versión de LTvLauncher (código abierto) y la deja como inicio. */
+    public boolean installLtvAndSetHome(boolean pressHome) throws IOException {
+        if (!installed.contains(LTV_PKG)) {
+            String abi = adb.shell("getprop ro.product.cpu.abi");
+            String flavor = abi.startsWith("arm64") ? "arm64-v8a"
+                    : abi.startsWith("armeabi") ? "armeabi-v7a" : "universal";
+            log.line("Descargando LTvLauncher (" + flavor + ") de GitHub…");
+            byte[] apk = download(String.format(LTV_URL, flavor));
+            log.line("Instalando LTvLauncher (" + (apk.length / (1024 * 1024)) + " MB)…");
+            installApk(apk, "LTvLauncher");
+        } else {
+            log.line("✔ LTvLauncher ya estaba instalado");
+        }
+        return setHome(LTV_PKG, "LTvLauncher", pressHome);
+    }
+
+    private void installApk(byte[] apk, String label) throws IOException {
+        adb.push(apk, TMP_APK, 0100644);
+        String result = adb.shell("pm install -r " + TMP_APK);
+        adb.shell("rm -f " + TMP_APK);
+        if (!result.contains("Success")) throw new IOException("No se pudo instalar " + label + ": " + result);
+        log.line("✔ " + label + " instalado");
+        refreshInstalled();
+    }
+
+    /** Deja pkg como pantalla de inicio desactivando los launchers de stock. */
+    private boolean setHome(String pkg, String label, boolean pressHome) throws IOException {
+        String component = homeComponentOf(pkg);
+        if (component == null) throw new IOException(label + " no declara una pantalla de inicio");
+
+        adb.shell("cmd package set-home-activity " + component);
+        for (String stock : stockLaunchers()) {
+            if (!installed.contains(stock)) continue;
+            String out = adb.shell("pm disable-user --user 0 " + stock);
             if (out.contains("disabled")) {
-                record("home", pkg);
-                log.line("✔ desactivado " + pkg);
+                record("home", stock);
+                log.line("✔ desactivado " + stock);
                 continue;
             }
             // Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
-            String out2 = adb.shell("pm uninstall -k --user 0 " + pkg);
+            String out2 = adb.shell("pm uninstall -k --user 0 " + stock);
             if (out2.contains("Success")) {
-                record("home-uninstall", pkg);
-                log.line("✔ quitado " + pkg);
+                record("home-uninstall", stock);
+                log.line("✔ quitado " + stock);
             } else {
-                log.line("! no se pudo desactivar " + pkg + ": " + firstLine(out) + " / " + firstLine(out2));
+                log.line("! no se pudo desactivar " + stock + ": " + firstLine(out) + " / " + firstLine(out2));
             }
         }
         // Otra vez, por si el sistema eligió otro inicio al desaparecer el de stock
-        String setHome = adb.shell("cmd package set-home-activity " + HALO_HOME);
+        String setHome = adb.shell("cmd package set-home-activity " + component);
         refreshInstalled();
 
         String home = currentHome();
-        boolean ok = home.startsWith(HALO_PKG + "/");
+        boolean ok = home.startsWith(pkg + "/");
         if (ok) {
-            log.line("✔ El botón Inicio abre Halo.");
+            log.line("✔ El botón Inicio abre " + label + ".");
         } else {
             log.line("! El botón Inicio sigue abriendo: " + (home.isEmpty() ? "(desconocido)" : home));
             if (!setHome.isEmpty() && !setHome.contains("Success")) log.line("  set-home-activity: " + firstLine(setHome));
@@ -258,6 +294,42 @@ public final class TvDebloater {
         }
         if (pressHome) adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
         return ok;
+    }
+
+    /** "paquete/.Actividad" que pkg declara para HOME, o null. */
+    private String homeComponentOf(String pkg) throws IOException {
+        String homes = adb.shell("cmd package query-activities --brief -a android.intent.action.MAIN"
+                + " -c android.intent.category.HOME");
+        for (String line : homes.split("\n")) {
+            Matcher m = COMPONENT.matcher(line);
+            if (m.matches() && m.group(1).equals(pkg)) return line.trim();
+        }
+        // Android antiguo sin query-activities: Halo se conoce de antemano
+        return HALO_PKG.equals(pkg) ? HALO_HOME : null;
+    }
+
+    static byte[] download(String url) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(url).openConnection();
+        conn.setConnectTimeout(15_000);
+        conn.setReadTimeout(60_000);
+        conn.setInstanceFollowRedirects(true);
+        conn.setRequestProperty("User-Agent", "DebloatTV");
+        try {
+            if (conn.getResponseCode() != 200) {
+                throw new IOException("Descarga fallida (HTTP " + conn.getResponseCode() + "): " + url);
+            }
+            try (InputStream in = conn.getInputStream()) {
+                ByteArrayOutputStream out = new ByteArrayOutputStream(Math.max(conn.getContentLength(), 1 << 16));
+                byte[] buf = new byte[64 * 1024];
+                for (int n; (n = in.read(buf)) > 0; ) {
+                    out.write(buf, 0, n);
+                    if (out.size() > MAX_DOWNLOAD) throw new IOException("Descarga demasiado grande: " + url);
+                }
+                return out.toByteArray();
+            }
+        } finally {
+            conn.disconnect();
+        }
     }
 
     /** Componente que abre ahora mismo el botón Inicio ("" si no se pudo averiguar). */

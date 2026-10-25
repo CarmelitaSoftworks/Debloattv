@@ -3,7 +3,10 @@
     <string name="app_name">DebloatTV</string>
     <string name="subtitle">Limpia tu Google TV desde el teléfono, por WiFi</string>
     <string name="steps_title">Antes de empezar</string>
-    <string name="steps">1. En la TV: Ajustes → Sistema → Información → pulsa 7 veces «Compilación» para activar las opciones de desarrollador.\n2. Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» (y «Depuración por red» si aparece).\n3. Conecta el teléfono a la misma red WiFi que la TV.\n4. Pulsa «Buscar TV» o escribe su IP (Ajustes → Red).</string>
+    <string name="steps">1. En la TV: Ajustes → Sistema → Información → pulsa 7 veces «Compilación» para activar las opciones de desarrollador.
+2. Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB». No hace falta cable ni «Depuración inalámbrica»: la conexión va por WiFi.
+3. Conecta el teléfono a la misma red WiFi que la TV.
+4. Pulsa «Buscar TV» o escribe su IP (Ajustes → Red) y acepta el aviso en la TV.</string>
     <string name="tv_ip">IP de la TV</string>
     <string name="search">Buscar TV</string>
     <string name="connect">Conectar</string>
@@ -20,6 +23,8 @@
     <string name="launcher_desc">Sustituye el inicio de Google TV por Halo: limpio, sin anuncios e inspirado en Apple TV.</string>
     <string name="install_halo">Instalar Halo</string>
     <string name="restore_launcher">Volver al original</string>
+    <string name="install_ltv">Instalar LTvLauncher (código abierto)</string>
+    <string name="ltv_desc">Alternativa de la comunidad, GPL-3.0, ~10 MB. Se descarga de GitHub.</string>
     <string name="restore_title">Deshacer</string>
     <string name="restore_desc">Reinstala o reactiva todo lo que se quitó desde este teléfono en esta TV.</string>
     <string name="restore_all">Restaurar todo</string>

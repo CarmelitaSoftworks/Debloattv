@@ -38,7 +38,7 @@ final class TileView extends FrameLayout {
         this.index = index;
         float density = getResources().getDisplayMetrics().density;
         radius = getResources().getDimension(R.dimen.tile_radius);
-        focusLift = 20 * density;
+        focusLift = 24 * density;
 
         setFocusable(true);
         setClickable(true);
@@ -71,8 +71,12 @@ final class TileView extends FrameLayout {
 
         // Reflejo sutil en la parte superior, visible solo con foco
         shine = new View(context);
-        shine.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
-                new int[]{0x40FFFFFF, 0x00FFFFFF, 0x00FFFFFF}));
+        // Brillo superior y borde fino de luz, visibles solo con foco (ver diseño en Figma)
+        GradientDrawable sheen = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{0x47FFFFFF, 0x00FFFFFF, 0x00FFFFFF});
+        sheen.setCornerRadius(radius);
+        sheen.setStroke(Math.max(1, Math.round(density)), 0x59FFFFFF);
+        shine.setBackground(sheen);
         shine.setAlpha(0f);
         addView(shine, new LayoutParams(width, height));
     }

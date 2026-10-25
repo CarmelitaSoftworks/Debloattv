@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
     private LinearLayout packageList;
     private Button removeButton;
     private Button installHalo;
+    private Button installLtv;
     private Button restoreLauncher;
     private Button restoreAll;
     private View logCard;
@@ -75,6 +76,7 @@ public class MainActivity extends Activity {
         packageList = findViewById(R.id.packages);
         removeButton = findViewById(R.id.remove);
         installHalo = findViewById(R.id.install_halo);
+        installLtv = findViewById(R.id.install_ltv);
         restoreLauncher = findViewById(R.id.restore_launcher);
         restoreAll = findViewById(R.id.restore_all);
         logCard = findViewById(R.id.log_card);
@@ -95,6 +97,10 @@ public class MainActivity extends Activity {
                 "¿Instalar Halo?",
                 "Se instalará Halo en la TV y se desactivará el launcher de stock. Puedes volver atrás con «Volver al original».",
                 () -> runTask(() -> tv.installHaloAndSetHome(true))));
+        installLtv.setOnClickListener(v -> confirm(
+                "¿Instalar LTvLauncher?",
+                "Se descargará la última versión de GitHub (unos 10 MB), se instalará en la TV y se desactivará el launcher de stock.",
+                () -> runTask(() -> tv.installLtvAndSetHome(true))));
         restoreLauncher.setOnClickListener(v -> runTask(() -> tv.restoreStockLauncher()));
         restoreAll.setOnClickListener(v -> runTask(() -> {
             tv.restoreAll();
@@ -297,6 +303,7 @@ public class MainActivity extends Activity {
         searchButton.setEnabled(!busy && !connected);
         ipInput.setEnabled(!busy && !connected);
         installHalo.setEnabled(!busy);
+        installLtv.setEnabled(!busy);
         restoreLauncher.setEnabled(!busy);
         restoreAll.setEnabled(!busy && connected && tv.hasBackup());
         if (connected) renderPackages();

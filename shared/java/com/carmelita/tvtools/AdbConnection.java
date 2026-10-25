@@ -129,25 +129,18 @@ public final class AdbConnection implements Closeable {
         send(OPEN, local, 0, "sync:\0".getBytes(StandardCharsets.UTF_8));
         int remote = awaitOkay(local);
 
-        ByteArrayOutputStream req = new ByteArrayOutputStream();
+        // Se envía por trozos a medida que se genera: un APK de varios MB no se copia entero en memoria
+        StreamWriter w = new StreamWriter(local, remote);
         byte[] spec = (remotePath + "," + mode).getBytes(StandardCharsets.UTF_8);
-        syncHeader(req, "SEND", spec.length);
-        req.write(spec);
+        w.write(syncHeader("SEND", spec.length));
+        w.write(spec, 0, spec.length);
         for (int off = 0; off < data.length; off += SYNC_CHUNK) {
             int n = Math.min(SYNC_CHUNK, data.length - off);
-            syncHeader(req, "DATA", n);
-            req.write(data, off, n);
+            w.write(syncHeader("DATA", n));
+            w.write(data, off, n);
         }
-        syncHeader(req, "DONE", (int) (System.currentTimeMillis() / 1000));
-
-        byte[] bytes = req.toByteArray();
-        for (int off = 0; off < bytes.length; off += maxPayload) {
-            int n = Math.min(maxPayload, bytes.length - off);
-            byte[] piece = new byte[n];
-            System.arraycopy(bytes, off, piece, 0, n);
-            send(WRTE, local, remote, piece);
-            awaitOkay(local);
-        }
+        w.write(syncHeader("DONE", (int) (System.currentTimeMillis() / 1000)));
+        w.flush();
 
         ByteArrayOutputStream reply = new ByteArrayOutputStream();
         while (reply.size() < 8) {
@@ -178,10 +171,46 @@ public final class AdbConnection implements Closeable {
         }
     }
 
-    private static void syncHeader(ByteArrayOutputStream out, String id, int value) {
-        out.write(id.getBytes(StandardCharsets.US_ASCII), 0, 4);
-        byte[] le = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array();
-        out.write(le, 0, 4);
+    private static byte[] syncHeader(String id, int value) {
+        return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN)
+                .put(id.getBytes(StandardCharsets.US_ASCII), 0, 4).putInt(value).array();
+    }
+
+    /** Agrupa los bytes de un stream en mensajes WRTE de como mucho maxPayload, esperando cada OKAY. */
+    private final class StreamWriter {
+        private final int local;
+        private final int remote;
+        private final byte[] buf = new byte[maxPayload];
+        private int len;
+
+        StreamWriter(int local, int remote) {
+            this.local = local;
+            this.remote = remote;
+        }
+
+        void write(byte[] b) throws IOException {
+            write(b, 0, b.length);
+        }
+
+        void write(byte[] b, int off, int n) throws IOException {
+            while (n > 0) {
+                int k = Math.min(n, buf.length - len);
+                System.arraycopy(b, off, buf, len, k);
+                len += k;
+                off += k;
+                n -= k;
+                if (len == buf.length) flush();
+            }
+        }
+
+        void flush() throws IOException {
+            if (len == 0) return;
+            byte[] piece = new byte[len];
+            System.arraycopy(buf, 0, piece, 0, len);
+            len = 0;
+            send(WRTE, local, remote, piece);
+            awaitOkay(local);
+        }
     }
 
     private void send(int command, int arg0, int arg1, byte[] data) throws IOException {

@@ -175,6 +175,22 @@
                         style="@style/PrimaryButton"
                         android:text="@string/install_halo" />
                 </LinearLayout>
+
+                <TextView
+                    style="@style/Body"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/ltv_desc" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp">
+
+                    <Button
+                        android:id="@+id/install_ltv"
+                        style="@style/SecondaryButton"
+                        android:text="@string/install_ltv" />
+                </LinearLayout>
             </LinearLayout>
 
             <LinearLayout style="@style/Card">

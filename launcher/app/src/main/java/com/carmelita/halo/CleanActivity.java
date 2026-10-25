@@ -2,21 +2,24 @@ package com.carmelita.halo;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
+import android.graphics.Typeface;
+import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.provider.Settings;
-import android.text.SpannableString;
-import android.text.Spanned;
-import android.text.style.ForegroundColorSpan;
-import android.text.style.RelativeSizeSpan;
+import android.text.TextUtils;
+import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
-import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -25,15 +28,25 @@ import com.carmelita.tvtools.AdbKey;
 import com.carmelita.tvtools.TvDebloater;
 
 import java.io.IOException;
+import java.net.ConnectException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
+import java.net.NoRouteToHostException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Limpieza desde la propia TV. Primero intenta ADB contra 127.0.0.1:5555 (funciona en muchas TV
- * con "Depuración USB" activada); si la TV no lo permite, pasa a un modo manual guiado.
+ * Limpieza desde la propia TV. Se conecta al ADB de la TV (activado con "Depuración USB"),
+ * primero por 127.0.0.1 y, si no responde, por la IP WiFi/Ethernet de la propia TV, que es la
+ * misma conexión que usaría un móvil o un PC. Si la TV no lo permite, pasa a un modo manual guiado.
  */
 public class CleanActivity extends Activity {
 
@@ -43,13 +56,17 @@ public class CleanActivity extends Activity {
 
     private final ExecutorService worker = Executors.newSingleThreadExecutor();
 
+    private TextView conn;
+    private View connDot;
     private TextView status;
-    private RadioGroup levels;
+    private View levels;
+    private final TextView[] levelPills = new TextView[3];
+    private TextView listHeader;
     private LinearLayout packageList;
     private TextView log;
     private TextView help;
     private Button remove;
-    private Button setHome;
+    private Button chooseHome;
     private Button homeButton;
     private Button retry;
     private Button restoreLauncher;
@@ -57,7 +74,10 @@ public class CleanActivity extends Activity {
 
     private AdbConnection adb;
     private TvDebloater tv;
+    private String connectedHost;
     private List<TvDebloater.Item> candidates = Collections.emptyList();
+    private final Set<String> unchecked = new HashSet<>();
+    private int level = 2;
     private boolean manual;
     private boolean busy;
 
@@ -66,21 +86,40 @@ public class CleanActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_clean);
 
+        GradientDrawable glow = new GradientDrawable();
+        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
+        glow.setGradientCenter(0.1f, 0f);
+        glow.setGradientRadius(getResources().getDisplayMetrics().widthPixels * 0.5f);
+        glow.setColors(new int[]{0x380A84FF, 0x000A84FF});
+        findViewById(R.id.glow).setBackground(glow);
+
+        conn = findViewById(R.id.conn);
+        connDot = findViewById(R.id.conn_dot);
         status = findViewById(R.id.status);
         levels = findViewById(R.id.levels);
+        levelPills[0] = findViewById(R.id.level_seguro);
+        levelPills[1] = findViewById(R.id.level_recomendado);
+        levelPills[2] = findViewById(R.id.level_agresivo);
+        listHeader = findViewById(R.id.list_header);
         packageList = findViewById(R.id.packages);
         log = findViewById(R.id.log);
         help = findViewById(R.id.help);
         remove = findViewById(R.id.remove);
-        setHome = findViewById(R.id.set_home);
+        chooseHome = findViewById(R.id.choose_home);
         homeButton = findViewById(R.id.home_button);
         retry = findViewById(R.id.retry);
         restoreLauncher = findViewById(R.id.restore_launcher);
         restoreAll = findViewById(R.id.restore_all);
 
-        levels.setOnCheckedChangeListener((group, id) -> renderPackages());
+        for (int i = 0; i < levelPills.length; i++) {
+            final int value = i + 1;
+            levelPills[i].setOnClickListener(v -> {
+                level = value;
+                refreshUi();
+            });
+        }
         remove.setOnClickListener(v -> removeSelected());
-        setHome.setOnClickListener(v -> runTask(() -> tv.installHaloAndSetHome(false)));
+        chooseHome.setOnClickListener(v -> showLauncherPicker());
         restoreLauncher.setOnClickListener(v -> runTask(() -> tv.restoreStockLauncher()));
         restoreAll.setOnClickListener(v -> runTask(() -> {
             tv.restoreAll();
@@ -105,53 +144,98 @@ public class CleanActivity extends Activity {
         super.onDestroy();
     }
 
+    // ---- Conexión ------------------------------------------------------------------------------
+
     private void connect() {
         if (busy) return;
         if (adb != null) adb.close();
         adb = null;
         tv = null;
-        status.setText(R.string.clean_connecting);
+        setConn(getString(R.string.clean_connecting), R.color.status_warn);
         runTask(() -> {
-            AdbConnection conn = null;
-            try {
-                conn = AdbConnection.connect("127.0.0.1", AdbConnection.DEFAULT_PORT,
-                        AdbKey.loadOrCreate(getFilesDir()),
-                        () -> runOnUiThread(() -> status.setText(R.string.clean_approve)));
-                tv = new TvDebloater(this, conn, this::appendLog);
-                candidates = tv.candidates();
-                adb = conn;
-                manual = false;
-            } catch (IOException e) {
-                if (conn != null) conn.close();
-                tv = null;
-                manual = true;
-                candidates = TvDebloater.candidatesOnThisDevice(this);
-                appendLog("ADB no disponible: " + e.getMessage());
+            AdbKey key = AdbKey.loadOrCreate(getFilesDir());
+            AdbConnection connection = null;
+            String host = null;
+            IOException last = null;
+            for (String candidate : adbHosts()) {
+                try {
+                    connection = AdbConnection.connect(candidate, AdbConnection.DEFAULT_PORT, key,
+                            () -> runOnUiThread(() -> status.setText(R.string.clean_approve)));
+                    host = candidate;
+                    break;
+                } catch (ConnectException | NoRouteToHostException | SocketTimeoutException e) {
+                    last = e; // nadie escucha en esa dirección: probar la siguiente
+                } catch (IOException e) {
+                    last = e; // la TV respondió pero rechazó la conexión: no insistir
+                    break;
+                }
             }
+            if (connection != null) {
+                try {
+                    tv = new TvDebloater(this, connection, this::appendLog);
+                    candidates = tv.candidates();
+                    adb = connection;
+                    connectedHost = host;
+                    manual = false;
+                    return;
+                } catch (IOException e) {
+                    connection.close();
+                    tv = null;
+                    last = e;
+                }
+            }
+            manual = true;
+            candidates = TvDebloater.candidatesOnThisDevice(this);
+            appendLog("ADB no disponible: " + (last != null ? last.getMessage() : "?"));
         });
     }
 
-    private int selectedLevel() {
-        int id = levels.getCheckedRadioButtonId();
-        if (id == R.id.level_seguro) return 1;
-        if (id == R.id.level_agresivo) return 3;
-        return 2;
+    /** 127.0.0.1 y las IPv4 locales de la TV (WiFi o cable): adbd suele escuchar en todas. */
+    private static List<String> adbHosts() {
+        List<String> hosts = new ArrayList<>();
+        hosts.add("127.0.0.1");
+        try {
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (InetAddress addr : Collections.list(ni.getInetAddresses())) {
+                    if (addr instanceof Inet4Address && addr.isSiteLocalAddress()) hosts.add(addr.getHostAddress());
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return hosts;
     }
+
+    private void setConn(String text, int color) {
+        conn.setText(text);
+        connDot.getBackground().mutate().setTint(getColor(color));
+    }
+
+    // ---- Interfaz ------------------------------------------------------------------------------
 
     private void refreshUi() {
         boolean auto = tv != null;
         boolean ready = auto || manual;
-        if (ready) {
-            status.setText(auto ? R.string.clean_connected : R.string.clean_manual);
+        if (auto) {
+            setConn("127.0.0.1".equals(connectedHost) ? getString(R.string.conn_local)
+                    : getString(R.string.conn_wifi, connectedHost + ":" + AdbConnection.DEFAULT_PORT), R.color.status_ok);
+            status.setText(level == 1 ? R.string.level_seguro_desc
+                    : level == 3 ? R.string.level_agresivo_desc : R.string.level_recomendado_desc);
+            status.setTextColor(getColor(level == 3 ? R.color.status_warn : R.color.text_secondary));
+        } else if (manual) {
+            setConn(getString(R.string.conn_none), R.color.status_warn);
+            status.setText(R.string.clean_manual);
+            status.setTextColor(getColor(R.color.text_secondary));
         }
-        help.setVisibility(manual ? View.VISIBLE : View.GONE);
         levels.setVisibility(ready ? View.VISIBLE : View.GONE);
+        for (int i = 0; i < levelPills.length; i++) levelPills[i].setSelected(level == i + 1);
         show(remove, auto);
-        show(setHome, auto);
-        show(restoreLauncher, auto);
+        show(chooseHome, auto);
         show(restoreAll, auto && tv.hasBackup());
+        show(restoreLauncher, auto);
         show(homeButton, manual);
         show(retry, manual);
+        help.setVisibility(manual ? View.VISIBLE : View.GONE);
         if (ready) renderPackages();
     }
 
@@ -160,74 +244,138 @@ public class CleanActivity extends Activity {
         v.setEnabled(!busy);
     }
 
+    private List<TvDebloater.Item> visibleItems() {
+        List<TvDebloater.Item> out = new ArrayList<>();
+        for (TvDebloater.Item item : candidates) if (item.rank() <= level) out.add(item);
+        return out;
+    }
+
     private void renderPackages() {
         packageList.removeAllViews();
-        int max = selectedLevel();
-        int shown = 0;
-        for (final TvDebloater.Item item : candidates) {
-            if (item.rank() > max) continue;
-            CharSequence text = itemText(item);
-            if (manual) {
-                TextView row = new TextView(this);
-                row.setText(text);
-                row.setTextColor(getColor(R.color.text_primary));
-                row.setTextSize(16);
-                row.setFocusable(true);
-                row.setBackgroundResource(R.drawable.focus_row);
-                row.setPadding(24, 18, 24, 18);
-                row.setOnClickListener(v -> openAppSettings(item.pkg));
-                packageList.addView(row);
-            } else {
-                CheckBox box = new CheckBox(this);
-                box.setText(text);
-                box.setTextColor(getColor(R.color.text_primary));
-                box.setTextSize(16);
-                box.setBackgroundResource(R.drawable.focus_row);
-                box.setPadding(12, 14, 24, 14);
-                box.setTag(item.pkg);
-                box.setChecked(true);
-                box.setEnabled(!busy);
-                packageList.addView(box);
-            }
-            shown++;
-        }
-        if (shown == 0) {
+        List<TvDebloater.Item> items = visibleItems();
+        listHeader.setText(getString(R.string.clean_found, items.size(), Build.MANUFACTURER.toUpperCase(Locale.ROOT)));
+        for (TvDebloater.Item item : items) packageList.addView(row(item));
+        if (items.isEmpty()) {
             TextView empty = new TextView(this);
             empty.setText(R.string.clean_nothing);
             empty.setTextColor(getColor(R.color.text_secondary));
-            empty.setTextSize(16);
+            empty.setTextSize(13);
             packageList.addView(empty);
         }
-        remove.setEnabled(!busy && shown > 0);
+        updateRemoveButton();
     }
 
-    private CharSequence itemText(TvDebloater.Item item) {
-        String detail = manual ? getString(R.string.clean_open_settings) + " · " + item.pkg
-                : item.level + " · " + item.pkg;
-        SpannableString text = new SpannableString(item.description + "\n" + detail);
-        int start = item.description.length() + 1;
-        text.setSpan(new RelativeSizeSpan(0.75f), start, text.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        text.setSpan(new ForegroundColorSpan(getColor(R.color.text_secondary)), start, text.length(),
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-        return text;
+    private void updateRemoveButton() {
+        int selected = selectedPackages().size();
+        remove.setText(selected > 0
+                ? getResources().getQuantityString(R.plurals.clean_remove_n, selected, selected)
+                : getString(R.string.clean_remove));
+        remove.setEnabled(!busy && selected > 0);
     }
+
+    /** Fila del diseño de Figma: casilla redonda, nombre, paquete y etiqueta de nivel. */
+    private View row(final TvDebloater.Item item) {
+        float d = getResources().getDisplayMetrics().density;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setBackgroundResource(R.drawable.row_card);
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setEnabled(!busy);
+        row.setPadding(Math.round(12 * d), Math.round(9 * d), Math.round(12 * d), Math.round(9 * d));
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        rowLp.bottomMargin = Math.round(7 * d);
+        row.setLayoutParams(rowLp);
+
+        final ImageView mark = new ImageView(this);
+        mark.setImageResource(manual ? R.drawable.ic_chevron
+                : unchecked.contains(item.pkg) ? R.drawable.ic_check_off : R.drawable.ic_check_on);
+        LinearLayout.LayoutParams markLp = new LinearLayout.LayoutParams(Math.round(16 * d), Math.round(16 * d));
+        markLp.rightMargin = Math.round(10 * d);
+        row.addView(mark, markLp);
+
+        LinearLayout texts = new LinearLayout(this);
+        texts.setOrientation(LinearLayout.VERTICAL);
+        TextView name = new TextView(this);
+        name.setText(item.description);
+        name.setTextColor(getColor(R.color.text_primary));
+        name.setTextSize(13);
+        name.setTypeface(Typeface.create("sans-serif-medium", Typeface.NORMAL));
+        name.setSingleLine(true);
+        name.setEllipsize(TextUtils.TruncateAt.END);
+        texts.addView(name);
+        TextView pkg = new TextView(this);
+        pkg.setText(manual ? getString(R.string.clean_open_settings) + " · " + item.pkg : item.pkg);
+        pkg.setTextColor(getColor(R.color.text_secondary));
+        pkg.setTextSize(10);
+        pkg.setSingleLine(true);
+        pkg.setEllipsize(TextUtils.TruncateAt.END);
+        texts.addView(pkg);
+        row.addView(texts, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView chip = new TextView(this);
+        chip.setText(item.level);
+        chip.setTextColor(getColor(item.rank() == 3 ? R.color.status_warn : R.color.text_secondary));
+        chip.setTextSize(10);
+        chip.setBackgroundResource(R.drawable.pill);
+        chip.setPadding(Math.round(7 * d), Math.round(3 * d), Math.round(7 * d), Math.round(3 * d));
+        LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        chipLp.leftMargin = Math.round(10 * d);
+        row.addView(chip, chipLp);
+
+        row.setOnClickListener(v -> {
+            if (manual) {
+                openAppSettings(item.pkg);
+                return;
+            }
+            if (!unchecked.remove(item.pkg)) unchecked.add(item.pkg);
+            mark.setImageResource(unchecked.contains(item.pkg) ? R.drawable.ic_check_off : R.drawable.ic_check_on);
+            updateRemoveButton();
+        });
+        return row;
+    }
+
+    private List<String> selectedPackages() {
+        List<String> out = new ArrayList<>();
+        if (manual) return out;
+        for (TvDebloater.Item item : visibleItems()) if (!unchecked.contains(item.pkg)) out.add(item.pkg);
+        return out;
+    }
+
+    // ---- Acciones ------------------------------------------------------------------------------
 
     private void removeSelected() {
-        final List<String> selected = new ArrayList<>();
-        for (int i = 0; i < packageList.getChildCount(); i++) {
-            View v = packageList.getChildAt(i);
-            if (v instanceof CheckBox && ((CheckBox) v).isChecked()) selected.add((String) v.getTag());
-        }
+        final List<String> selected = selectedPackages();
         if (selected.isEmpty()) return;
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
-                .setTitle("¿Quitar " + selected.size() + " apps?")
+                .setTitle("¿" + getResources().getQuantityString(R.plurals.clean_remove_n, selected.size(), selected.size()) + "?")
                 .setMessage("Se pueden recuperar en cualquier momento con «Restaurar todo lo quitado».")
                 .setNegativeButton("Cancelar", null)
-                .setPositiveButton("Quitar", (d, w) -> runTask(() -> {
+                .setPositiveButton("Quitar", (dlg, w) -> runTask(() -> {
                     tv.remove(selected);
                     candidates = tv.candidates();
                 }))
                 .show();
+    }
+
+    /** Selector del diseño de Figma: Halo o LTvLauncher (código abierto). */
+    private void showLauncherPicker() {
+        final Dialog dialog = new Dialog(this);
+        dialog.setContentView(R.layout.dialog_picker);
+        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawable(new ColorDrawable(0));
+        dialog.findViewById(R.id.choice_halo).setOnClickListener(v -> {
+            dialog.dismiss();
+            runTask(() -> tv.installHaloAndSetHome(false));
+        });
+        dialog.findViewById(R.id.choice_ltv).setOnClickListener(v -> {
+            dialog.dismiss();
+            runTask(() -> tv.installLtvAndSetHome(false));
+        });
+        dialog.show();
+        dialog.findViewById(R.id.choice_halo).requestFocus();
     }
 
     private void openAppSettings(String pkg) {
@@ -269,8 +417,10 @@ public class CleanActivity extends Activity {
                     if (isDestroyed()) return;
                     busy = false;
                     refreshUi();
-                    View first = remove.getVisibility() == View.VISIBLE ? remove : retry;
-                    if (getCurrentFocus() == null || !getCurrentFocus().isEnabled()) first.requestFocus();
+                    View focus = getCurrentFocus();
+                    if (focus == null || !focus.isEnabled() || !focus.isShown()) {
+                        (remove.getVisibility() == View.VISIBLE ? remove : retry).requestFocus();
+                    }
                 });
             }
         });

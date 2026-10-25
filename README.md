@@ -1,8 +1,10 @@
 # DebloatTV + Halo Launcher
 
-Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈48 KB, sin dependencias) inspirado en Apple TV.
+Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈65 KB, sin dependencias) inspirado en Apple TV. También puedes elegir **LTvLauncher**, un launcher de código abierto de la comunidad.
 
 ![Halo, pantalla de inicio](docs/halo-inicio.png)
+
+El diseño está en Figma: [Halo – rediseño TV](https://www.figma.com/design/cOhkyFGCndvYC2di07C1EX) (pantalla de inicio, Limpiar TV, selector de launcher y componentes).
 
 - **Halo** se instala en la TV y **también limpia la TV desde la propia TV**: no hace falta teléfono ni PC.
 - **App para el teléfono** (`phone/`): hace lo mismo por WiFi desde el móvil.
@@ -27,15 +29,21 @@ Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**.
 
 ![Limpiar TV](docs/halo-limpiar-tv.png)
 
-Halo intenta conectarse a la propia TV por ADB (`127.0.0.1:5555`):
+Halo se conecta al ADB de la propia TV. Basta con activar **Depuración USB** (no hace falta cable ni *Depuración inalámbrica*): Halo prueba `127.0.0.1:5555` y, si no responde, la IP WiFi/Ethernet de la propia TV, igual que haría un móvil.
 
-- **Si funciona (modo automático):** la TV mostrará *¿Permitir depuración?*; marca **Permitir siempre** y acepta con el mando. Luego eliges el nivel, **Quitar seleccionadas** y **Usar Halo como inicio**. Todo se deshace con **Restaurar todo lo quitado** y **Volver al launcher original**.
+- **Si funciona (modo automático):** la TV mostrará *¿Permitir depuración?*; marca **Permitir siempre** y acepta con el mando. Luego eliges el nivel, pulsas **Quitar N apps** y **Elegir launcher de inicio** (Halo o LTvLauncher). Todo se deshace con **Restaurar todo lo quitado** y **Volver al launcher original**.
   Para que funcione: Ajustes → Sistema → Información → pulsa 7 veces *Compilación*, y en *Opciones para desarrolladores* activa **Depuración USB** (y **Depuración por red** si aparece).
 - **Si tu TV no lo permite (modo manual):** Halo te muestra las apps basura que tiene tu TV; pulsa cada una para abrir sus ajustes y elige **Desactivar**. Y activa **Botón Inicio → Halo**: un servicio de accesibilidad que, cuando el botón HOME abre el launcher de TCL/Google, abre Halo encima. Así Halo queda como inicio sin ADB.
 
 > Si el interruptor de *Halo: botón Inicio* aparece bloqueado (Android 13+ lo hace con las apps instaladas desde un archivo), ve a Ajustes → Apps → Halo, pulsa ⋮ / Más opciones → **Permitir ajustes restringidos** y vuelve a intentarlo.
 >
 > Si usas *Botón Inicio → Halo* y luego quieres volver al launcher original, desactiva el servicio en Ajustes → Accesibilidad.
+
+![Elegir launcher](docs/halo-elegir-launcher.png)
+
+### Launcher alternativo: LTvLauncher
+
+[LTvLauncher](https://github.com/leanbitlab-org/LtvLauncher) es un launcher de código abierto (GPL-3.0) para Android TV, derivado de FLauncher y mantenido activamente: fondos, categorías, widgets, sin anuncios. Pesa unos 10 MB. Si lo eliges, la app descarga la última versión desde sus releases de GitHub (la variante para el procesador de tu TV), la instala y la deja como inicio. Halo sigue instalado para abrir **Limpiar TV** desde la lista de apps.
 
 ## Opción B: desde el teléfono
 
