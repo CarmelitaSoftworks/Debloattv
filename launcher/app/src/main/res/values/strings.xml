@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Halo</string>
+    <string name="settings">Ajustes</string>
+    <string name="hint_open">OK para abrir · mantén pulsado para opciones</string>
+    <string name="hint_move">Usa las flechas para mover · OK para terminar</string>
+    <string name="opt_open">Abrir</string>
+    <string name="opt_move">Mover</string>
+    <string name="opt_hide">Ocultar del inicio</string>
+    <string name="opt_unhide">Mostrar en el inicio</string>
+    <string name="opt_info">Información de la app</string>
+    <string name="opt_uninstall">Desinstalar</string>
+    <string name="opt_show_hidden">Ver apps ocultas</string>
+    <string name="opt_hide_hidden">Esconder apps ocultas</string>
+    <string name="opt_system_settings">Ajustes del sistema</string>
+    <string name="opt_reset_order">Orden alfabético</string>
+    <string name="cannot_open">No se puede abrir %1$s</string>
+</resources>

@@ -1,0 +1,5 @@
+# Philips (TP Vision, Android TV / Google TV)
+seguro       org.droidtv.demome                            Modo demostración de tienda
+seguro       org.droidtv.help                              Ayuda / manual
+recomendado  org.droidtv.nettvrecommender                  Recomendaciones Smart TV
+recomendado  org.droidtv.appgallery                        Galería de apps Philips

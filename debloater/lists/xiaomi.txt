@@ -1,0 +1,6 @@
+# Xiaomi (Mi Box, Mi TV Stick, Xiaomi TV con PatchWall)
+seguro       com.xiaomi.mitv.calendar                      Calendario
+seguro       com.mitv.care                                 Mi Care / soporte
+recomendado  com.xiaomi.mitv.upgrade                       Promociones de actualización
+recomendado  com.mitv.videoplayer                          Reproductor de vídeo Mi
+agresivo     com.xiaomi.mitv.tvmanager                     Gestor de TV (limpiador)

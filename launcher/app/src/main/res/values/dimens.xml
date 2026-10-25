@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Margen lateral seguro para el overscan de los televisores -->
+    <dimen name="side_padding">64dp</dimen>
+    <dimen name="tile_gap">28dp</dimen>
+    <dimen name="tile_radius">14dp</dimen>
+</resources>

@@ -1,0 +1,37 @@
+# Google TV / Android TV (Chromecast con Google TV, Google TV Streamer y televisores con Google TV)
+# Formato: <nivel> <paquete> <descripción>
+# Niveles: seguro < recomendado < agresivo (cada nivel incluye los anteriores)
+# Todo se elimina con "pm uninstall -k --user 0", así que se puede restaurar sin reinstalar la ROM.
+
+seguro       com.google.android.feedback                   Envío de comentarios a Google
+seguro       com.google.android.tv.bugreportsender         Envío automático de informes de errores
+seguro       com.google.android.play.games                 Google Play Juegos
+seguro       com.google.android.youtube.tvmusic            YouTube Music para TV
+seguro       com.google.android.apps.youtube.kids          YouTube Kids (preinstalado en algunos modelos)
+seguro       com.android.printspooler                      Servicio de impresión (inútil en una TV)
+seguro       com.google.android.leanbacklauncher.recommendations  Recomendaciones del launcher antiguo
+seguro       com.google.android.marvin.talkback            TalkBack (quítalo solo si no usas accesibilidad)
+
+recomendado  com.google.android.videos                     Google TV / Play Películas (tienda de películas)
+recomendado  com.google.android.tvrecommendations          Servicio de recomendaciones y anuncios del home
+recomendado  com.google.android.apps.tv.dreamx             Modo ambiente de Google TV (vuelve el salvapantallas simple)
+recomendado  com.google.android.backdrop                   Modo ambiente de Android TV
+recomendado  com.google.android.partnersetup               Configuración de socios / promociones del fabricante
+recomendado  com.google.android.apps.tv.launcherx.coreservices  Servicios de contenido del launcher de Google TV
+recomendado  com.google.android.apps.tv.dreamx.ambient     Contenido extra del modo ambiente
+
+agresivo     com.google.android.katniss                    Asistente de Google y búsqueda por voz (rompe el botón de micrófono)
+agresivo     com.google.android.speech.pumpkin             Reconocimiento de voz offline
+agresivo     com.google.android.apps.mediashell            Chromecast integrado (rompe la función de enviar/cast)
+agresivo     com.google.android.tts                        Texto a voz de Google
+agresivo     com.google.android.tv                         Canales en vivo (Live Channels)
+agresivo     com.google.android.youtube.tv                 YouTube para TV
+agresivo     com.netflix.ninja                             Netflix preinstalado
+agresivo     com.amazon.amazonvideo.livingroom             Prime Video preinstalado
+agresivo     com.disney.disneyplus                         Disney+ preinstalado
+agresivo     com.spotify.tv.android                        Spotify preinstalado
+agresivo     com.apple.atve.androidtv.appletv              Apple TV preinstalado
+agresivo     com.hbo.hbonow                                Max (HBO) preinstalado
+agresivo     com.wbd.stream                                Max preinstalado (versión nueva)
+agresivo     com.plexapp.android                           Plex preinstalado
+agresivo     tv.pluto.android                              Pluto TV preinstalado

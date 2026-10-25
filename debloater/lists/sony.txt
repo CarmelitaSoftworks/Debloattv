@@ -1,0 +1,9 @@
+# Sony Bravia (Android TV / Google TV)
+seguro       com.sony.dtv.imanual                          Manual de ayuda (i-Manual)
+seguro       com.sony.dtv.promos                           Promociones de Sony
+seguro       com.sony.dtv.demomode                         Modo demostración de tienda
+seguro       com.sony.dtv.smarthelp                        Ayuda inteligente
+recomendado  com.sony.dtv.sonyselect                       Sony Select (recomendaciones de apps)
+recomendado  com.sony.dtv.photoshareplus                   Photo Sharing Plus
+recomendado  com.sony.dtv.discovery                        Barra "Discover" de Sony
+agresivo     com.sony.dtv.bravialifehack                   Bravia Core / contenido promocional

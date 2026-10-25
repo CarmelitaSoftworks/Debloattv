@@ -1,0 +1,4 @@
+# Hisense (Android TV / Google TV)
+seguro       com.hisense.hiphoto                           Visor de fotos Hisense
+recomendado  com.hisense.store.tv                          Tienda/promociones Hisense
+recomendado  com.hisense.weather                           Widget del tiempo

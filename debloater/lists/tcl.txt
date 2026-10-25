@@ -1,0 +1,7 @@
+# TCL (Android TV / Google TV)
+seguro       com.tcl.guard                                 TCL Guard (limpiador con publicidad)
+seguro       com.tcl.usercenter                            Centro de usuario TCL
+recomendado  com.tcl.tclchannel                            TCL Channel (canales con anuncios)
+recomendado  com.tcl.weather                               Widget del tiempo
+recomendado  com.tcl.waterfall.overseas                    Contenido destacado del home TCL
+agresivo     com.tcl.MultiScreenInteraction_TV             Interacción multipantalla (T-Cast)
