@@ -2,21 +2,21 @@ name: Compilar APKs
 
 on:
   push:
-    paths: ['launcher/**', 'phone/**', 'debloater/lists/**', '.github/workflows/**']
+    paths: ['launcher/**', 'phone/**', 'shared/**', 'debloater/lists/**', '.github/workflows/**']
   pull_request:
-    paths: ['launcher/**', 'phone/**', 'debloater/lists/**']
+    paths: ['launcher/**', 'phone/**', 'shared/**', 'debloater/lists/**']
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest ya trae el Android SDK en $ANDROID_HOME; Gradle descarga lo que falte
       - name: Halo Launcher (TV)
         working-directory: launcher
         run: ./gradlew --no-daemon lintRelease assembleRelease
