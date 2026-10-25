@@ -1,8 +1,11 @@
 # DebloatTV + Halo Launcher
 
-Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈26 KB, sin dependencias) inspirado en Apple TV.
+Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈48 KB, sin dependencias) inspirado en Apple TV.
 
-- **App para el teléfono** (`phone/`): hace todo por WiFi, sin PC.
+![Halo, pantalla de inicio](docs/halo-inicio.png)
+
+- **Halo** se instala en la TV y **también limpia la TV desde la propia TV**: no hace falta teléfono ni PC.
+- **App para el teléfono** (`phone/`): hace lo mismo por WiFi desde el móvil.
 - **Debloater** (`debloater/`): quita las apps preinstaladas por niveles de riesgo, detecta la marca del televisor y guarda un backup de todo lo que toca para poder deshacerlo.
 - **Halo Launcher** (`launcher/`): cuadrícula limpia de apps en 16:9, foco con elevación y brillo, nombre bajo la app enfocada, lavado de color de fondo que sigue a la app, reloj, reordenar con "tembleque" y ocultar apps. Sin anuncios, sin recomendaciones, sin conexión a internet.
 
@@ -10,9 +13,31 @@ Todo es **reversible**: nada se borra de la partición del sistema. Las apps se 
 
 ---
 
-## Opción A: desde el teléfono, sin PC (recomendada)
+## Opción A: solo con la TV (recomendada, p. ej. TCL)
 
-`dist/debloattv-telefono.apk` es una app Android (56 KB) que habla directamente con la TV por WiFi. Lleva dentro las listas de paquetes y el launcher Halo.
+Solo necesitas instalar **`dist/halo-launcher.apk`** en la TV. Formas de hacerlo sin PC:
+
+- **Memoria USB:** copia el APK a un pendrive, conéctalo a la TV y ábrelo con el gestor de archivos (en TCL: *Gestor de archivos* o *Media Center*). Si no tienes gestor, instala *File Commander* o *X-plore* desde Play Store.
+- **Desde el teléfono:** con la app *Send Files to TV* (Play Store en el móvil y en la TV).
+- **Con la app Downloader** (Play Store de la TV), escribiendo la URL del APK.
+
+La primera vez Android pedirá permitir **instalar apps desconocidas** para la app con la que lo abras: acéptalo.
+
+Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**.
+
+![Limpiar TV](docs/halo-limpiar-tv.png)
+
+Halo intenta conectarse a la propia TV por ADB (`127.0.0.1:5555`):
+
+- **Si funciona (modo automático):** la TV mostrará *¿Permitir depuración?*; marca **Permitir siempre** y acepta con el mando. Luego eliges el nivel, **Quitar seleccionadas** y **Usar Halo como inicio**. Todo se deshace con **Restaurar todo lo quitado** y **Volver al launcher original**.
+  Para que funcione: Ajustes → Sistema → Información → pulsa 7 veces *Compilación*, y en *Opciones para desarrolladores* activa **Depuración USB** (y **Depuración por red** si aparece).
+- **Si tu TV no lo permite (modo manual):** Halo te muestra las apps basura que tiene tu TV; pulsa cada una para abrir sus ajustes y elige **Desactivar**. Y activa **Botón Inicio → Halo**: un servicio de accesibilidad que, cuando el botón HOME abre el launcher de TCL/Google, abre Halo encima. Así Halo queda como inicio sin ADB.
+
+> Si usas *Botón Inicio → Halo* y luego quieres volver al launcher original, desactiva el servicio en Ajustes → Accesibilidad.
+
+## Opción B: desde el teléfono
+
+`dist/debloattv-telefono.apk` es una app Android (75 KB) que habla directamente con la TV por WiFi. Lleva dentro las listas de paquetes y el launcher Halo.
 
 1. **En la TV:** Ajustes → Sistema → Información → pulsa OK 7 veces sobre *Compilación* hasta que salga "Ya eres desarrollador".
 2. **En la TV:** Ajustes → Sistema → Opciones para desarrolladores → activa **Depuración USB** (y **Depuración por red** si existe).
@@ -25,7 +50,7 @@ Para deshacer, en la misma app: **Restaurar todo** y **Volver al original**.
 
 > **Si "Buscar TV" no la encuentra:** tu TV no abre el puerto 5555 solo con *Depuración USB*. Prueba a activar *Depuración por red* si tu modelo la tiene. Si no, conecta la TV una vez a un PC por USB y ejecuta `adb tcpip 5555`; desde ese momento la app funciona por WiFi hasta que reinicies la TV.
 
-## Opción B: desde un PC con los scripts
+## Opción C: desde un PC con los scripts
 
 ## 1. Preparar la TV
 
@@ -122,7 +147,7 @@ adb uninstall com.carmelita.halo      # opcional
 | Mover app | Opciones → Mover, flechas para colocarla y OK para soltarla |
 | Ver apps ocultas | Opciones → Ver apps ocultas |
 | Volver arriba | Atrás o HOME |
-| Ajustes del sistema | Última tarjeta (engranaje) |
+| Limpiar TV, ajustes del sistema, botón Inicio | Última tarjeta (engranaje) |
 
 ## 4. Compilar Halo tú mismo (opcional)
 
@@ -148,7 +173,8 @@ debloater/
   debloat.ps1      Windows (PowerShell)
   debloat.bat      Atajo para Windows
   lists/*.txt      Listas de paquetes por marca y nivel
-launcher/          Código fuente de Halo (Java, sin dependencias)
+launcher/          Código fuente de Halo (Java, sin dependencias), incluida la pantalla Limpiar TV
+shared/            Cliente ADB y reglas de limpieza compartidos por Halo y la app del teléfono
 phone/             App DebloatTV para el teléfono (cliente ADB por WiFi en Java, sin dependencias)
 dist/              APKs listos para instalar
 ```

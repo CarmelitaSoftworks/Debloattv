@@ -4,8 +4,11 @@ import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.Canvas;
 import android.graphics.Outline;
+import android.graphics.Path;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
@@ -24,6 +27,8 @@ final class TileView extends FrameLayout {
     final int index;
     private final View shine;
     private final float focusLift;
+    private final float radius;
+    private final Path clip = new Path();
     private TextView label;
     private ObjectAnimator wiggle;
 
@@ -32,7 +37,7 @@ final class TileView extends FrameLayout {
         this.entry = entry;
         this.index = index;
         float density = getResources().getDisplayMetrics().density;
-        final float radius = getResources().getDimension(R.dimen.tile_radius);
+        radius = getResources().getDimension(R.dimen.tile_radius);
         focusLift = 20 * density;
 
         setFocusable(true);
@@ -70,6 +75,22 @@ final class TileView extends FrameLayout {
                 new int[]{0x40FFFFFF, 0x00FFFFFF, 0x00FFFFFF}));
         shine.setAlpha(0f);
         addView(shine, new LayoutParams(width, height));
+    }
+
+    @Override
+    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+        super.onSizeChanged(w, h, oldw, oldh);
+        clip.reset();
+        clip.addRoundRect(new RectF(0, 0, w, h), radius, radius, Path.Direction.CW);
+    }
+
+    /** Recorte redondeado también sin aceleración por hardware (clipToOutline solo actúa con ella). */
+    @Override
+    protected void dispatchDraw(Canvas canvas) {
+        int save = canvas.save();
+        canvas.clipPath(clip);
+        super.dispatchDraw(canvas);
+        canvas.restoreToCount(save);
     }
 
     /** Nombre que aparece debajo de la tarjeta solo cuando tiene el foco. */

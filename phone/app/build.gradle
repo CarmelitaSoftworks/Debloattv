@@ -27,6 +27,7 @@ android {
 
     sourceSets {
         main.assets.srcDir generatedAssets
+        main.java.srcDir rootProject.file('../shared/java')
     }
 
     buildTypes {

@@ -1,4 +1,4 @@
-package com.carmelita.debloattv;
+package com.carmelita.tvtools;
 
 import android.util.Base64;
 
@@ -25,7 +25,7 @@ import javax.crypto.Cipher;
  * Par de claves RSA con el que el teléfono se identifica ante la TV. La TV lo recuerda
  * tras aceptar "Permitir siempre", así que solo pregunta la primera vez.
  */
-final class AdbKey {
+public final class AdbKey {
     private static final int KEY_BITS = 2048;
     private static final int KEY_WORDS = KEY_BITS / 32;
 
@@ -40,7 +40,7 @@ final class AdbKey {
         this.publicKey = publicKey;
     }
 
-    static AdbKey loadOrCreate(File dir) throws IOException {
+    public static AdbKey loadOrCreate(File dir) throws IOException {
         File privFile = new File(dir, "adbkey");
         File pubFile = new File(dir, "adbkey.pub");
         try {

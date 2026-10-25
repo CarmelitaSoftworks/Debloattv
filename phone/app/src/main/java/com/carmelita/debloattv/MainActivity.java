@@ -16,6 +16,10 @@ import android.widget.LinearLayout;
 import android.widget.RadioGroup;
 import android.widget.TextView;
 
+import com.carmelita.tvtools.AdbConnection;
+import com.carmelita.tvtools.AdbKey;
+import com.carmelita.tvtools.TvDebloater;
+
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.NoRouteToHostException;

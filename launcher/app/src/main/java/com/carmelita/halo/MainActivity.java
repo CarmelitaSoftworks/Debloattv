@@ -41,6 +41,7 @@ public class MainActivity extends Activity {
     private HaloScrollView scroll;
     private LinearLayout grid;
     private View hero;
+    private View clock;
     private TextView heroTitle;
     private TextView heroSubtitle;
     private GradientDrawable backdrop;
@@ -71,6 +72,7 @@ public class MainActivity extends Activity {
         scroll = findViewById(R.id.scroll);
         grid = findViewById(R.id.grid);
         hero = findViewById(R.id.hero);
+        clock = findViewById(R.id.clock);
         heroTitle = findViewById(R.id.hero_title);
         heroSubtitle = findViewById(R.id.hero_subtitle);
         backdrop = new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM, backdropColors(backdropColor));
@@ -203,7 +205,9 @@ public class MainActivity extends Activity {
         cell.addView(label, labelLp);
         tile.setLabel(label);
 
-        tile.setOnClickListener(v -> launch(e));
+        tile.setOnClickListener(v -> {
+            if (e.isSettings()) showOptions(e); else launch(e);
+        });
         tile.setOnLongClickListener(v -> {
             showOptions(e);
             return true;
@@ -233,7 +237,10 @@ public class MainActivity extends Activity {
             int target = rowIndex == 0 ? 0 : grid.getTop() + row.getTop() - Math.round(tileHeight * 0.6f);
             scroll.smoothScrollTo(0, Math.max(0, target));
         });
-        hero.animate().alpha(rowIndex == 0 ? 1f : 0f).setDuration(200).start();
+        // Cabecera y reloj solo con la primera fila, como en tvOS
+        float topAlpha = rowIndex == 0 ? 1f : 0f;
+        hero.animate().alpha(topAlpha).setDuration(200).start();
+        clock.animate().alpha(topAlpha).setDuration(200).start();
     }
 
     private void animateBackdrop(int target) {
@@ -284,7 +291,9 @@ public class MainActivity extends Activity {
         List<Runnable> actions = new ArrayList<>();
 
         if (e.isSettings()) {
+            add(labels, actions, R.string.opt_clean, () -> startActivity(new Intent(this, CleanActivity.class)));
             add(labels, actions, R.string.opt_system_settings, () -> launch(e));
+            add(labels, actions, R.string.opt_home_button, () -> CleanActivity.openAccessibilitySettings(this));
             add(labels, actions, R.string.opt_reset_order, () -> {
                 store.clearOrder();
                 reload();

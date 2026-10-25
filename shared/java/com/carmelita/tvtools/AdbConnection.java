@@ -1,4 +1,4 @@
-package com.carmelita.debloattv;
+package com.carmelita.tvtools;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -17,8 +17,8 @@ import java.nio.charset.StandardCharsets;
  * Cliente mínimo del protocolo ADB por TCP (el mismo que usa "adb connect IP:5555").
  * Una sola operación a la vez: no hace falta más para ir lanzando comandos uno tras otro.
  */
-final class AdbConnection implements Closeable {
-    static final int DEFAULT_PORT = 5555;
+public final class AdbConnection implements Closeable {
+    public static final int DEFAULT_PORT = 5555;
 
     private static final int CNXN = 0x4e584e43;
     private static final int AUTH = 0x48545541;
@@ -39,7 +39,7 @@ final class AdbConnection implements Closeable {
     private static final int AUTH_TIMEOUT_MS = 120_000;
     private static final int COMMAND_TIMEOUT_MS = 120_000;
 
-    interface AuthListener {
+    public interface AuthListener {
         void onWaitingForApproval();
     }
 
@@ -55,7 +55,7 @@ final class AdbConnection implements Closeable {
         this.out = socket.getOutputStream();
     }
 
-    static AdbConnection connect(String host, int port, AdbKey key, AuthListener listener) throws IOException {
+    public static AdbConnection connect(String host, int port, AdbKey key, AuthListener listener) throws IOException {
         Socket socket = new Socket();
         socket.connect(new InetSocketAddress(host, port), 5000);
         socket.setTcpNoDelay(true);
@@ -106,7 +106,7 @@ final class AdbConnection implements Closeable {
     }
 
     /** Ejecuta un comando en la TV y devuelve su salida (stdout y stderr juntos). */
-    synchronized String shell(String command) throws IOException {
+    public synchronized String shell(String command) throws IOException {
         int local = nextLocalId++;
         send(OPEN, local, 0, ("shell:" + command + "\0").getBytes(StandardCharsets.UTF_8));
         ByteArrayOutputStream output = new ByteArrayOutputStream();
@@ -124,7 +124,7 @@ final class AdbConnection implements Closeable {
     }
 
     /** Copia un archivo a la TV con el servicio "sync:" (equivalente a "adb push"). */
-    synchronized void push(byte[] data, String remotePath, int mode) throws IOException {
+    public synchronized void push(byte[] data, String remotePath, int mode) throws IOException {
         int local = nextLocalId++;
         send(OPEN, local, 0, "sync:\0".getBytes(StandardCharsets.UTF_8));
         int remote = awaitOkay(local);

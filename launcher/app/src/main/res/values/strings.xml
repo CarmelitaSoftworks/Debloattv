@@ -15,4 +15,30 @@
     <string name="opt_system_settings">Ajustes del sistema</string>
     <string name="opt_reset_order">Orden alfabético</string>
     <string name="cannot_open">No se puede abrir %1$s</string>
+
+    <string name="opt_clean">Limpiar TV</string>
+    <string name="opt_home_button">Botón Inicio → Halo</string>
+    <string name="home_service_label">Halo: botón Inicio</string>
+    <string name="home_service_desc">Abre Halo cuando el botón Inicio del mando intenta abrir el launcher original. Úsalo solo si tu TV no permite depuración ADB.</string>
+    <string name="home_service_help">En la lista de Accesibilidad, abre «Halo: botón Inicio» y actívalo.</string>
+
+    <string name="clean_title">Limpiar TV</string>
+    <string name="clean_connecting">Conectando con la propia TV…</string>
+    <string name="clean_approve">Acepta el aviso «¿Permitir depuración?» con el mando y marca «Permitir siempre».</string>
+    <string name="clean_connected">Conectado. Elige qué quitar y pulsa «Quitar seleccionadas». Todo se puede deshacer.</string>
+    <string name="clean_manual">Modo manual: esta TV no permite ADB desde las apps. Pulsa cada app de la lista para abrir sus ajustes y elige «Desactivar».</string>
+    <string name="clean_manual_help">Para que el botón Inicio del mando abra Halo, activa «Botón Inicio → Halo».
+
+Para el modo automático (quitar apps con un clic): Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» y «Depuración por red» si existe, y pulsa «Reintentar conexión».</string>
+    <string name="clean_nothing">Nada que quitar en este nivel.</string>
+    <string name="clean_remove">Quitar seleccionadas</string>
+    <string name="clean_set_home">Usar Halo como inicio</string>
+    <string name="clean_restore_launcher">Volver al launcher original</string>
+    <string name="clean_restore_all">Restaurar todo lo quitado</string>
+    <string name="clean_retry">Reintentar conexión</string>
+    <string name="clean_open_settings">Abrir ajustes de la app</string>
+    <string name="level_seguro">Seguro: telemetría y demos</string>
+    <string name="level_recomendado">Recomendado: + anuncios del inicio</string>
+    <string name="level_agresivo">Agresivo: + Asistente, Chromecast y streaming</string>
+    <string name="home_service_on">Botón Inicio → Halo (activado)</string>
 </resources>

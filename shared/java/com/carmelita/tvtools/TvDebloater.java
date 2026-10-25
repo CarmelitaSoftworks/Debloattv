@@ -1,6 +1,8 @@
-package com.carmelita.debloattv;
+package com.carmelita.tvtools;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
+import android.os.Build;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -12,23 +14,28 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 
-/** Las mismas reglas que debloater/debloat.sh, ejecutadas desde el teléfono. */
-final class TvDebloater {
-    static final String HALO_PKG = "com.carmelita.halo";
+/**
+ * Las mismas reglas que debloater/debloat.sh. Lo usan la app del teléfono (ADB por WiFi)
+ * y Halo en la propia TV (ADB contra 127.0.0.1, o modo manual si no hay ADB).
+ */
+public final class TvDebloater {
+    public static final String HALO_PKG = "com.carmelita.halo";
     private static final String HALO_HOME = HALO_PKG + "/.MainActivity";
     private static final String HALO_TMP = "/data/local/tmp/halo.apk";
 
-    static final List<String> STOCK_LAUNCHERS = Arrays.asList(
+    public static final List<String> STOCK_LAUNCHERS = Collections.unmodifiableList(Arrays.asList(
             "com.google.android.apps.tv.launcherx",    // Google TV
             "com.google.android.tungsten.setupwraith", // Google TV: reabre el launcher de stock con HOME
             "com.google.android.tvlauncher",           // Android TV 8+
             "com.google.android.leanbacklauncher",     // Android TV antiguo
-            "com.mitv.tvhome");                        // Xiaomi PatchWall
+            "com.tcl.waterfall.overseas",              // TCL Home (Android TV)
+            "com.mitv.tvhome"));                       // Xiaomi PatchWall
 
     private static final Set<String> PROTECTED = new HashSet<>(Arrays.asList(
             "android", "com.android.systemui", "com.android.settings", "com.android.tv.settings",
@@ -40,16 +47,20 @@ final class TvDebloater {
             "com.android.shell", "com.android.bluetooth", "com.android.wifi.resources",
             HALO_PKG));
 
-    static final String[] LEVELS = {"seguro", "recomendado", "agresivo"};
+    public static final String[] LEVELS = {"seguro", "recomendado", "agresivo"};
 
-    interface Log {
+    public interface Log {
         void line(String text);
     }
 
-    static final class Item {
-        final String level;
-        final String pkg;
-        final String description;
+    private interface Installed {
+        boolean contains(String pkg);
+    }
+
+    public static final class Item {
+        public final String level;
+        public final String pkg;
+        public final String description;
 
         Item(String level, String pkg, String description) {
             this.level = level;
@@ -57,7 +68,7 @@ final class TvDebloater {
             this.description = description;
         }
 
-        int rank() {
+        public int rank() {
             return levelRank(level);
         }
     }
@@ -65,12 +76,12 @@ final class TvDebloater {
     private final Context context;
     private final AdbConnection adb;
     private final Log log;
-    final String manufacturer;
-    final String model;
+    public final String manufacturer;
+    public final String model;
     private final File backupFile;
     private Set<String> installed;
 
-    TvDebloater(Context context, AdbConnection adb, Log log) throws IOException {
+    public TvDebloater(Context context, AdbConnection adb, Log log) throws IOException {
         this.context = context;
         this.adb = adb;
         this.log = log;
@@ -82,7 +93,7 @@ final class TvDebloater {
         refreshInstalled();
     }
 
-    static int levelRank(String level) {
+    public static int levelRank(String level) {
         for (int i = 0; i < LEVELS.length; i++) if (LEVELS[i].equals(level)) return i + 1;
         return 0;
     }
@@ -94,34 +105,54 @@ final class TvDebloater {
         }
     }
 
-    boolean isInstalled(String pkg) {
-        return installed.contains(pkg);
+    /** Todos los paquetes de las listas (Google + la marca detectada) que hay en esta TV. */
+    public List<Item> candidates() throws IOException {
+        return parseLists(context, manufacturer, pkg -> installed.contains(pkg));
     }
 
-    /** Todos los paquetes de las listas (Google + la marca detectada) que hay en esta TV. */
-    List<Item> candidates() throws IOException {
+    public String vendorList() {
+        return vendorList(manufacturer);
+    }
+
+    /**
+     * Lo mismo sin ADB: se ejecuta en la propia TV y consulta el PackageManager.
+     * Solo incluye apps activas, que son las que el usuario aún puede desactivar a mano.
+     */
+    public static List<Item> candidatesOnThisDevice(Context context) throws IOException {
+        final PackageManager pm = context.getPackageManager();
+        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), pkg -> {
+            try {
+                return pm.getApplicationInfo(pkg, 0).enabled;
+            } catch (PackageManager.NameNotFoundException e) {
+                return false;
+            }
+        });
+    }
+
+    private static List<Item> parseLists(Context context, String manufacturer, Installed installed)
+            throws IOException {
         List<String> files = new ArrayList<>();
         files.add("google.txt");
-        String vendor = vendorList();
+        String vendor = vendorList(manufacturer);
         if (vendor != null) files.add(vendor);
 
         List<Item> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (String file : files) {
-            for (String raw : readAsset("lists/" + file).split("\n")) {
+            for (String raw : new String(readAsset(context, "lists/" + file), StandardCharsets.UTF_8).split("\n")) {
                 String line = raw.trim();
                 if (line.isEmpty() || line.startsWith("#")) continue;
                 String[] parts = line.split("\\s+", 3);
                 if (parts.length < 2 || levelRank(parts[0]) == 0) continue;
                 String pkg = parts[1];
-                if (!installed.contains(pkg) || PROTECTED.contains(pkg) || !seen.add(pkg)) continue;
+                if (PROTECTED.contains(pkg) || !installed.contains(pkg) || !seen.add(pkg)) continue;
                 out.add(new Item(parts[0], pkg, parts.length > 2 ? parts[2] : pkg));
             }
         }
         return out;
     }
 
-    String vendorList() {
+    private static String vendorList(String manufacturer) {
         if (manufacturer.contains("sony")) return "sony.txt";
         if (manufacturer.contains("tcl")) return "tcl.txt";
         if (manufacturer.contains("xiaomi")) return "xiaomi.txt";
@@ -132,7 +163,7 @@ final class TvDebloater {
     }
 
     /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. */
-    void remove(List<String> packages) throws IOException {
+    public void remove(List<String> packages) throws IOException {
         for (String pkg : packages) {
             if (PROTECTED.contains(pkg)) continue;
             if (adb.shell("pm uninstall -k --user 0 " + pkg).contains("Success")) {
@@ -148,10 +179,11 @@ final class TvDebloater {
         refreshInstalled();
     }
 
-    void installHaloAndSetHome() throws IOException {
+    /** Instala Halo si hace falta (desde el teléfono) y lo deja como pantalla de inicio. */
+    public void installHaloAndSetHome() throws IOException {
         if (!installed.contains(HALO_PKG)) {
             log.line("Copiando Halo a la TV…");
-            adb.push(readAssetBytes("halo-launcher.apk"), HALO_TMP, 0100644);
+            adb.push(readAsset(context, "halo-launcher.apk"), HALO_TMP, 0100644);
             String result = adb.shell("pm install -r " + HALO_TMP);
             adb.shell("rm -f " + HALO_TMP);
             if (!result.contains("Success")) throw new IOException("No se pudo instalar Halo: " + result);
@@ -175,7 +207,7 @@ final class TvDebloater {
         log.line("Listo. Pulsa HOME en el mando de la TV.");
     }
 
-    void restoreStockLauncher() throws IOException {
+    public void restoreStockLauncher() throws IOException {
         for (String pkg : STOCK_LAUNCHERS) {
             if (!installed.contains(pkg)) continue;
             log.line(adb.shell("pm enable " + pkg).contains("enabled")
@@ -185,12 +217,12 @@ final class TvDebloater {
         log.line("Launcher original reactivado.");
     }
 
-    boolean hasBackup() {
+    public boolean hasBackup() {
         return backupFile.exists() && backupFile.length() > 0;
     }
 
-    /** Reinstala o reactiva todo lo que se quitó desde este teléfono en esta TV. */
-    void restoreAll() throws IOException {
+    /** Reinstala o reactiva todo lo que se quitó desde esta app en esta TV. */
+    public void restoreAll() throws IOException {
         if (!hasBackup()) {
             log.line("No hay nada que restaurar en esta TV.");
             return;
@@ -225,11 +257,7 @@ final class TvDebloater {
         }
     }
 
-    private String readAsset(String name) throws IOException {
-        return new String(readAssetBytes(name), StandardCharsets.UTF_8);
-    }
-
-    private byte[] readAssetBytes(String name) throws IOException {
+    private static byte[] readAsset(Context context, String name) throws IOException {
         try (InputStream in = context.getAssets().open(name)) {
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             byte[] buf = new byte[16 * 1024];

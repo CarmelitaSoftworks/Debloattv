@@ -15,6 +15,7 @@ STOCK_LAUNCHERS=(
   com.google.android.tungsten.setupwraith   # Google TV: reabre el launcher de stock al pulsar HOME
   com.google.android.tvlauncher             # Android TV 8+
   com.google.android.leanbacklauncher       # Android TV antiguo
+  com.tcl.waterfall.overseas                # TCL Home (Android TV)
   com.mitv.tvhome                           # Xiaomi PatchWall
 )
 
