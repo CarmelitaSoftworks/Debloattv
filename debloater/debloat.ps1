@@ -5,7 +5,8 @@
   .\debloat.ps1 -Ip 192.168.1.50 -DryRun
   .\debloat.ps1 -Ip 192.168.1.50 -Level recomendado
   .\debloat.ps1 -Ip 192.168.1.50 -Launcher
-  .\debloat.ps1 -Restore backups\chromecast-20260101-1200.txt
+  .\debloat.ps1 -Ip 192.168.1.50 -Launcher -Apk ltv     # LTvLauncher (código abierto)
+  .\debloat.ps1 -Ip 192.168.1.50 -Restore tv            # deshacer lo registrado en la TV
 #>
 [CmdletBinding()]
 param(
@@ -27,16 +28,22 @@ $Here = $PSScriptRoot
 $Lists = Join-Path $Here 'lists'
 $Backups = Join-Path $Here 'backups'
 $HaloPkg = 'com.carmelita.halo'
-$HaloHome = "$HaloPkg/.MainActivity"
+$HaloHomeService = "$HaloPkg/$HaloPkg.HomeButtonService"
+$LtvPkg = 'com.leanbitlab.ltvL'
+$LtvUrl = 'https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-{0}-release.apk'
+$TvBackup = '/sdcard/DebloatTV/backup.txt'
 
+# Launchers de stock conocidos; los de otras marcas se detectan por HOME (ver Get-HomeLaunchers)
 $StockLaunchers = @(
   'com.google.android.apps.tv.launcherx',     # Google TV
-  'com.google.android.tungsten.setupwraith',  # Google TV: reabre el launcher de stock al pulsar HOME
   'com.google.android.tvlauncher',            # Android TV 8+
   'com.google.android.leanbacklauncher',      # Android TV antiguo
-  'com.tcl.waterfall.overseas',               # TCL Home (Android TV)
   'com.mitv.tvhome'                           # Xiaomi PatchWall
 )
+# El asistente de Google TV responde a HOME pero NUNCA se desactiva: guarda la red WiFi y
+# desactivarlo la borra (la TV se queda sin WiFi ni ADB). Solo se reactiva al restaurar.
+$Setupwraith = 'com.google.android.tungsten.setupwraith'
+$NotLaunchers = @('android', 'com.android.settings', 'com.android.tv.settings', $Setupwraith, $HaloPkg, $LtvPkg)
 
 $Protected = @(
   'android', 'com.android.systemui', 'com.android.settings', 'com.android.tv.settings',
@@ -46,7 +53,12 @@ $Protected = @(
   'com.android.providers.settings', 'com.android.providers.tv', 'com.android.providers.media',
   'com.android.packageinstaller', 'com.google.android.packageinstaller',
   'com.android.shell', 'com.android.bluetooth', 'com.android.wifi.resources',
-  $HaloPkg
+  'com.android.webview', 'com.google.android.webview',
+  'com.android.permissioncontroller', 'com.google.android.permissioncontroller', $Setupwraith,
+  # TCL: imprescindibles para TV, entradas HDMI, mando y menús (ver lists\tcl.txt)
+  'com.tcl.tv', 'com.tcl.tvinput', 'com.tcl.suspension', 'com.tcl.dashboard', 'com.tcl.autopair',
+  'com.tcl.systemserver', 'com.tcl.providers.config', 'com.tcl.globalkeyoverlay', 'com.tcl.initsetup',
+  $HaloPkg, $LtvPkg
 )
 
 $Ranks = @{ seguro = 1; recomendado = 2; agresivo = 3 }
@@ -85,9 +97,40 @@ $Model = Tv @('getprop', 'ro.product.model')
 $Sdk = Tv @('getprop', 'ro.build.version.sdk')
 Info "Dispositivo: $Model ($Manufacturer, API $Sdk)"
 
-$Installed = @{}
-(Tv @('pm', 'list', 'packages')) -split "`r?`n" | ForEach-Object {
-  if ($_ -match '^package:(.+)$') { $Installed[$Matches[1].Trim()] = $true }
+function Get-Packages([string[]]$extra) {
+  $set = @{}
+  (Tv (@('pm', 'list', 'packages') + $extra)) -split "`r?`n" | ForEach-Object {
+    if ($_ -match '^package:(.+)$') { $set[$Matches[1].Trim()] = $true }
+  }
+  $set
+}
+function Update-Packages {
+  $script:Installed = Get-Packages @()
+  $script:Enabled = Get-Packages @('-e')
+}
+Update-Packages
+
+$ComponentRe = '^\s*([A-Za-z0-9_.]+)/[A-Za-z0-9_.$]+\s*$'
+# "paquete/.Actividad" de cada app que responde a HOME
+function Get-HomeComponents {
+  (Tv @('cmd', 'package', 'query-activities', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME')) -split "`r?`n" |
+    Where-Object { $_ -match $ComponentRe } | ForEach-Object { $_.Trim() }
+}
+# Launchers de stock de esta TV: los conocidos más las apps del sistema que responden a HOME
+function Get-HomeLaunchers {
+  $system = Get-Packages @('-s')
+  $found = [System.Collections.Generic.List[string]]::new()
+  foreach ($p in $StockLaunchers) { if (-not $found.Contains($p)) { $found.Add($p) } }
+  foreach ($c in Get-HomeComponents) {
+    $p = ($c -split '/')[0]
+    if ($NotLaunchers -notcontains $p -and $system.ContainsKey($p) -and -not $found.Contains($p)) { $found.Add($p) }
+  }
+  $found | Where-Object { $Installed.ContainsKey($_) }
+}
+function Get-CurrentHome {
+  $h = (Tv @('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME')) -split "`r?`n" |
+    Where-Object { $_ -match $ComponentRe } | Select-Object -Last 1
+  if ($h) { $h.Trim() } else { '' }
 }
 
 function Confirm-Action($q) {
@@ -103,7 +146,12 @@ function New-Backup {
   $script:BackupFile = Join-Path $Backups ("$slug-" + (Get-Date -Format 'yyyyMMdd-HHmmss') + '.txt')
   if (-not $DryRun) { "# DebloatTV backup — $Model ($Manufacturer) — $(Get-Date)" | Set-Content -Encoding UTF8 $script:BackupFile }
 }
-function Record($op, $pkg) { if (-not $DryRun) { "$op $pkg" | Add-Content -Encoding UTF8 $script:BackupFile } }
+# Se guarda en el PC y en la TV, para poder deshacerlo desde cualquier herramienta
+function Record($op, $pkg) {
+  if ($DryRun) { return }
+  "$op $pkg" | Add-Content -Encoding UTF8 $script:BackupFile
+  Tv @("mkdir -p /sdcard/DebloatTV && echo '$op $pkg' >> $TvBackup") | Out-Null
+}
 
 function Remove-Pkg($pkg) {
   if ($DryRun) { Ok "(simulado) $pkg"; return }
@@ -130,6 +178,8 @@ function Invoke-Debloat {
   if ($vendor) { $files += Join-Path $Lists $vendor }
   $files += $List
   $max = $Ranks[$Level]
+  # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
+  $homes = @(Get-HomeLaunchers) + @(Get-HomeComponents | ForEach-Object { ($_ -split '/')[0] })
 
   $targets = @()
   foreach ($f in $files) {
@@ -138,8 +188,9 @@ function Invoke-Debloat {
       if ($line -match '^\s*(#|$)') { continue }
       $lvl, $pkg, $desc = ($line.Trim() -split '\s+', 3)
       if (-not $Ranks.ContainsKey($lvl) -or $Ranks[$lvl] -gt $max) { continue }
-      if (-not $Installed.ContainsKey($pkg)) { continue }
-      if ($Protected -contains $pkg) { Warn "se ignora $pkg (protegido)"; continue }
+      if (-not $Enabled.ContainsKey($pkg)) { continue }
+      if ($targets.Pkg -contains $pkg) { continue }
+      if ($Protected -contains $pkg -or $homes -contains $pkg) { Warn "se ignora $pkg (protegido)"; continue }
       $targets += [pscustomobject]@{ Pkg = $pkg; Desc = "${lvl}: $desc" }
     }
   }
@@ -151,7 +202,7 @@ function Invoke-Debloat {
 
   New-Backup
   $targets | ForEach-Object { Remove-Pkg $_.Pkg }
-  if (-not $DryRun) { Info "Hecho. Para deshacerlo: .\debloat.ps1 -Restore $script:BackupFile" }
+  if (-not $DryRun) { Info 'Hecho. Para deshacerlo: .\debloat.ps1 -Restore tv' }
 }
 
 function Find-Apk {
@@ -167,53 +218,122 @@ function Find-Apk {
   }
 }
 
-function Invoke-Launcher {
-  if (-not $Installed.ContainsKey($HaloPkg)) {
-    $path = Find-Apk
-    if (-not $path) { Die 'no encuentro el APK de Halo. Compílalo (launcher\) o pásalo: -Launcher -Apk ruta.apk' }
-    Info "Instalando $(Split-Path $path -Leaf)"
-    if (-not $DryRun) {
-      $out = Invoke-Adb @('install', '-r', $path)
-      # Sin Halo instalado no se puede tocar el launcher de stock: la TV se quedaría sin inicio
-      if ($out -notmatch 'Success') { Die "no se pudo instalar Halo: $(($out -split "`r?`n")[-1])" }
-      Ok 'Halo instalado'
-    }
-  } else { Ok 'Halo ya está instalado' }
+function Install-Apk($path, $label) {
+  Info "Instalando $label"
+  if ($DryRun) { return }
+  $out = Invoke-Adb @('install', '-r', $path)
+  # Sin el launcher instalado no se puede tocar el de stock: la TV se quedaría sin inicio
+  if ($out -notmatch 'Success') { Die "no se pudo instalar ${label}: $(($out -split "`r?`n")[-1])" }
+  Ok "$label instalado"
+  Update-Packages
+}
 
-  $stock = $StockLaunchers | Where-Object { $Installed.ContainsKey($_) }
+function Enable-HaloService {
+  $current = Tv @('settings', 'get', 'secure', 'enabled_accessibility_services')
+  if ($current -eq 'null') { $current = '' }
+  if ($current -notlike "*$HaloHomeService*") {
+    $value = if ($current) { "${current}:$HaloHomeService" } else { $HaloHomeService }
+    Tv @('settings', 'put', 'secure', 'enabled_accessibility_services', $value) | Out-Null
+  }
+  Tv @('settings', 'put', 'secure', 'accessibility_enabled', '1') | Out-Null
+  Record 'a11y' $HaloHomeService
+}
+
+function Disable-HaloService {
+  $current = Tv @('settings', 'get', 'secure', 'enabled_accessibility_services')
+  if ($current -notlike "*$HaloHomeService*") { return }
+  $keep = ($current -split ':') | Where-Object { $_ -and $_ -ne $HaloHomeService }
+  if ($keep) { Tv @('settings', 'put', 'secure', 'enabled_accessibility_services', ($keep -join ':')) | Out-Null }
+  else { Tv @('settings', 'delete', 'secure', 'enabled_accessibility_services') | Out-Null }
+  Ok 'desactivado «Botón Inicio → Halo»'
+}
+
+# Deja $pkg como inicio. Si la TV no lo acepta (algunas TCL con Google TV ignoran
+# set-home-activity y, sin su launcher, HOME cae en una pantalla de recuperación), se deshace
+# todo y, para Halo, se activa su servicio de accesibilidad, que abre Halo al pulsar HOME.
+function Set-Home($pkg, $label) {
+  $component = Get-HomeComponents | Where-Object { $_ -like "$pkg/*" } | Select-Object -First 1
+  if (-not $component -and -not $DryRun) { Die "$label no declara una pantalla de inicio" }
+  $stock = @(Get-HomeLaunchers)
   Info "Se desactivará el launcher de stock: $(if ($stock) { $stock -join ' ' } else { 'ninguno' })"
   if (-not (Confirm-Action '¿Continuar?')) { Info 'Cancelado.'; return }
-
   New-Backup
-  if (-not $DryRun) { Tv @('cmd', 'package', 'set-home-activity', $HaloHome) | Out-Null }
+  if ($DryRun) { $stock | ForEach-Object { Ok "(simulado) desactivar $_" }; return }
+
+  Tv @('cmd', 'package', 'set-home-activity', $component) | Out-Null
+  $changed = @()
   foreach ($p in $stock) {
-    if ($DryRun) { Ok "(simulado) desactivar $p"; continue }
-    if ((Tv @('pm', 'disable-user', '--user', '0', $p)) -match 'disabled') { Record 'disable' $p; Ok "desactivado $p" }
+    if ((Tv @('pm', 'disable-user', '--user', '0', $p)) -match 'disabled') { $changed += ,@('home', $p); Ok "desactivado $p" }
     elseif ((Tv @('pm', 'uninstall', '-k', '--user', '0', $p)) -match 'Success') {
       # Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
-      Record 'uninstall' $p; Ok "quitado $p (se recupera con -Restore)"
+      $changed += ,@('home-uninstall', $p); Ok "quitado $p"
     }
     else { Warn "no se pudo desactivar $p" }
   }
-  if ($DryRun) { return }
-  Tv @('cmd', 'package', 'set-home-activity', $HaloHome) | Out-Null
-  $currentHome = ((Tv @('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME')) -split "`r?`n" |
-    Where-Object { $_ -match '^\s*[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+\s*$' } | Select-Object -Last 1)
-  if ($currentHome) { $currentHome = $currentHome.Trim() }
-  if ($currentHome -like "$HaloPkg/*") { Ok 'El botón Inicio abre Halo' }
-  else { Warn "El botón Inicio sigue abriendo: $(if ($currentHome) { $currentHome } else { 'desconocido' }). Activa «Botón Inicio → Halo» en Accesibilidad." }
+  Tv @('cmd', 'package', 'set-home-activity', $component) | Out-Null
+
+  $currentHome = Get-CurrentHome
+  if (-not $currentHome) {
+    # Android antiguo sin "resolve-activity": no se puede comprobar, así que se deja hecho
+    foreach ($c in $changed) { Record $c[0] $c[1] }
+    Warn 'No se pudo comprobar qué abre Inicio: pulsa Inicio en el mando para verlo.'
+  } elseif ($currentHome -like "$pkg/*") {
+    foreach ($c in $changed) { Record $c[0] $c[1] }
+    Ok "El botón Inicio abre $label"
+  } else {
+    Warn "Esta TV no deja cambiar la app de inicio (Inicio abre: $currentHome)."
+    foreach ($c in $changed) {
+      if ($c[0] -eq 'home-uninstall') { Tv @('cmd', 'package', 'install-existing', $c[1]) | Out-Null }
+      else { Tv @('pm', 'enable', $c[1]) | Out-Null }
+      Ok "recuperado $($c[1])"
+    }
+    if ($pkg -eq $HaloPkg) { Enable-HaloService; Ok 'Activado «Botón Inicio → Halo»: al pulsar Inicio se abrirá Halo' }
+    else { Warn "Activa en Ajustes → Accesibilidad el servicio de inicio de $label" }
+  }
   Tv @('am', 'start', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME') | Out-Null
-  Info 'Listo. Pulsa HOME en el mando.'
   Info 'Para volver al launcher original: .\debloat.ps1 -RestoreLauncher'
 }
 
+function Invoke-Launcher {
+  if ($Apk -eq 'ltv') {
+    if (-not $Installed.ContainsKey($LtvPkg)) {
+      $abi = Tv @('getprop', 'ro.product.cpu.abi')
+      $flavor = if ($abi -like 'arm64*') { 'arm64-v8a' } elseif ($abi -like 'armeabi*') { 'armeabi-v7a' } else { 'universal' }
+      $tmp = Join-Path ([System.IO.Path]::GetTempPath()) 'ltvlauncher.apk'
+      Info "Descargando LTvLauncher ($flavor) de GitHub"
+      if (-not $DryRun) {
+        try { Invoke-WebRequest -UseBasicParsing -Uri ($LtvUrl -f $flavor) -OutFile $tmp }
+        catch { Die "no se pudo descargar LTvLauncher: $($_.Exception.Message)" }
+      }
+      Install-Apk $tmp 'LTvLauncher'
+      Remove-Item $tmp -ErrorAction SilentlyContinue
+    } else { Ok 'LTvLauncher ya está instalado' }
+    Set-Home $LtvPkg 'LTvLauncher'
+    return
+  }
+
+  if (-not $Installed.ContainsKey($HaloPkg)) {
+    $path = Find-Apk
+    if (-not $path) { Die 'no encuentro el APK de Halo. Compílalo (launcher\) o pásalo: -Launcher -Apk ruta.apk' }
+    Install-Apk $path 'Halo'
+  } else { Ok 'Halo ya está instalado' }
+  Set-Home $HaloPkg 'Halo'
+}
+
 function Invoke-RestoreLauncher {
-  foreach ($p in $StockLaunchers) {
+  if (-not $DryRun) { Disable-HaloService }
+  $launchers = @($StockLaunchers) + $Setupwraith
+  # También los launchers de otras marcas que se quitaron (están en la copia de la TV)
+  (Tv @('cat', $TvBackup)) -split "`r?`n" | ForEach-Object {
+    if ($_ -match '^(home|home-uninstall)\s+(\S+)$') { $launchers += $Matches[2] }
+  }
+  foreach ($p in ($launchers | Sort-Object -Unique)) {
     if (-not $Installed.ContainsKey($p)) {
       # Quitado para el usuario con el plan B de -Launcher: se recupera si existe en el sistema
       if ($DryRun -or (Tv @('cmd', 'package', 'install-existing', $p)) -notmatch 'installed') { continue }
       Ok "reinstalado $p"
     }
+    if ($Enabled.ContainsKey($p)) { continue }
     if ($DryRun) { Ok "(simulado) activar $p"; continue }
     if ((Tv @('pm', 'enable', $p)) -match 'enabled') { Ok "activado $p" } else { Warn "no se pudo activar $p" }
   }
@@ -223,28 +343,37 @@ function Invoke-RestoreLauncher {
 }
 
 function Invoke-Restore {
-  if (-not (Test-Path $Restore)) { Die "no existe $Restore" }
-  foreach ($line in Get-Content -Encoding UTF8 $Restore) {
+  if ($Restore -eq 'tv') {
+    $source = Tv @('cat', $TvBackup)
+    if (-not $source -or $source -match 'No such file') { Die "la TV no tiene copia de seguridad ($TvBackup)" }
+    $lines = $source -split "`r?`n"
+  } else {
+    if (-not (Test-Path $Restore)) { Die "no existe $Restore" }
+    $lines = Get-Content -Encoding UTF8 $Restore
+  }
+  foreach ($line in ($lines | Sort-Object -Unique)) {
     if ($line -match '^\s*(#|$)') { continue }
     $op, $pkg = $line.Trim() -split '\s+', 2
     if ($DryRun) { Ok "(simulado) $op -> $pkg"; continue }
     switch ($op) {
-      'uninstall' {
+      { $_ -in 'uninstall', 'home-uninstall' } {
         $out = Tv @('cmd', 'package', 'install-existing', $pkg)
         if ($out -notmatch 'installed') { $out = Tv @('pm', 'install-existing', $pkg) }
         if ($out -match 'installed') { Ok "reinstalado $pkg" } else { Warn "${pkg}: $out" }
       }
-      'disable' {
+      { $_ -in 'disable', 'home' } {
         if ((Tv @('pm', 'enable', $pkg)) -match 'enabled') { Ok "activado $pkg" } else { Warn "no se pudo activar $pkg" }
       }
+      'a11y' { Disable-HaloService }
     }
   }
+  if ($Restore -eq 'tv' -and -not $DryRun) { Tv @('mv', $TvBackup, "$TvBackup.restaurado") | Out-Null }
   Info 'Restauración terminada.'
 }
 
 function Invoke-Scan {
   $listed = @{}
-  $StockLaunchers | ForEach-Object { $listed[$_] = $true }
+  $StockLaunchers + $Protected | ForEach-Object { $listed[$_] = $true }
   Get-ChildItem (Join-Path $Lists '*.txt') | Get-Content -Encoding UTF8 | ForEach-Object {
     if ($_ -notmatch '^\s*(#|$)') { $listed[($_.Trim() -split '\s+')[1]] = $true }
   }

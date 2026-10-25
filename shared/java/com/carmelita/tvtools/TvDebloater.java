@@ -1,6 +1,7 @@
 package com.carmelita.tvtools;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 
@@ -39,17 +40,29 @@ public final class TvDebloater {
             "https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-%s-release.apk";
     private static final int MAX_DOWNLOAD = 64 * 1024 * 1024;
 
+    /** Launchers de stock conocidos; los de otras marcas se detectan por HOME en stockLaunchers(). */
     public static final List<String> STOCK_LAUNCHERS = Collections.unmodifiableList(Arrays.asList(
             "com.google.android.apps.tv.launcherx",    // Google TV
-            "com.google.android.tungsten.setupwraith", // Google TV: reabre el launcher de stock con HOME
             "com.google.android.tvlauncher",           // Android TV 8+
             "com.google.android.leanbacklauncher",     // Android TV antiguo
-            "com.tcl.waterfall.overseas",              // TCL Home (Android TV)
             "com.mitv.tvhome"));                       // Xiaomi PatchWall
 
-    /** Paquetes que declaran HOME pero no son un launcher (pantallas de arranque de Ajustes). */
+    /**
+     * El asistente de Google TV. Responde a HOME, pero NUNCA se desactiva: guarda la red WiFi y
+     * desactivarlo la borra (la TV se queda sin WiFi ni ADB). Versiones anteriores sí lo hacían,
+     * así que se sigue reactivando al restaurar.
+     */
+    private static final String SETUPWRAITH = "com.google.android.tungsten.setupwraith";
+
+    /** Paquetes que declaran HOME pero no son un launcher que se pueda desactivar. */
     private static final Set<String> NOT_LAUNCHERS = new HashSet<>(Arrays.asList(
-            "android", "com.android.settings", "com.android.tv.settings", HALO_PKG));
+            "android", "com.android.settings", "com.android.tv.settings", SETUPWRAITH, HALO_PKG, LTV_PKG));
+
+    /** Servicio de accesibilidad de Halo que abre Halo cuando HOME muestra el launcher de stock. */
+    private static final String HALO_HOME_SERVICE = HALO_PKG + "/" + HALO_PKG + ".HomeButtonService";
+
+    /** Copia del registro dentro de la propia TV: sobrevive a desinstalar la app o cambiar de móvil. */
+    private static final String TV_BACKUP = "/sdcard/DebloatTV/backup.txt";
 
     private static final Pattern COMPONENT = Pattern.compile("^\\s*([A-Za-z0-9_.]+)/[A-Za-z0-9_.$]+\\s*$");
 
@@ -61,7 +74,12 @@ public final class TvDebloater {
             "com.android.providers.settings", "com.android.providers.tv", "com.android.providers.media",
             "com.android.packageinstaller", "com.google.android.packageinstaller",
             "com.android.shell", "com.android.bluetooth", "com.android.wifi.resources",
-            HALO_PKG));
+            "com.android.webview", "com.google.android.webview", "com.android.permissioncontroller",
+            "com.google.android.permissioncontroller", "com.google.android.tvsetup", SETUPWRAITH,
+            // TCL: imprescindibles para TV, entradas HDMI, mando y menús (ver lists/tcl.txt)
+            "com.tcl.tv", "com.tcl.tvinput", "com.tcl.suspension", "com.tcl.dashboard", "com.tcl.autopair",
+            "com.tcl.systemserver", "com.tcl.providers.config", "com.tcl.globalkeyoverlay", "com.tcl.initsetup",
+            HALO_PKG, LTV_PKG));
 
     public static final String[] LEVELS = {"seguro", "recomendado", "agresivo"};
 
@@ -96,6 +114,9 @@ public final class TvDebloater {
     public final String model;
     private final File backupFile;
     private Set<String> installed;
+    private Set<String> enabled;
+    /** Se calcula fuera del hilo principal (lee la copia de la TV por ADB) y se consulta desde la UI. */
+    private volatile boolean hasBackup;
 
     public TvDebloater(Context context, AdbConnection adb, Log log) throws IOException {
         this.context = context;
@@ -107,6 +128,7 @@ public final class TvDebloater {
         String id = (serial.isEmpty() ? model : serial).replaceAll("[^A-Za-z0-9]+", "-");
         backupFile = new File(context.getFilesDir(), "backup-" + id + ".txt");
         refreshInstalled();
+        hasBackup = !backupEntries().isEmpty();
     }
 
     public static int levelRank(String level) {
@@ -115,15 +137,25 @@ public final class TvDebloater {
     }
 
     private void refreshInstalled() throws IOException {
-        installed = new HashSet<>();
-        for (String line : adb.shell("pm list packages").split("\n")) {
-            if (line.startsWith("package:")) installed.add(line.substring(8).trim());
-        }
+        installed = packages("pm list packages");
+        enabled = packages("pm list packages -e");
     }
 
-    /** Todos los paquetes de las listas (Google + la marca detectada) que hay en esta TV. */
+    private Set<String> packages(String command) throws IOException {
+        Set<String> out = new HashSet<>();
+        for (String line : adb.shell(command).split("\n")) {
+            if (line.startsWith("package:")) out.add(line.substring(8).trim());
+        }
+        return out;
+    }
+
+    /**
+     * Paquetes de las listas (Google + la marca detectada) que siguen activos en esta TV. Nunca
+     * incluye la app que hace de inicio: quitarla dejaría la TV sin pantalla de inicio.
+     */
     public List<Item> candidates() throws IOException {
-        return parseLists(context, manufacturer, pkg -> installed.contains(pkg));
+        final Set<String> homes = new HashSet<>(stockLaunchers());
+        return parseLists(context, manufacturer, pkg -> enabled.contains(pkg) && !homes.contains(pkg));
     }
 
     public String vendorList() {
@@ -136,7 +168,13 @@ public final class TvDebloater {
      */
     public static List<Item> candidatesOnThisDevice(Context context) throws IOException {
         final PackageManager pm = context.getPackageManager();
+        final Set<String> homes = new HashSet<>();
+        Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
+        for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(home, 0)) {
+            homes.add(ri.activityInfo.packageName);
+        }
         return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), pkg -> {
+            if (homes.contains(pkg)) return false;
             try {
                 return pm.getApplicationInfo(pkg, 0).enabled;
             } catch (PackageManager.NameNotFoundException e) {
@@ -256,44 +294,93 @@ public final class TvDebloater {
         refreshInstalled();
     }
 
-    /** Deja pkg como pantalla de inicio desactivando los launchers de stock. */
+    /**
+     * Deja pkg como pantalla de inicio desactivando los launchers de stock. Si la TV no lo acepta
+     * (algunas TCL con Google TV ignoran set-home-activity y, sin su launcher, HOME cae en una
+     * pantalla de recuperación), se deshace todo y, para Halo, se activa su servicio de
+     * accesibilidad, que abre Halo cada vez que HOME muestra el launcher de stock.
+     */
     private boolean setHome(String pkg, String label, boolean pressHome) throws IOException {
         String component = homeComponentOf(pkg);
         if (component == null) throw new IOException(label + " no declara una pantalla de inicio");
 
         adb.shell("cmd package set-home-activity " + component);
+        List<String[]> changed = new ArrayList<>();
         for (String stock : stockLaunchers()) {
             if (!installed.contains(stock)) continue;
             String out = adb.shell("pm disable-user --user 0 " + stock);
             if (out.contains("disabled")) {
-                record("home", stock);
+                changed.add(new String[]{"home", stock});
                 log.line("✔ desactivado " + stock);
                 continue;
             }
             // Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
             String out2 = adb.shell("pm uninstall -k --user 0 " + stock);
             if (out2.contains("Success")) {
-                record("home-uninstall", stock);
+                changed.add(new String[]{"home-uninstall", stock});
                 log.line("✔ quitado " + stock);
             } else {
                 log.line("! no se pudo desactivar " + stock + ": " + firstLine(out) + " / " + firstLine(out2));
             }
         }
         // Otra vez, por si el sistema eligió otro inicio al desaparecer el de stock
-        String setHome = adb.shell("cmd package set-home-activity " + component);
+        adb.shell("cmd package set-home-activity " + component);
         refreshInstalled();
 
         String home = currentHome();
         boolean ok = home.startsWith(pkg + "/");
-        if (ok) {
+        if (home.isEmpty()) {
+            // Android antiguo sin "resolve-activity": no se puede comprobar, así que se deja hecho
+            for (String[] c : changed) record(c[0], c[1]);
+            log.line("? No se pudo comprobar qué abre Inicio: pulsa Inicio en el mando para verlo.");
+            ok = true;
+        } else if (ok) {
+            for (String[] c : changed) record(c[0], c[1]);
             log.line("✔ El botón Inicio abre " + label + ".");
         } else {
-            log.line("! El botón Inicio sigue abriendo: " + (home.isEmpty() ? "(desconocido)" : home));
-            if (!setHome.isEmpty() && !setHome.contains("Success")) log.line("  set-home-activity: " + firstLine(setHome));
-            log.line("  Activa «Botón Inicio → Halo» en Accesibilidad como alternativa.");
+            log.line("! Esta TV no deja cambiar la app de inicio (Inicio abre: " + home + ").");
+            for (String[] c : changed) undo(c[0], c[1]);
+            refreshInstalled();
+            if (HALO_PKG.equals(pkg)) {
+                enableHaloHomeService();
+                log.line("✔ Activado «Botón Inicio → Halo»: al pulsar Inicio se abrirá Halo.");
+            } else {
+                log.line("  Activa en Ajustes → Accesibilidad el servicio de inicio de " + label + ".");
+            }
         }
         if (pressHome) adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
         return ok;
+    }
+
+    private void undo(String op, String pkg) throws IOException {
+        String out = op.endsWith("uninstall")
+                ? adb.shell("cmd package install-existing " + pkg)
+                : adb.shell("pm enable " + pkg);
+        log.line((out.contains("installed") || out.contains("enabled") ? "↺ recuperado " : "! no se pudo recuperar ") + pkg);
+    }
+
+    /** Activa por ADB el servicio de accesibilidad de Halo (sin pasar por los menús). */
+    private void enableHaloHomeService() throws IOException {
+        String current = adb.shell("settings get secure enabled_accessibility_services");
+        if ("null".equals(current)) current = "";
+        if (!current.contains(HALO_HOME_SERVICE)) {
+            adb.shell("settings put secure enabled_accessibility_services "
+                    + (current.isEmpty() ? HALO_HOME_SERVICE : current + ":" + HALO_HOME_SERVICE));
+        }
+        adb.shell("settings put secure accessibility_enabled 1");
+        record("a11y", HALO_HOME_SERVICE);
+    }
+
+    private void disableHaloHomeService() throws IOException {
+        String current = adb.shell("settings get secure enabled_accessibility_services");
+        if (!current.contains(HALO_HOME_SERVICE)) return;
+        List<String> keep = new ArrayList<>();
+        for (String service : current.split(":")) {
+            if (!service.isEmpty() && !service.equals(HALO_HOME_SERVICE)) keep.add(service);
+        }
+        adb.shell(keep.isEmpty() ? "settings delete secure enabled_accessibility_services"
+                : "settings put secure enabled_accessibility_services " + android.text.TextUtils.join(":", keep));
+        log.line("✔ desactivado «Botón Inicio → Halo»");
     }
 
     /** "paquete/.Actividad" que pkg declara para HOME, o null. */
@@ -349,9 +436,12 @@ public final class TvDebloater {
     }
 
     public void restoreStockLauncher() throws IOException {
+        disableHaloHomeService();
         // Los conocidos más los que se quitaron desde aquí (un launcher desactivado ya no
-        // aparece al consultar HOME, así que se leen del registro).
+        // aparece al consultar HOME, así que se leen del registro). setupwraith se incluye por si
+        // lo desactivó una versión anterior.
         Set<String> launchers = new HashSet<>(STOCK_LAUNCHERS);
+        launchers.add(SETUPWRAITH);
         for (String[] entry : backupEntries()) {
             if ("home".equals(entry[0])) launchers.add(entry[1]);
             if ("home-uninstall".equals(entry[0])) {
@@ -362,25 +452,27 @@ public final class TvDebloater {
         }
         refreshInstalled();
         for (String pkg : launchers) {
-            if (!installed.contains(pkg)) continue;
+            if (!installed.contains(pkg) || enabled.contains(pkg)) continue;
             log.line(adb.shell("pm enable " + pkg).contains("enabled")
                     ? "✔ activado " + pkg : "! no se pudo activar " + pkg);
         }
+        refreshInstalled();
         adb.shell("am start -a android.intent.action.MAIN -c android.intent.category.HOME");
         log.line("Launcher original reactivado.");
     }
 
     public boolean hasBackup() {
-        return backupFile.exists() && backupFile.length() > 0;
+        return hasBackup;
     }
 
     /** Reinstala o reactiva todo lo que se quitó desde esta app en esta TV. */
     public void restoreAll() throws IOException {
-        if (!hasBackup()) {
+        List<String[]> entries = backupEntries();
+        if (entries.isEmpty()) {
             log.line("No hay nada que restaurar en esta TV.");
             return;
         }
-        for (String[] parts : backupEntries()) {
+        for (String[] parts : entries) {
             String pkg = parts[1];
             if ("uninstall".equals(parts[0]) || "home-uninstall".equals(parts[0])) {
                 String out = adb.shell("cmd package install-existing " + pkg);
@@ -389,24 +481,38 @@ public final class TvDebloater {
             } else if ("disable".equals(parts[0]) || "home".equals(parts[0])) {
                 log.line(adb.shell("pm enable " + pkg).contains("enabled")
                         ? "✔ activado " + pkg : "! no se pudo activar " + pkg);
+            } else if ("a11y".equals(parts[0])) {
+                disableHaloHomeService();
             }
         }
         File done = new File(backupFile.getPath() + ".restaurado");
         done.delete();
         backupFile.renameTo(done);
+        adb.shell("mv " + TV_BACKUP + " " + TV_BACKUP + ".restaurado");
+        hasBackup = false;
         refreshInstalled();
         log.line("Restauración terminada.");
     }
 
-    /** Líneas "operación paquete" del registro de esta TV. */
+    /**
+     * Líneas "operación paquete" del registro de esta TV: el de esta app más la copia guardada en
+     * la propia TV (la escriben también la otra app y los scripts), sin repetir.
+     */
     private List<String[]> backupEntries() throws IOException {
-        List<String[]> out = new ArrayList<>();
-        if (!backupFile.exists()) return out;
-        try (BufferedReader r = new BufferedReader(new FileReader(backupFile))) {
-            for (String l; (l = r.readLine()) != null; ) {
-                String[] parts = l.trim().split("\\s+");
-                if (parts.length == 2) out.add(parts);
+        List<String> lines = new ArrayList<>();
+        if (backupFile.exists()) {
+            try (BufferedReader r = new BufferedReader(new FileReader(backupFile))) {
+                for (String l; (l = r.readLine()) != null; ) lines.add(l);
             }
+        }
+        String tvCopy = adb.shell("cat " + TV_BACKUP + " 2>/dev/null");
+        lines.addAll(Arrays.asList(tvCopy.split("\n")));
+
+        List<String[]> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String l : lines) {
+            String[] parts = l.trim().split("\\s+");
+            if (parts.length == 2 && !parts[0].startsWith("#") && seen.add(parts[0] + " " + parts[1])) out.add(parts);
         }
         return out;
     }
@@ -415,6 +521,8 @@ public final class TvDebloater {
         try (FileOutputStream out = new FileOutputStream(backupFile, true)) {
             out.write((op + " " + pkg + "\n").getBytes(StandardCharsets.UTF_8));
         }
+        adb.shell("mkdir -p /sdcard/DebloatTV && echo '" + op + " " + pkg + "' >> " + TV_BACKUP);
+        hasBackup = true;
     }
 
     private static byte[] readAsset(Context context, String name) throws IOException {

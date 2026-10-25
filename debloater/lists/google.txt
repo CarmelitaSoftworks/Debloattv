@@ -16,9 +16,8 @@ recomendado  com.google.android.videos                     Google TV / Play Pel�
 recomendado  com.google.android.tvrecommendations          Servicio de recomendaciones y anuncios del home
 recomendado  com.google.android.apps.tv.dreamx             Modo ambiente de Google TV (vuelve el salvapantallas simple)
 recomendado  com.google.android.backdrop                   Modo ambiente de Android TV
+recomendado  android.autoinstalls.config.google.gtvpai  Instalación automática de apps de socios
 recomendado  com.google.android.partnersetup               Configuración de socios / promociones del fabricante
-recomendado  com.google.android.apps.tv.launcherx.coreservices  Servicios de contenido del launcher de Google TV
-recomendado  com.google.android.apps.tv.dreamx.ambient     Contenido extra del modo ambiente
 
 agresivo     com.google.android.katniss                    Asistente de Google y búsqueda por voz (rompe el botón de micrófono)
 agresivo     com.google.android.speech.pumpkin             Reconocimiento de voz offline

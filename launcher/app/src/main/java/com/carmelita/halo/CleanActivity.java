@@ -151,6 +151,8 @@ public class CleanActivity extends Activity {
         if (adb != null) adb.close();
         adb = null;
         tv = null;
+        manual = false;
+        status.setText("");
         setConn(getString(R.string.clean_connecting), R.color.status_warn);
         runTask(() -> {
             AdbKey key = AdbKey.loadOrCreate(getFilesDir());

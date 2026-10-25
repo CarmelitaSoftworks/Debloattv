@@ -117,27 +117,30 @@ y ejecuta `./debloat.sh -i 192.168.1.50 --list mis-apps.txt`.
 
 ### Deshacer
 
-Cada ejecución guarda un backup en `debloater/backups/`. Para restaurarlo:
+Todo lo que se quita queda registrado en dos sitios: en `debloater/backups/` (PC) y **dentro de la propia TV** (`/sdcard/DebloatTV/backup.txt`). La copia de la TV la comparten los scripts, Halo y la app del teléfono, así que puedes deshacer desde cualquiera de ellos aunque lo hicieras con otro:
 
 ```bash
-./debloat.sh -i 192.168.1.50 --restore backups/chromecast-20261025-1430.txt
+./debloat.sh -i 192.168.1.50 --restore tv                                   # copia de la TV
+./debloat.sh -i 192.168.1.50 --restore backups/chromecast-20261025-1430.txt  # un backup del PC
 ```
 
 ```powershell
-.\debloat.bat -Ip 192.168.1.50 -Restore backups\chromecast-20261025-1430.txt
+.\debloat.bat -Ip 192.168.1.50 -Restore tv
 ```
 
 ## 3. Cambiar el launcher por Halo
 
 ```bash
-./debloat.sh -i 192.168.1.50 --launcher
+./debloat.sh -i 192.168.1.50 --launcher        # Halo
+./debloat.sh -i 192.168.1.50 --launcher ltv    # LTvLauncher (código abierto, se descarga de GitHub)
 ```
 
 ```powershell
 .\debloat.bat -Ip 192.168.1.50 -Launcher
+.\debloat.bat -Ip 192.168.1.50 -Launcher -Apk ltv
 ```
 
-Instala `dist/halo-launcher.apk`, lo marca como pantalla de inicio y desactiva el launcher de stock (Google TV, Android TV, PatchWall de Xiaomi). Pulsa **HOME** en el mando y aparecerá Halo.
+Instala el launcher, lo marca como pantalla de inicio y desactiva el launcher de stock (Google TV, Android TV, PatchWall de Xiaomi y el de cualquier marca, que se detecta solo). Después **comprueba** qué abre de verdad el botón Inicio.
 
 Para volver al launcher original:
 
@@ -146,7 +149,13 @@ Para volver al launcher original:
 adb uninstall com.carmelita.halo      # opcional
 ```
 
-> En Google TV el script también desactiva `com.google.android.tungsten.setupwraith`, que es lo que reabre el launcher de Google al pulsar HOME. Si alguna vez necesitas el asistente de configuración inicial de Google, reactívalo con `--restore-launcher`.
+### TCL con Google TV (y otras TV que no dejan cambiar el inicio)
+
+En algunas TCL con Google TV (Android 12), Android **ignora** el cambio de app de inicio y, si se desactiva el launcher de Google, el botón Inicio cae en una pantalla de recuperación. Cuando las herramientas lo detectan, **deshacen el cambio** (el launcher de Google vuelve a estar activo) y activan automáticamente por ADB **Botón Inicio → Halo**: un servicio de accesibilidad que abre Halo cada vez que pulsas Inicio. Verás un instante el inicio de Google antes de Halo; es lo máximo que permite esa TV sin root.
+
+> **Nunca se desactiva `com.google.android.tungsten.setupwraith`:** en estas TV guarda la red WiFi y desactivarlo la borra (la TV se queda sin WiFi ni ADB). Versiones anteriores de esta herramienta sí lo desactivaban; si la usaste, `--restore-launcher` (o «Volver al launcher original» en las apps) lo reactiva.
+>
+> Fuente: [amfakh/tcl-g09-debloat](https://github.com/amfakh/tcl-g09-debloat), que documenta este comportamiento en una TCL Smart TV Pro. La lista `lists/tcl.txt` se basa en ella.
 
 ### Usar Halo
 

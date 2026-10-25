@@ -11,6 +11,7 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 /**
  * Para televisores sin ADB: cuando el botón HOME abre el launcher de stock, se abre Halo encima.
@@ -22,6 +23,8 @@ public class HomeButtonService extends AccessibilityService {
     private static final List<String> IGNORED = Arrays.asList(
             "android", "com.android.settings", "com.android.tv.settings",
             "com.google.android.tungsten.setupwraith");
+
+    private static final Pattern HOME_SCREEN = Pattern.compile("(?i)home|launcher|main");
 
     private final Set<String> launchers = new HashSet<>();
 
@@ -42,6 +45,10 @@ public class HomeButtonService extends AccessibilityService {
         if (event.getEventType() != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) return;
         CharSequence pkg = event.getPackageName();
         if (pkg == null || !launchers.contains(pkg.toString())) return;
+        // Solo la pantalla de inicio: el launcher también muestra otras (perfiles, ajustes) que
+        // no hay que tapar
+        CharSequence cls = event.getClassName();
+        if (cls != null && !HOME_SCREEN.matcher(cls).find()) return;
         startActivity(new Intent(this, MainActivity.class)
                 .setAction(Intent.ACTION_MAIN)
                 .addCategory(Intent.CATEGORY_HOME)

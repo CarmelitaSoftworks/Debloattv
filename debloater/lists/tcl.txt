@@ -1,6 +1,46 @@
 # TCL (Android TV / Google TV)
-seguro       com.tcl.guard                                 TCL Guard (limpiador con publicidad)
-seguro       com.tcl.usercenter                            Centro de usuario TCL
-recomendado  com.tcl.tclchannel                            TCL Channel (canales con anuncios)
-recomendado  com.tcl.weather                               Widget del tiempo
-agresivo     com.tcl.MultiScreenInteraction_TV             Interacción multipantalla (T-Cast)
+# Basado en listas comprobadas en TCL reales, sobre todo github.com/amfakh/tcl-g09-debloat
+# (TCL Smart TV Pro, Google TV, Android 12). Los nombres cambian entre modelos: los que no
+# existan en tu TV simplemente se ignoran.
+# NUNCA quitar (protegidos en el código): com.tcl.tv, com.tcl.tvinput, com.tcl.suspension,
+# com.tcl.dashboard, com.tcl.autopair, com.tcl.systemserver, com.tcl.providers.config,
+# com.tcl.globalkeyoverlay, com.tcl.initsetup y com.google.android.tungsten.setupwraith
+# (desactivarlo borra la red WiFi guardada).
+
+# Telemetría
+seguro       com.tcl.ttvs                       Telemetría e identificadores de TCL (las actualizaciones llegan por Play Services)
+seguro       com.tcl.logkit                     Captura y envío de registros a TCL
+seguro       com.tcl.interactive                Servicio de telemetría TIAS de TCL
+seguro       com.tcl.guard                      TCL Guard: rastreo de uso y "limpiador"
+
+# Demos y extras de tienda
+seguro       com.tcl.exhibit                    Modo demostración de tienda
+seguro       com.tcl.esticker                   Pegatinas del modo tienda
+seguro       com.tcl.hotelmenu                  Modo hotel
+seguro       com.tcl.ocean.instructions         Manual electrónico
+seguro       com.tcl.repairguide                Guía de reparación
+
+# Anuncios y contenido promocional
+recomendado  com.tcl.bootadservice              Anuncios al encender la TV
+recomendado  com.tcl.channelplus                Canales FAST de TCL (con anuncios)
+recomendado  com.tcl.waterfall.overseas         Recomendaciones "waterfall" de TCL
+recomendado  com.tcl.tv.tclhome_passive         Empuja contenido de TCL al inicio al arrancar
+recomendado  com.tcl.partnercustomizer          Pestaña y filas de TCL en el inicio de Google TV
+recomendado  com.tcl.messagebox                 Mensajes y promociones de TCL
+recomendado  com.tcl.appmarket2                 Tienda de apps de TCL
+recomendado  com.tcl.browser                    Navegador de TCL
+
+# Servicios en segundo plano
+recomendado  com.tcl.useragreement              Pantallas de EULA y privacidad de TCL
+recomendado  com.tcl.usercenter                 Cuenta de TCL
+recomendado  com.tcl.smartalexa                 Cliente de Alexa
+recomendado  com.tcl.hearaid                    Prueba de audición y ajuste de volumen
+
+# Funciones que quizá uses
+agresivo     com.tcl.gamebar                    Barra de juego para consolas
+agresivo     com.tcl.UpdatePeripheral           Actualizador de barras de sonido TCL
+agresivo     com.tcl.miracast                   Duplicar pantalla desde móviles Android
+agresivo     com.tcl.magiconnectfree            MagiConnect (control desde el móvil)
+agresivo     com.tcl.MultiScreenInteraction_TV  Interacción multipantalla (T-Cast)
+agresivo     com.tcl.ui_mediaCenter             Reproductor de USB de TCL
+agresivo     com.tcl.gallery                    Galería de fotos de TCL

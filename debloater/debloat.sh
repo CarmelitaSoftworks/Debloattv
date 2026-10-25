@@ -1,34 +1,45 @@
 #!/usr/bin/env bash
 # DebloatTV — limpia una Smart TV Android/Google TV por ADB y cambia el launcher por Halo.
-# Todo es reversible: los paquetes se quitan solo para el usuario 0 y se registran en backups/.
+# Todo es reversible: los paquetes se quitan solo para el usuario 0 y se registran en backups/
+# y en una copia dentro de la propia TV (/sdcard/DebloatTV/backup.txt), compartida con las apps.
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 LISTS="$HERE/lists"
 BACKUPS="$HERE/backups"
 HALO_PKG="com.carmelita.halo"
-HALO_HOME="$HALO_PKG/.MainActivity"
+HALO_HOME_SERVICE="$HALO_PKG/$HALO_PKG.HomeButtonService"
+LTV_PKG="com.leanbitlab.ltvL"
+LTV_URL="https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-%s-release.apk"
+TV_BACKUP="/sdcard/DebloatTV/backup.txt"
 
-# Launchers de stock que se desactivan al instalar Halo (se reactivan con --restore-launcher)
+# Launchers de stock conocidos; los de otras marcas se detectan por HOME (ver home_launchers)
 STOCK_LAUNCHERS=(
   com.google.android.apps.tv.launcherx      # Google TV
-  com.google.android.tungsten.setupwraith   # Google TV: reabre el launcher de stock al pulsar HOME
   com.google.android.tvlauncher             # Android TV 8+
   com.google.android.leanbacklauncher       # Android TV antiguo
-  com.tcl.waterfall.overseas                # TCL Home (Android TV)
   com.mitv.tvhome                           # Xiaomi PatchWall
 )
+# El asistente de Google TV responde a HOME pero NUNCA se desactiva: guarda la red WiFi y
+# desactivarlo la borra (la TV se queda sin WiFi ni ADB). Solo se reactiva al restaurar.
+SETUPWRAITH=com.google.android.tungsten.setupwraith
+NOT_LAUNCHERS=(android com.android.settings com.android.tv.settings "$SETUPWRAITH" "$HALO_PKG" "$LTV_PKG")
 
 # Nunca se tocan, aunque aparezcan en una lista personalizada
 PROTECTED=(
   android com.android.systemui com.android.settings com.android.tv.settings
   com.android.vending com.google.android.gms com.google.android.gsf
   com.google.android.leanback.ime com.google.android.inputmethod.latin
-  com.google.android.tv.remote.service com.google.android.tvsetup
+  com.google.android.tv.remote.service com.google.android.tvsetup "$SETUPWRAITH"
   com.android.providers.settings com.android.providers.tv com.android.providers.media
   com.android.packageinstaller com.google.android.packageinstaller
   com.android.shell com.android.bluetooth com.android.wifi.resources
-  "$HALO_PKG"
+  com.android.webview com.google.android.webview
+  com.android.permissioncontroller com.google.android.permissioncontroller
+  # TCL: imprescindibles para TV, entradas HDMI, mando y menús (ver lists/tcl.txt)
+  com.tcl.tv com.tcl.tvinput com.tcl.suspension com.tcl.dashboard com.tcl.autopair
+  com.tcl.systemserver com.tcl.providers.config com.tcl.globalkeyoverlay com.tcl.initsetup
+  "$HALO_PKG" "$LTV_PKG"
 )
 
 LEVEL="recomendado"
@@ -54,13 +65,13 @@ Uso: $(basename "$0") [opciones] [acción]
 
 Acciones:
   (ninguna)               Debloat según el nivel elegido (por defecto: recomendado)
-  --launcher [APK]        Instala Halo Launcher y desactiva el launcher de stock
-  --restore-launcher      Reactiva el launcher de stock
-  --restore ARCHIVO       Reinstala/reactiva todo lo registrado en un backup
+  --launcher [APK|ltv]    Instala Halo (o LTvLauncher con "ltv") y lo deja como inicio
+  --restore-launcher      Vuelve al launcher de stock
+  --restore ARCHIVO|tv    Reinstala/reactiva lo registrado en un backup ("tv": la copia de la TV)
   --scan                  Lista apps del sistema y del fabricante para revisarlas a mano
 
 Opciones:
-  -i, --ip IP[:PUERTO]    Conecta por red (depuración ADB inalámbrica)
+  -i, --ip IP[:PUERTO]    Conecta por red (basta con "Depuración USB" activada en la TV)
   -s, --serial SERIAL     Usa un dispositivo concreto si hay varios
   -l, --level NIVEL       seguro | recomendado | agresivo
       --list ARCHIVO      Añade una lista propia (mismo formato que lists/*.txt)
@@ -71,8 +82,9 @@ Opciones:
 Ejemplos:
   $(basename "$0") -i 192.168.1.50 -n                 # ver qué se quitaría
   $(basename "$0") -i 192.168.1.50 -l recomendado     # debloat
-  $(basename "$0") -i 192.168.1.50 --launcher         # poner Halo como launcher
-  $(basename "$0") --restore backups/chromecast-20260101-1200.txt
+  $(basename "$0") -i 192.168.1.50 --launcher         # poner Halo como inicio
+  $(basename "$0") -i 192.168.1.50 --launcher ltv     # poner LTvLauncher (código abierto)
+  $(basename "$0") -i 192.168.1.50 --restore tv       # deshacer todo lo registrado en la TV
 EOF
 }
 
@@ -131,9 +143,39 @@ MODEL="$(sh_tv getprop ro.product.model)"
 SDK="$(sh_tv getprop ro.build.version.sdk)"
 info "Dispositivo: ${c_bld}$MODEL${c_off} ($MANUFACTURER, API $SDK)"
 
-INSTALLED="$(sh_tv pm list packages | sed 's/^package://' | sort -u)"
+refresh_packages() {
+  INSTALLED="$(sh_tv pm list packages | sed 's/^package://' | sort -u)"
+  ENABLED="$(sh_tv pm list packages -e | sed 's/^package://' | sort -u)"
+}
+refresh_packages
 is_installed() { grep -qxF "$1" <<<"$INSTALLED"; }
-is_protected() { local p; for p in "${PROTECTED[@]}"; do [[ "$p" == "$1" ]] && return 0; done; return 1; }
+is_enabled() { grep -qxF "$1" <<<"$ENABLED"; }
+in_list() { local x="$1" p; shift; for p in "$@"; do [[ "$p" == "$x" ]] && return 0; done; return 1; }
+is_protected() { in_list "$1" "${PROTECTED[@]}"; }
+
+# "paquete/.Actividad" de cada app que responde a HOME
+home_components() {
+  sh_tv cmd package query-activities --brief -a android.intent.action.MAIN -c android.intent.category.HOME \
+    | grep -E '^ *[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+ *$' | tr -d ' ' || true
+}
+
+# Launchers de stock de esta TV: los conocidos más las apps del sistema que responden a HOME
+home_launchers() {
+  local system p
+  system="$(sh_tv pm list packages -s | sed 's/^package://')"
+  {
+    printf '%s\n' "${STOCK_LAUNCHERS[@]}"
+    home_components | cut -d/ -f1 | while read -r p; do
+      in_list "$p" "${NOT_LAUNCHERS[@]}" && continue
+      grep -qxF "$p" <<<"$system" && echo "$p"
+    done
+  } | sort -u | while read -r p; do is_installed "$p" && echo "$p"; done
+}
+
+current_home() {
+  sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME \
+    | grep -E '^ *[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+ *$' | tail -1 | tr -d ' ' || true
+}
 
 confirm() {
   [[ "$ASSUME_YES" -eq 1 || "$DRY_RUN" -eq 1 ]] && return 0
@@ -149,7 +191,12 @@ new_backup() {
   [[ "$DRY_RUN" -eq 1 ]] && return 0
   printf '# DebloatTV backup — %s (%s) — %s\n' "$MODEL" "$MANUFACTURER" "$(date)" >"$BACKUP_FILE"
 }
-record() { [[ "$DRY_RUN" -eq 1 ]] || echo "$1 $2" >>"$BACKUP_FILE"; }
+# Se guarda en el PC y en la TV, para poder deshacerlo desde cualquier herramienta
+record() {
+  [[ "$DRY_RUN" -eq 1 ]] && return 0
+  echo "$1 $2" >>"$BACKUP_FILE"
+  sh_tv "mkdir -p /sdcard/DebloatTV && echo '$1 $2' >> $TV_BACKUP" >/dev/null
+}
 
 # pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva.
 remove_pkg() {
@@ -178,10 +225,12 @@ vendor_list() {
 }
 
 do_debloat() {
-  local files=("$LISTS/google.txt") vendor
+  local files=("$LISTS/google.txt") vendor homes
   vendor="$(vendor_list)"
   [[ -n "$vendor" ]] && files+=("$LISTS/$vendor")
   files+=("${EXTRA_LISTS[@]+"${EXTRA_LISTS[@]}"}")
+  # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
+  homes="$(home_launchers; home_components | cut -d/ -f1)"
 
   local targets=() descs=() f lvl pkg desc
   for f in "${files[@]}"; do
@@ -189,8 +238,9 @@ do_debloat() {
     while read -r lvl pkg desc; do
       [[ -z "$lvl" || "$lvl" == \#* ]] && continue
       [[ "$(level_rank "$lvl")" -ge 1 && "$(level_rank "$lvl")" -le "$MAX_RANK" ]] || continue
-      is_installed "$pkg" || continue
-      if is_protected "$pkg"; then warn "se ignora $pkg (protegido)"; continue; fi
+      is_enabled "$pkg" || continue
+      in_list "$pkg" "${targets[@]+"${targets[@]}"}" && continue
+      if is_protected "$pkg" || grep -qxF "$pkg" <<<"$homes"; then warn "se ignora $pkg (protegido)"; continue; fi
       targets+=("$pkg"); descs+=("$lvl: $desc")
     done <"$f"
   done
@@ -209,7 +259,7 @@ do_debloat() {
 
   new_backup
   for pkg in "${targets[@]}"; do remove_pkg "$pkg"; done
-  [[ "$DRY_RUN" -eq 1 ]] || info "Hecho. Para deshacerlo: $(basename "$0") --restore $BACKUP_FILE"
+  [[ "$DRY_RUN" -eq 1 ]] || info "Hecho. Para deshacerlo: $(basename "$0") --restore tv"
 }
 
 find_apk() {
@@ -222,63 +272,139 @@ find_apk() {
   done
 }
 
-do_launcher() {
-  if ! is_installed "$HALO_PKG"; then
-    local apk; apk="$(find_apk)"
-    [[ -n "$apk" ]] || die "no encuentro el APK de Halo. Compílalo (launcher/) o pásalo: --launcher ruta.apk"
-    info "Instalando $(basename "$apk")"
-    if [[ "$DRY_RUN" -eq 0 ]]; then
-      local out
-      out="$("${ADB[@]}" install -r "$apk" 2>&1 | tr -d '\r' || true)"
-      # Sin Halo instalado no se puede tocar el launcher de stock: la TV se quedaría sin inicio
-      [[ "$out" == *Success* ]] || die "no se pudo instalar Halo: $(tail -1 <<<"$out")"
-      ok "Halo instalado"
-    fi
-  else
-    ok "Halo ya está instalado"
-  fi
+install_apk() {
+  local apk="$1" label="$2" out
+  info "Instalando $label"
+  [[ "$DRY_RUN" -eq 1 ]] && return 0
+  out="$("${ADB[@]}" install -r "$apk" 2>&1 | tr -d '\r' || true)"
+  # Sin el launcher instalado no se puede tocar el de stock: la TV se quedaría sin inicio
+  [[ "$out" == *Success* ]] || die "no se pudo instalar $label: $(tail -1 <<<"$out")"
+  ok "$label instalado"
+  refresh_packages
+}
 
-  local stock=() p
-  for p in "${STOCK_LAUNCHERS[@]}"; do is_installed "$p" && stock+=("$p"); done
+enable_halo_service() {
+  local current
+  current="$(sh_tv settings get secure enabled_accessibility_services)"
+  [[ "$current" == null ]] && current=""
+  if [[ "$current" != *"$HALO_HOME_SERVICE"* ]]; then
+    sh_tv settings put secure enabled_accessibility_services "${current:+$current:}$HALO_HOME_SERVICE" >/dev/null
+  fi
+  sh_tv settings put secure accessibility_enabled 1 >/dev/null
+  record a11y "$HALO_HOME_SERVICE"
+}
+
+disable_halo_service() {
+  local current keep
+  current="$(sh_tv settings get secure enabled_accessibility_services)"
+  [[ "$current" == *"$HALO_HOME_SERVICE"* ]] || return 0
+  keep="$(tr ':' '\n' <<<"$current" | grep -vxF "$HALO_HOME_SERVICE" | grep -v '^$' | paste -sd: - || true)"
+  if [[ -n "$keep" ]]; then
+    sh_tv settings put secure enabled_accessibility_services "$keep" >/dev/null
+  else
+    sh_tv settings delete secure enabled_accessibility_services >/dev/null
+  fi
+  ok "desactivado «Botón Inicio → Halo»"
+}
+
+# Deja PKG como inicio. Si la TV no lo acepta (algunas TCL con Google TV ignoran
+# set-home-activity y, sin su launcher, HOME cae en una pantalla de recuperación), se deshace
+# todo y, para Halo, se activa su servicio de accesibilidad, que abre Halo al pulsar HOME.
+set_home() {
+  local pkg="$1" label="$2" component stock=() changed=() p
+  component="$(home_components | grep -m1 "^$pkg/" || true)"
+  [[ -n "$component" || "$DRY_RUN" -eq 1 ]] || die "$label no declara una pantalla de inicio"
+
+  while read -r p; do [[ -n "$p" ]] && stock+=("$p"); done < <(home_launchers)
   info "Se desactivará el launcher de stock: ${stock[*]:-ninguno}"
   confirm "¿Continuar?" || { info "Cancelado."; return; }
-
   new_backup
-  if [[ "$DRY_RUN" -eq 0 ]]; then
-    sh_tv cmd package set-home-activity "$HALO_HOME" >/dev/null || true
+  if [[ "$DRY_RUN" -eq 1 ]]; then
+    for p in "${stock[@]+"${stock[@]}"}"; do ok "${c_dim}(simulado)${c_off} desactivar $p"; done
+    return
   fi
+
+  sh_tv cmd package set-home-activity "$component" >/dev/null
   for p in "${stock[@]+"${stock[@]}"}"; do
-    if [[ "$DRY_RUN" -eq 1 ]]; then ok "${c_dim}(simulado)${c_off} desactivar $p"; continue; fi
     if [[ "$(sh_tv pm disable-user --user 0 "$p")" == *disabled* ]]; then
-      record disable "$p"; ok "desactivado $p"
+      changed+=("home $p"); ok "desactivado $p"
     elif [[ "$(sh_tv pm uninstall -k --user 0 "$p")" == *Success* ]]; then
       # Algunas TV no dejan desactivar el launcher pero sí quitarlo para el usuario
-      record uninstall "$p"; ok "quitado $p ${c_dim}(se recupera con --restore)${c_off}"
+      changed+=("home-uninstall $p"); ok "quitado $p"
     else
       warn "no se pudo desactivar $p"
     fi
   done
-  [[ "$DRY_RUN" -eq 1 ]] && return
-  sh_tv cmd package set-home-activity "$HALO_HOME" >/dev/null || true
-  local home
-  home="$(sh_tv cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | grep -E '^ *[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+ *$' | tail -1 | tr -d ' ')"
-  if [[ "$home" == "$HALO_PKG/"* ]]; then
-    ok "El botón Inicio abre Halo"
+  sh_tv cmd package set-home-activity "$component" >/dev/null
+
+  local home op
+  home="$(current_home)"
+  if [[ -z "$home" ]]; then
+    # Android antiguo sin "resolve-activity": no se puede comprobar, así que se deja hecho
+    for p in "${changed[@]+"${changed[@]}"}"; do record ${p}; done
+    warn "No se pudo comprobar qué abre Inicio: pulsa Inicio en el mando para verlo."
+  elif [[ "$home" == "$pkg/"* ]]; then
+    for p in "${changed[@]+"${changed[@]}"}"; do record ${p}; done
+    ok "El botón Inicio abre $label"
   else
-    warn "El botón Inicio sigue abriendo: ${home:-desconocido}. Activa «Botón Inicio → Halo» en Accesibilidad."
+    warn "Esta TV no deja cambiar la app de inicio (Inicio abre: $home)."
+    for p in "${changed[@]+"${changed[@]}"}"; do
+      read -r op p <<<"$p"
+      if [[ "$op" == home-uninstall ]]; then sh_tv cmd package install-existing "$p" >/dev/null; else sh_tv pm enable "$p" >/dev/null; fi
+      ok "recuperado $p"
+    done
+    if [[ "$pkg" == "$HALO_PKG" ]]; then
+      enable_halo_service
+      ok "Activado «Botón Inicio → Halo»: al pulsar Inicio se abrirá Halo"
+    else
+      warn "Activa en Ajustes → Accesibilidad el servicio de inicio de $label"
+    fi
   fi
   sh_tv am start -a android.intent.action.MAIN -c android.intent.category.HOME >/dev/null || true
-  info "Listo. Pulsa HOME en el mando."
   info "Para volver al launcher original: $(basename "$0") --restore-launcher"
 }
 
+do_launcher() {
+  if [[ "$APK" == ltv ]]; then
+    if ! is_installed "$LTV_PKG"; then
+      command -v curl >/dev/null || die "hace falta curl para descargar LTvLauncher"
+      local abi flavor tmp
+      abi="$(sh_tv getprop ro.product.cpu.abi)"
+      case "$abi" in arm64*) flavor=arm64-v8a ;; armeabi*) flavor=armeabi-v7a ;; *) flavor=universal ;; esac
+      tmp="$(mktemp -d)"
+      info "Descargando LTvLauncher ($flavor) de GitHub"
+      # shellcheck disable=SC2059
+      curl -fsSL -o "$tmp/ltv.apk" "$(printf "$LTV_URL" "$flavor")" || die "no se pudo descargar LTvLauncher"
+      install_apk "$tmp/ltv.apk" "LTvLauncher"
+      rm -f "$tmp/ltv.apk"; rmdir "$tmp"
+    else
+      ok "LTvLauncher ya está instalado"
+    fi
+    set_home "$LTV_PKG" "LTvLauncher"
+    return
+  fi
+
+  if ! is_installed "$HALO_PKG"; then
+    local apk; apk="$(find_apk)"
+    [[ -n "$apk" ]] || die "no encuentro el APK de Halo. Compílalo (launcher/) o pásalo: --launcher ruta.apk"
+    install_apk "$apk" "Halo"
+  else
+    ok "Halo ya está instalado"
+  fi
+  set_home "$HALO_PKG" "Halo"
+}
+
 do_restore_launcher() {
-  local p
-  for p in "${STOCK_LAUNCHERS[@]}"; do
+  local p launchers=("${STOCK_LAUNCHERS[@]}" "$SETUPWRAITH")
+  [[ "$DRY_RUN" -eq 1 ]] || disable_halo_service
+  # También los launchers de otras marcas que se quitaron (están en la copia de la TV)
+  while read -r _ p; do [[ -n "${p:-}" ]] && launchers+=("$p"); done < <(sh_tv cat "$TV_BACKUP" 2>/dev/null | grep -E '^(home|home-uninstall) ' || true)
+  for p in $(printf '%s\n' "${launchers[@]}" | sort -u); do
     if ! is_installed "$p"; then
       # Quitado para el usuario con el plan B de --launcher: se recupera si existe en el sistema
       [[ "$DRY_RUN" -eq 0 && "$(sh_tv cmd package install-existing "$p")" == *installed* ]] && ok "reinstalado $p" || continue
     fi
+    is_enabled "$p" && continue
     if [[ "$DRY_RUN" -eq 1 ]]; then ok "${c_dim}(simulado)${c_off} activar $p"; continue; fi
     [[ "$(sh_tv pm enable "$p")" == *enabled* ]] && ok "activado $p" || warn "no se pudo activar $p"
   done
@@ -288,26 +414,35 @@ do_restore_launcher() {
 }
 
 do_restore() {
-  [[ -f "$RESTORE_FILE" ]] || die "no existe $RESTORE_FILE"
-  local op pkg out
+  local source op pkg out
+  if [[ "$RESTORE_FILE" == tv ]]; then
+    source="$(sh_tv cat "$TV_BACKUP")"
+    [[ "$source" == *"No such file"* || -z "$source" ]] && die "la TV no tiene copia de seguridad ($TV_BACKUP)"
+  else
+    [[ -f "$RESTORE_FILE" ]] || die "no existe $RESTORE_FILE"
+    source="$(cat "$RESTORE_FILE")"
+  fi
   while read -r op pkg; do
-    [[ -z "$op" || "$op" == \#* ]] && continue
+    [[ -z "$op" || "$op" == \#* || -z "${pkg:-}" ]] && continue
     if [[ "$DRY_RUN" -eq 1 ]]; then ok "${c_dim}(simulado)${c_off} $op → $pkg"; continue; fi
     case "$op" in
-      uninstall)
+      uninstall|home-uninstall)
         out="$(sh_tv cmd package install-existing "$pkg")"
         [[ "$out" == *installed* ]] || out="$(sh_tv pm install-existing "$pkg")"
         [[ "$out" == *installed* ]] && ok "reinstalado $pkg" || warn "$pkg: $out" ;;
-      disable)
+      disable|home)
         [[ "$(sh_tv pm enable "$pkg")" == *enabled* ]] && ok "activado $pkg" || warn "no se pudo activar $pkg" ;;
+      a11y)
+        disable_halo_service ;;
     esac
-  done <"$RESTORE_FILE"
+  done < <(sort -u <<<"$source")
+  if [[ "$RESTORE_FILE" == tv && "$DRY_RUN" -eq 0 ]]; then sh_tv mv "$TV_BACKUP" "$TV_BACKUP.restaurado" >/dev/null; fi
   info "Restauración terminada."
 }
 
 do_scan() {
   local listed
-  listed="$( { cat "$LISTS"/*.txt | awk '!/^#/ && NF>=2 {print $2}'; printf '%s\n' "${STOCK_LAUNCHERS[@]}"; } | sort -u)"
+  listed="$( { cat "$LISTS"/*.txt | awk '!/^#/ && NF>=2 {print $2}'; printf '%s\n' "${STOCK_LAUNCHERS[@]}" "${PROTECTED[@]}"; } | sort -u)"
   info "Apps del sistema que no están en ninguna lista (revísalas con cuidado):"
   sh_tv pm list packages -s | sed 's/^package://' | sort -u | while read -r p; do
     grep -qxF "$p" <<<"$listed" && continue
