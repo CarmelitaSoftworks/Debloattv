@@ -8,200 +8,94 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <!-- Una sola columna: estado, paso en curso y el botón que toca. Sin listas. -->
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:baselineAligned="false"
-        android:orientation="horizontal"
-        android:paddingStart="@dimen/side_padding"
-        android:paddingTop="40dp"
-        android:paddingEnd="@dimen/side_padding"
-        android:paddingBottom="24dp">
+        android:layout_width="520dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_vertical"
+        android:layout_marginStart="@dimen/side_padding"
+        android:orientation="vertical">
 
-        <!-- Columna izquierda: estado, nivel y acciones -->
-        <ScrollView
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="0.4"
-            android:clipToPadding="false"
-            android:scrollbars="none">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/clean_title"
+            android:textColor="@color/text_primary"
+            android:textSize="32sp"
+            android:textStyle="bold" />
 
-            <LinearLayout
-                android:id="@+id/actions"
-                android:layout_width="match_parent"
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:background="@drawable/pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="10dp"
+            android:paddingTop="5dp"
+            android:paddingEnd="12dp"
+            android:paddingBottom="5dp">
+
+            <View
+                android:id="@+id/conn_dot"
+                android:layout_width="6dp"
+                android:layout_height="6dp"
+                android:layout_marginEnd="7dp"
+                android:background="@drawable/dot" />
+
+            <TextView
+                android:id="@+id/conn"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingEnd="32dp"
-                android:paddingBottom="16dp">
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/clean_connecting"
+                android:textColor="@color/text_primary"
+                android:textSize="11sp" />
+        </LinearLayout>
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/clean_title"
-                    android:textColor="@color/text_primary"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
+        <TextView
+            android:id="@+id/headline"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/clean_connecting"
+            android:textColor="@color/text_primary"
+            android:textSize="22sp" />
 
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/pill"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="10dp"
-                    android:paddingTop="5dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="5dp">
+        <ProgressBar
+            android:id="@+id/progress"
+            style="@android:style/Widget.Material.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:indeterminate="true" />
 
-                    <View
-                        android:id="@+id/conn_dot"
-                        android:layout_width="6dp"
-                        android:layout_height="6dp"
-                        android:layout_marginEnd="7dp"
-                        android:background="@drawable/dot" />
+        <TextView
+            android:id="@+id/status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:lineSpacingMultiplier="1.25"
+            android:textColor="@color/text_secondary"
+            android:textSize="13sp" />
 
-                    <TextView
-                        android:id="@+id/conn"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-medium"
-                        android:text="@string/clean_connecting"
-                        android:textColor="@color/text_primary"
-                        android:textSize="11sp" />
-                </LinearLayout>
+        <Button
+            android:id="@+id/action"
+            style="@style/TvButton"
+            android:layout_marginTop="20dp"
+            android:visibility="gone" />
 
-                <LinearLayout
-                    android:id="@+id/levels"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:background="@drawable/glass"
-                    android:orientation="horizontal"
-                    android:padding="3dp"
-                    android:visibility="gone">
+        <Button
+            android:id="@+id/home_button"
+            style="@style/TvButton"
+            android:text="@string/opt_home_button"
+            android:visibility="gone" />
 
-                    <TextView
-                        android:id="@+id/level_seguro"
-                        style="@style/SegPill"
-                        android:text="@string/level_seguro" />
-
-                    <TextView
-                        android:id="@+id/level_recomendado"
-                        style="@style/SegPill"
-                        android:text="@string/level_recomendado" />
-
-                    <TextView
-                        android:id="@+id/level_agresivo"
-                        style="@style/SegPill"
-                        android:text="@string/level_agresivo" />
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/operator"
-                    style="@style/TvButton"
-                    android:layout_marginTop="10dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/status"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:layout_marginBottom="6dp"
-                    android:lineSpacingMultiplier="1.2"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/remove"
-                    style="@style/TvButton"
-                    android:text="@string/clean_remove"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/choose_home"
-                    style="@style/TvButton"
-                    android:text="@string/clean_choose_home"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/home_button"
-                    style="@style/TvButton"
-                    android:text="@string/opt_home_button"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/retry"
-                    style="@style/TvButton"
-                    android:text="@string/clean_retry"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/restore_all"
-                    style="@style/TvButton"
-                    android:text="@string/clean_restore_all"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/restore_launcher"
-                    style="@style/TvButton"
-                    android:text="@string/clean_restore_launcher"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/help"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:lineSpacingMultiplier="1.2"
-                    android:text="@string/clean_manual_help"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/log"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:fontFamily="monospace"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
-            </LinearLayout>
-        </ScrollView>
-
-        <!-- Columna derecha: apps encontradas -->
-        <ScrollView
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="0.6"
-            android:clipToPadding="false"
-            android:padding="4dp"
-            android:scrollbars="none">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-                <TextView
-                    android:id="@+id/list_header"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"
-                    android:fontFamily="sans-serif-medium"
-                    android:letterSpacing="0.1"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
-
-                <LinearLayout
-                    android:id="@+id/packages"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
-            </LinearLayout>
-        </ScrollView>
+        <Button
+            android:id="@+id/restore_all"
+            style="@style/TvButton"
+            android:text="@string/clean_restore_all"
+            android:visibility="gone" />
     </LinearLayout>
 </FrameLayout>

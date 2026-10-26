@@ -166,9 +166,34 @@
       return out;
     }
 
+    /**
+     * Todo de una vez, como la app: quita lo del nivel recomendado del equipo y operador detectados
+     * y deja Halo como inicio. getHalo() devuelve el APK de Halo si hace falta instalarlo (o null).
+     */
+    async autoClean(getHalo, progress) {
+      progress('Buscando publicidad y apps de fábrica…');
+      const pkgs = (await this.candidates()).filter((i) => levelRank(i.level) <= 2).map((i) => i.pkg);
+      let removed = 0;
+      if (pkgs.length) {
+        progress('Quitando ' + pkgs.length + (pkgs.length === 1 ? ' app…' : ' apps…'));
+        removed = await this.remove(pkgs);
+      }
+      if (!this.installed.has(HALO_PKG)) {
+        const apk = await getHalo();
+        if (!apk) return { removed, haloHome: false, viaService: false, needsHalo: true };
+        progress('Instalando Halo en la TV…');
+        await this.installApk(apk, 'Halo');
+      }
+      progress('Poniendo Halo como inicio…');
+      const ok = await this.setHome(HALO_PKG, 'Halo', true);
+      const service = !ok && (await this.adb.shell('settings get secure enabled_accessibility_services')).includes(HALO_HOME_SERVICE);
+      return { removed, haloHome: ok || service, viaService: service, needsHalo: false };
+    }
+
     /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. */
     async remove(pkgs) {
       const isProtected = this.isProtected || makeProtected([]);
+      let removed = 0;
       for (const pkg of pkgs) {
         if (isProtected(pkg)) continue;
         if ((await this.adb.shell('pm uninstall -k --user 0 ' + pkg)).includes('Success')) {
@@ -179,9 +204,12 @@
           this.log('✔ ' + pkg + ' (desactivado)');
         } else {
           this.log('! no se pudo quitar ' + pkg);
+          continue;
         }
+        removed++;
       }
       await this.refreshInstalled();
+      return removed;
     }
 
     /** Launchers conocidos más cualquier app de sistema que responda a HOME. */
@@ -399,9 +427,22 @@
    * restaurarlo luego desde la app, los scripts o esta web.
    */
   function removalScript(pkgs) {
-    const protectedList = [...PROTECTED].join(' ');
     return [
       '# DebloatTV: pégalo en «adb shell» (o guárdalo y ejecútalo con «adb shell sh archivo.sh»)',
+      ...quitarFunction(),
+      ...pkgs.map(quitarLine),
+      'echo "Listo. Para deshacerlo, usa «Restaurar todo» en la app o en la web."',
+    ].join('\n');
+  }
+
+  function quitarLine(p) {
+    return 'quitar ' + shQuote(p.endsWith('*') ? p.slice(0, -1).replace(/\./g, '\\.') + '.*' : p.replace(/\./g, '\\.'));
+  }
+
+  /** Función «quitar PATRÓN» del script: nunca toca la app de inicio ni lo protegido y lo anota todo en la TV. */
+  function quitarFunction() {
+    const protectedList = [...PROTECTED].join(' ');
+    return [
       'mkdir -p /sdcard/DebloatTV',
       'HOMES=$(cmd package query-activities --brief ' + HOME_QUERY + ' 2>/dev/null | sed -n "s#^ *\\([A-Za-z0-9_.]*\\)/.*#\\1#p" | tr "\\n" " ")',
       'HOMES="$HOMES ' + STOCK_LAUNCHERS.join(' ') + '"',
@@ -414,9 +455,53 @@
       '    else echo "! no se pudo quitar $p"; fi',
       '  done',
       '}',
-      ...pkgs.map((p) => 'quitar ' + shQuote(p.endsWith('*') ? p.slice(0, -1).replace(/\./g, '\\.') + '.*' : p.replace(/\./g, '\\.'))),
-      'echo "Listo. Para deshacerlo, usa «Restaurar todo» en la app o en la web."',
-    ].join('\n');
+    ];
+  }
+
+  /**
+   * Script automático para «adb shell»: reconoce en la propia TV la marca y el decodificador
+   * (como la app) y quita lo del nivel recomendado de Google, la marca y el operador.
+   */
+  function autoScript(lists) {
+    const stem = (f) => f.replace(/\.txt$/, '').replace(/[^A-Za-z0-9]/g, '_');
+    const out = ['# DebloatTV automático: pégalo en «adb shell». Reconoce la TV solo y quita la publicidad.'];
+    out.push(...quitarFunction());
+    // Una función por lista con lo que se quita en el nivel recomendado
+    const files = ['google.txt', ...VENDORS.filter((v) => v.file).map((v) => v.file), ...operators(lists).map((o) => o.file)];
+    for (const file of [...new Set(files)]) {
+      const pkgs = [];
+      for (const line of lines(lists[file])) {
+        const m = line.match(/^(\S+)\s+(\S+)/);
+        if (m && levelRank(m[1]) && levelRank(m[1]) <= 2 && !PROTECTED.has(m[2])) pkgs.push(m[2]);
+      }
+      out.push('lista_' + stem(file) + '() {', '  :', ...pkgs.map((p) => '  ' + quitarLine(p)), '}');
+    }
+    out.push(
+      'MARCA=$(getprop ro.product.manufacturer | tr "A-Z" "a-z")',
+      'ID=$(echo "$MARCA $(getprop ro.product.model) $(getprop ro.product.device) $(getprop ro.product.name)" | tr "A-Z" "a-z")',
+      'SISTEMA=$(pm list packages -s)',
+      'V=""; OP=""; EQUIPO=""');
+    out.push('case "$MARCA" in');
+    for (const v of VENDORS) if (v.file) out.push('  ' + v.match.map((m) => '*' + shQuote(m) + '*').join('|') + ') V=' + stem(v.file) + ';;');
+    out.push('esac');
+    const opFile = Object.fromEntries(operators(lists).map((o) => [o.name.toLowerCase(), stem(o.file)]));
+    for (const line of lines(lists['dispositivos.txt'])) {
+      const f = line.split(/\s*\|\s*/);
+      const op = f.length >= 3 && opFile[f[1].toLowerCase()];
+      if (!op) continue;
+      const test = f[0].startsWith('sistema:')
+        ? 'echo "$SISTEMA" | grep -qx ' + shQuote('package:' + f[0].slice(8))
+        : 'case "$ID" in ' + f[0].split(',').map((n) => '*' + shQuote(n.trim().toLowerCase()) + '*').join('|') + ') true;; *) false;; esac';
+      out.push('[ -z "$OP" ] && ' + test + ' && { OP=' + op + '; EQUIPO=' + shQuote(f[1] + ' · ' + f[2]) + '; }');
+    }
+    out.push(
+      'echo "TV: $ID"',
+      '[ -n "$EQUIPO" ] && echo "Equipo reconocido: $EQUIPO"',
+      'lista_google',
+      '[ -n "$V" ] && lista_$V',
+      '[ -n "$OP" ] && lista_$OP',
+      'echo "Listo. Para deshacerlo, usa «Deshacer todo» en la app o pega el script de restaurar."');
+    return out.join('\n');
   }
 
   /** Script para «adb shell» que deshace lo anotado en /sdcard/DebloatTV/backup.txt. */
@@ -439,7 +524,7 @@
 
   const api = {
     TvDebloater, LEVELS, VENDORS, HALO_PKG, LTV_PKG, STOCK_LAUNCHERS, SETUPWRAITH,
-    levelRank, operators, detectDevice, vendorList, plannedEntries, removalScript, restoreScript,
+    levelRank, operators, detectDevice, vendorList, plannedEntries, removalScript, restoreScript, autoScript,
     LTV_URL: 'https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-%s-release.apk',
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
