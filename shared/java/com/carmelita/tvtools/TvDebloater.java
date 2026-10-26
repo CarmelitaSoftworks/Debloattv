@@ -62,6 +62,7 @@ public final class TvDebloater {
     private static final String HALO_HOME_SERVICE = HALO_PKG + "/" + HALO_PKG + ".HomeButtonService";
 
     /** Copia del registro dentro de la propia TV: sobrevive a desinstalar la app o cambiar de móvil. */
+    @android.annotation.SuppressLint("SdCardPath") // ruta dentro de la TV (por ADB), no en este equipo
     private static final String TV_BACKUP = "/sdcard/DebloatTV/backup.txt";
 
     private static final Pattern COMPONENT = Pattern.compile("^\\s*([A-Za-z0-9_.]+)/[A-Za-z0-9_.$]+\\s*$");
@@ -124,6 +125,8 @@ public final class TvDebloater {
     public final String model;
     /** Decodificador reconocido en lists/dispositivos.txt (o null), con su aviso. */
     public final Device device;
+    /** Perfil de operador elegido (lists/operadores.txt) o null para ninguno. */
+    private volatile String operator;
     private final File backupFile;
     private Set<String> installed;
     private Set<String> enabled;
@@ -144,7 +147,8 @@ public final class TvDebloater {
         String id = (serial.isEmpty() ? model : serial).replaceAll("[^A-Za-z0-9]+", "-");
         backupFile = new File(context.getFilesDir(), "backup-" + id + ".txt");
         refreshInstalled();
-        parseLists(context, manufacturer, device, Collections.<String>emptySet()); // carga las líneas "proteger"
+        operator = device != null ? device.operator : null;
+        parseLists(context, manufacturer, operator, Collections.<String>emptySet()); // carga las líneas "proteger"
         hasBackup = !backupEntries().isEmpty();
     }
 
@@ -174,7 +178,7 @@ public final class TvDebloater {
         final Set<String> homes = new HashSet<>(stockLaunchers());
         Set<String> available = new HashSet<>(enabled);
         available.removeAll(homes);
-        return parseLists(context, manufacturer, device, available);
+        return parseLists(context, manufacturer, operator, available);
     }
 
     /** Equipo reconocido y su aviso, para mostrarlo en la interfaz. */
@@ -182,14 +186,11 @@ public final class TvDebloater {
         public final String operator;
         public final String name;
         public final String note;
-        /** Lista extra para este equipo (p. ej. wom.txt), o null. */
-        final String list;
 
-        Device(String operator, String name, String note, String list) {
+        Device(String operator, String name, String note) {
             this.operator = operator;
             this.name = name;
             this.note = note;
-            this.list = list;
         }
 
         @Override
@@ -207,7 +208,7 @@ public final class TvDebloater {
             for (String raw : text.split("\n")) {
                 String line = raw.trim();
                 if (line.isEmpty() || line.startsWith("#")) continue;
-                String[] f = line.split("\\s*\\|\\s*", 5);
+                String[] f = line.split("\\s*\\|\\s*", 4);
                 if (f.length < 3) continue;
                 boolean match = false;
                 if (f[0].startsWith("sistema:")) {
@@ -219,8 +220,7 @@ public final class TvDebloater {
                     }
                 }
                 if (match) {
-                    return new Device(f[1], f[2], f.length > 3 ? f[3] : "",
-                            f.length > 4 && !f[4].trim().isEmpty() ? f[4].trim() : null);
+                    return new Device(f[1], f[2], f.length > 3 ? f[3] : "");
                 }
             }
             return null;
@@ -248,7 +248,34 @@ public final class TvDebloater {
      * Lo mismo sin ADB: se ejecuta en la propia TV y consulta el PackageManager.
      * Solo incluye apps activas, que son las que el usuario aún puede desactivar a mano.
      */
-    public static List<Item> candidatesOnThisDevice(Context context) throws IOException {
+    /** Perfil de operador en uso (el del equipo reconocido, salvo que se cambie). */
+    public String operator() {
+        return operator;
+    }
+
+    public void setOperator(String name) {
+        operator = name;
+    }
+
+    /** Nombres de los perfiles de operador disponibles (lists/operadores.txt). */
+    public static List<String> operators(Context context) throws IOException {
+        List<String> out = new ArrayList<>();
+        for (String[] row : operatorRows(context)) out.add(row[0]);
+        return out;
+    }
+
+    private static List<String[]> operatorRows(Context context) throws IOException {
+        List<String[]> out = new ArrayList<>();
+        for (String raw : new String(readAsset(context, "lists/operadores.txt"), StandardCharsets.UTF_8).split("\n")) {
+            String line = raw.trim();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] f = line.split("\\s*\\|\\s*", 2);
+            if (f.length == 2) out.add(f);
+        }
+        return out;
+    }
+
+    public static List<Item> candidatesOnThisDevice(Context context, String operator) throws IOException {
         final PackageManager pm = context.getPackageManager();
         final Set<String> homes = new HashSet<>();
         Intent home = new Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME);
@@ -259,20 +286,24 @@ public final class TvDebloater {
         for (android.content.pm.ApplicationInfo ai : pm.getInstalledApplications(0)) {
             if (ai.enabled && !homes.contains(ai.packageName)) available.add(ai.packageName);
         }
-        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), detectThisDevice(context), available);
+        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), operator, available);
     }
 
     /**
      * Lee las listas que tocan a esta TV y devuelve lo que se puede quitar de entre "available"
      * (paquetes activos que no hacen de inicio). Un "*" final abarca todos los que empiezan así.
      */
-    private static List<Item> parseLists(Context context, String manufacturer, Device device, Set<String> available)
+    private static List<Item> parseLists(Context context, String manufacturer, String operator, Set<String> available)
             throws IOException {
         List<String> files = new ArrayList<>();
         files.add("google.txt");
         String vendor = vendorList(manufacturer);
         if (vendor != null) files.add(vendor);
-        if (device != null && device.list != null) files.add(device.list);
+        if (operator != null) {
+            for (String[] row : operatorRows(context)) {
+                if (row[0].equalsIgnoreCase(operator)) files.add(row[1]);
+            }
+        }
 
         List<String[]> lines = new ArrayList<>();
         Set<String> protect = new HashSet<>();
@@ -368,7 +399,8 @@ public final class TvDebloater {
     public boolean installHaloAndSetHome(boolean pressHome) throws IOException {
         if (!installed.contains(HALO_PKG)) {
             log.line("Copiando Halo a la TV…");
-            installApk(readAsset(context, "halo-launcher.apk"), "Halo");
+            // La app es universal: desde el teléfono se instala a sí misma en la TV
+            installApk(readFile(new File(context.getApplicationInfo().sourceDir)), "Halo");
         } else {
             log.line("✔ Halo ya estaba instalado");
         }
@@ -629,6 +661,15 @@ public final class TvDebloater {
         }
         adb.shell("mkdir -p /sdcard/DebloatTV && echo '" + op + " " + pkg + "' >> " + TV_BACKUP);
         hasBackup = true;
+    }
+
+    private static byte[] readFile(File file) throws IOException {
+        try (InputStream in = new java.io.FileInputStream(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream((int) file.length());
+            byte[] buf = new byte[64 * 1024];
+            for (int n; (n = in.read(buf)) > 0; ) out.write(buf, 0, n);
+            return out.toByteArray();
+        }
     }
 
     private static byte[] readAsset(Context context, String name) throws IOException {

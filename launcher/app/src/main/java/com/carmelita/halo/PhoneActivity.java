@@ -1,7 +1,9 @@
-package com.carmelita.debloattv;
+package com.carmelita.halo;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ComponentName;
+import android.content.pm.PackageManager;
 import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.SpannableString;
@@ -30,7 +32,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class MainActivity extends Activity {
+public class PhoneActivity extends Activity {
 
     private interface Task {
         void run() throws Exception;
@@ -50,6 +52,7 @@ public class MainActivity extends Activity {
     private Button removeButton;
     private Button installHalo;
     private Button installLtv;
+    private Button operatorButton;
     private Button restoreLauncher;
     private Button restoreAll;
     private View logCard;
@@ -63,7 +66,12 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+        setContentView(R.layout.activity_phone);
+        // En un teléfono, Halo no debe ofrecerse como pantalla de inicio: solo se usa este modo
+        if (!getPackageManager().hasSystemFeature(PackageManager.FEATURE_LEANBACK)) {
+            getPackageManager().setComponentEnabledSetting(new ComponentName(this, MainActivity.class),
+                    PackageManager.COMPONENT_ENABLED_STATE_DISABLED, PackageManager.DONT_KILL_APP);
+        }
         prefs = getSharedPreferences("debloattv", MODE_PRIVATE);
 
         ipInput = findViewById(R.id.ip);
@@ -77,6 +85,8 @@ public class MainActivity extends Activity {
         removeButton = findViewById(R.id.remove);
         installHalo = findViewById(R.id.install_halo);
         installLtv = findViewById(R.id.install_ltv);
+        operatorButton = findViewById(R.id.operator);
+        operatorButton.setOnClickListener(v -> chooseOperator());
         restoreLauncher = findViewById(R.id.restore_launcher);
         restoreAll = findViewById(R.id.restore_all);
         logCard = findViewById(R.id.log_card);
@@ -89,7 +99,7 @@ public class MainActivity extends Activity {
         });
         levels.setOnCheckedChangeListener((group, id) -> {
             levelDesc.setText(levelDescription());
-            levelDesc.setTextColor(getColor(id == R.id.level_agresivo ? R.color.warning : R.color.text_secondary));
+            levelDesc.setTextColor(getColor(id == R.id.level_agresivo ? R.color.phone_warning : R.color.text_secondary));
             renderPackages();
         });
         removeButton.setOnClickListener(v -> removeSelected());
@@ -213,9 +223,9 @@ public class MainActivity extends Activity {
 
     private int levelDescription() {
         switch (selectedLevel()) {
-            case 1: return R.string.level_seguro_desc;
-            case 3: return R.string.level_agresivo_desc;
-            default: return R.string.level_recomendado_desc;
+            case 1: return R.string.phone_level_seguro_desc;
+            case 3: return R.string.phone_level_agresivo_desc;
+            default: return R.string.phone_level_recomendado_desc;
         }
     }
 
@@ -242,7 +252,7 @@ public class MainActivity extends Activity {
         }
         if (shown == 0) {
             TextView empty = new TextView(this);
-            empty.setText(R.string.nothing_found);
+            empty.setText(R.string.phone_nothing_found);
             empty.setTextColor(getColor(R.color.text_secondary));
             empty.setPadding(0, 16, 0, 0);
             packageList.addView(empty);
@@ -263,6 +273,39 @@ public class MainActivity extends Activity {
                     tv.remove(selected);
                     candidates = tv.candidates();
                 }));
+    }
+
+    private String operatorLabel() {
+        String op = tv.operator();
+        if (op == null) return getString(R.string.operator_none);
+        return tv.device != null && op.equals(tv.device.operator) ? getString(R.string.operator_auto, op) : op;
+    }
+
+    /** Elige el perfil de operador: el del equipo se propone solo, pero se puede cambiar. */
+    private void chooseOperator() {
+        if (tv == null) return;
+        final List<String> names = new ArrayList<>();
+        try {
+            names.addAll(TvDebloater.operators(this));
+        } catch (IOException e) {
+            appendLog("! " + e.getMessage());
+            return;
+        }
+        names.add(0, getString(R.string.operator_none));
+        String current = tv.operator();
+        int checked = current == null ? 0 : Math.max(0, names.indexOf(current));
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle(R.string.operator_title)
+                .setMessage(R.string.operator_desc)
+                .setSingleChoiceItems(names.toArray(new String[0]), checked, (d, which) -> {
+                    d.dismiss();
+                    final String chosen = which == 0 ? null : names.get(which);
+                    runTask(() -> {
+                        tv.setOperator(chosen);
+                        candidates = tv.candidates();
+                    });
+                })
+                .show();
     }
 
     // ---- Utilidades ----------------------------------------------------------------------------
@@ -300,12 +343,14 @@ public class MainActivity extends Activity {
     private void refreshUi() {
         boolean connected = adb != null && tv != null;
         connectedPanel.setVisibility(connected ? View.VISIBLE : View.GONE);
-        connectButton.setText(connected ? R.string.disconnect : R.string.connect);
+        connectButton.setText(connected ? R.string.phone_disconnect : R.string.phone_connect);
         connectButton.setEnabled(!busy);
         searchButton.setEnabled(!busy && !connected);
         ipInput.setEnabled(!busy && !connected);
         installHalo.setEnabled(!busy);
         installLtv.setEnabled(!busy);
+        operatorButton.setEnabled(!busy);
+        if (connected) operatorButton.setText(getString(R.string.operator_button, operatorLabel()));
         restoreLauncher.setEnabled(!busy);
         restoreAll.setEnabled(!busy && connected && tv.hasBackup());
         if (connected) renderPackages();

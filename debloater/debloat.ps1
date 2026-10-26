@@ -14,6 +14,7 @@ param(
   [string]$Serial,
   [ValidateSet('seguro', 'recomendado', 'agresivo')][string]$Level = 'recomendado',
   [string[]]$List = @(),
+  [string]$Operador,
   [switch]$DryRun,
   [switch]$Yes,
   [switch]$Launcher,
@@ -98,13 +99,13 @@ $Sdk = Tv @('getprop', 'ro.build.version.sdk')
 Info "Dispositivo: $Model ($Manufacturer, API $Sdk)"
 
 # Decodificadores conocidos (lists\dispositivos.txt): por propiedades o por una app de sistema
-$script:DeviceList = $null
+$script:DeviceOperator = $null
 function Find-Device {
   $identity = "$Manufacturer $Model $(Tv @('getprop', 'ro.product.device')) $(Tv @('getprop', 'ro.product.name'))"
   $system = (Tv @('pm', 'list', 'packages', '-s')) -split "`r?`n" | ForEach-Object { $_ -replace '^package:', '' }
   foreach ($line in Get-Content -Encoding UTF8 (Join-Path $Lists 'dispositivos.txt')) {
     if ($line -match '^\s*(#|$)') { continue }
-    $f = $line -split '\s*\|\s*', 5
+    $f = $line -split '\s*\|\s*', 4
     if ($f.Count -lt 3) { continue }
     $pattern = $f[0].Trim()
     $match = if ($pattern -like 'sistema:*') { $system -contains $pattern.Substring(8) }
@@ -112,12 +113,24 @@ function Find-Device {
     if ($match) {
       Info "Equipo reconocido: $($f[1]) · $($f[2])"
       if ($f.Count -gt 3 -and $f[3]) { Warn $f[3] }
-      if ($f.Count -gt 4 -and $f[4].Trim()) { $script:DeviceList = $f[4].Trim() }
+      $script:DeviceOperator = $f[1].Trim()
       return
     }
   }
 }
 Find-Device
+
+# Perfil de operador (lists\operadores.txt): el del equipo reconocido, salvo -Operador
+$OperatorName = if ($Operador) { $Operador } else { $script:DeviceOperator }
+if ($OperatorName -eq 'ninguno') { $OperatorName = $null }
+$OperatorList = $null
+if ($OperatorName) {
+  $rows = Get-Content -Encoding UTF8 (Join-Path $Lists 'operadores.txt') | Where-Object { $_ -notmatch '^\s*(#|$)' } |
+    ForEach-Object { $p = $_ -split '\s*\|\s*', 2; [pscustomobject]@{ Name = $p[0].Trim(); File = $p[1].Trim() } }
+  $OperatorList = ($rows | Where-Object { $_.Name -eq $OperatorName } | Select-Object -First 1).File
+  if (-not $OperatorList) { Die "operador desconocido: $OperatorName (usa: $(($rows.Name | ForEach-Object { $_.ToLower() }) -join ', ') o ninguno)" }
+  Info "Perfil de operador: $OperatorName$(if (-not $Operador) { ' (automático; cámbialo con -Operador)' })"
+}
 
 function Get-Packages([string[]]$extra) {
   $set = @{}
@@ -210,7 +223,7 @@ function Invoke-Debloat {
   $files = @(Join-Path $Lists 'google.txt')
   $vendor = Get-VendorList
   if ($vendor) { $files += Join-Path $Lists $vendor }
-  if ($script:DeviceList) { $files += Join-Path $Lists $script:DeviceList }
+  if ($OperatorList) { $files += Join-Path $Lists $OperatorList }
   $files += $List
   $max = $Ranks[$Level]
   # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
@@ -248,7 +261,7 @@ function Invoke-Debloat {
 function Find-Apk {
   if ($Apk) { return $Apk }
   $candidates = @(
-    (Join-Path $Here '..\dist\halo-launcher.apk'),
+    (Join-Path $Here '..\dist\halo.apk'),
     (Join-Path $Here '..\launcher\app\build\outputs\apk\release\*.apk'),
     (Join-Path $Here '..\launcher\app\build\outputs\apk\debug\*.apk')
   )

@@ -1,3 +1,3 @@
-# WOM TV Box (SEI Robotics SEI500W). WOM cerró su servicio de TV en 2023 y lo traspasó a Zapping.
-# Solo se usa cuando se reconoce el equipo.
-recomendado  cl.wom.*       App WOM TV (servicio cerrado en 2023)
+# Perfil WOM (WOM TV Box SEI500W). WOM cerró su servicio de TV en 2023 y lo traspasó a Zapping.
+# Se elige solo al reconocer el equipo, o a mano al conectarse.
+recomendado  cl.wom.*   WOM TV (cl.wom.mk.android.tv), servicio cerrado en 2023

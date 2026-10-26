@@ -1,10 +1,10 @@
-name: Compilar APKs
+name: Compilar APK
 
 on:
   push:
-    paths: ['launcher/**', 'phone/**', 'shared/**', 'debloater/lists/**', '.github/workflows/**']
+    paths: ['launcher/**', 'shared/**', 'debloater/lists/**', '.github/workflows/**']
   pull_request:
-    paths: ['launcher/**', 'phone/**', 'shared/**', 'debloater/lists/**']
+    paths: ['launcher/**', 'shared/**', 'debloater/lists/**']
   workflow_dispatch:
 
 jobs:
@@ -17,16 +17,10 @@ jobs:
           distribution: temurin
           java-version: 17
       # ubuntu-latest ya trae el Android SDK en $ANDROID_HOME; Gradle descarga lo que falte
-      - name: Halo Launcher (TV)
+      - name: Halo (app universal para TV y teléfono)
         working-directory: launcher
         run: ./gradlew --no-daemon lintRelease assembleRelease
-      - name: DebloatTV (teléfono) con el Halo recién compilado dentro
-        run: |
-          cp launcher/app/build/outputs/apk/release/app-release.apk dist/halo-launcher.apk
-          cd phone && ./gradlew --no-daemon lintRelease assembleRelease
       - uses: actions/upload-artifact@v4
         with:
-          name: apks
-          path: |
-            launcher/app/build/outputs/apk/release/app-release.apk
-            phone/app/build/outputs/apk/release/app-release.apk
+          name: halo
+          path: launcher/app/build/outputs/apk/release/app-release.apk

@@ -1,0 +1,7 @@
+# Perfil de operador GTD / Telsur (GTD TV Box SEI700GTD). Se elige solo al reconocer el equipo, o a mano.
+# Un "*" final quita todos los paquetes activos que empiezan así.
+# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de GTD en él.
+recomendado  cl.gtd.*         Apps de GTD
+recomendado  com.gtd.*        Apps de GTD
+recomendado  cl.telsur.*      Apps de Telsur
+recomendado  com.telsur.*     Apps de Telsur

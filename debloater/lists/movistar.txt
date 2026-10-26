@@ -1,0 +1,7 @@
+# Perfil de operador Movistar. Se elige solo al reconocer el equipo, o a mano al conectarse.
+# Un "*" final quita todos los paquetes activos que empiezan así.
+# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Movistar en él.
+recomendado  cl.movistarplay    Movistar TV / Movistar Play Chile
+recomendado  cl.movistar.*      Apps de Movistar Chile
+recomendado  com.movistar.*     Apps de Movistar
+recomendado  com.telefonica.*   Apps de Telefónica

@@ -1,4 +1,6 @@
-# Claro TV+ (ZTE B866V2). Solo se usa cuando se reconoce el equipo.
+# Perfil de operador Claro. Se elige solo al reconocer el equipo, o a mano al conectarse.
+# Un "*" final quita todos los paquetes activos que empiezan así.
 # Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Claro en él.
-recomendado  com.claro.*        Apps de Claro (Claro TV+)
+recomendado  br.com.claro.*     Claro tv+ (br.com.claro.now.smarttvclient)
+recomendado  com.claro.*        Apps de Claro
 recomendado  com.clarovideo.*   Claro video

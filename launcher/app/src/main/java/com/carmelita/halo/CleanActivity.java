@@ -66,6 +66,9 @@ public class CleanActivity extends Activity {
     private TextView log;
     private TextView help;
     private Button remove;
+    private Button operatorButton;
+    /** Perfil de operador en modo manual (en modo automático lo guarda TvDebloater). */
+    private String manualOperator;
     private Button chooseHome;
     private Button homeButton;
     private Button retry;
@@ -106,6 +109,8 @@ public class CleanActivity extends Activity {
         log = findViewById(R.id.log);
         help = findViewById(R.id.help);
         remove = findViewById(R.id.remove);
+        operatorButton = findViewById(R.id.operator);
+        operatorButton.setOnClickListener(v -> chooseOperator());
         chooseHome = findViewById(R.id.choose_home);
         homeButton = findViewById(R.id.home_button);
         retry = findViewById(R.id.retry);
@@ -189,8 +194,9 @@ public class CleanActivity extends Activity {
                 }
             }
             manual = true;
-            candidates = TvDebloater.candidatesOnThisDevice(this);
             device = TvDebloater.detectThisDevice(this);
+            manualOperator = device != null ? device.operator : null;
+            candidates = TvDebloater.candidatesOnThisDevice(this, manualOperator);
             appendLog("ADB no disponible: " + (last != null ? last.getMessage() : "?"));
         });
     }
@@ -233,6 +239,8 @@ public class CleanActivity extends Activity {
             status.setTextColor(getColor(R.color.text_secondary));
         }
         levels.setVisibility(ready ? View.VISIBLE : View.GONE);
+        if (ready) operatorButton.setText(getString(R.string.operator_button, operatorLabel()));
+        show(operatorButton, ready);
         for (int i = 0; i < levelPills.length; i++) levelPills[i].setSelected(level == i + 1);
         show(remove, auto);
         show(chooseHome, auto);
@@ -377,6 +385,46 @@ public class CleanActivity extends Activity {
                     tv.remove(selected);
                     candidates = tv.candidates();
                 }))
+                .show();
+    }
+
+    private String currentOperator() {
+        return tv != null ? tv.operator() : manualOperator;
+    }
+
+    private String operatorLabel() {
+        String op = currentOperator();
+        if (op == null) return getString(R.string.operator_none);
+        return device != null && op.equals(device.operator) ? getString(R.string.operator_auto, op) : op;
+    }
+
+    /** Elige el perfil de operador: el del equipo se propone solo, pero se puede cambiar. */
+    private void chooseOperator() {
+        final List<String> names = new ArrayList<>();
+        try {
+            names.addAll(TvDebloater.operators(this));
+        } catch (IOException e) {
+            appendLog("! " + e.getMessage());
+            return;
+        }
+        names.add(0, getString(R.string.operator_none));
+        String current = currentOperator();
+        int checked = current == null ? 0 : Math.max(0, names.indexOf(current));
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle(R.string.operator_title)
+                .setSingleChoiceItems(names.toArray(new String[0]), checked, (d, which) -> {
+                    d.dismiss();
+                    final String chosen = which == 0 ? null : names.get(which);
+                    runTask(() -> {
+                        if (tv != null) {
+                            tv.setOperator(chosen);
+                            candidates = tv.candidates();
+                        } else {
+                            manualOperator = chosen;
+                            candidates = TvDebloater.candidatesOnThisDevice(this, chosen);
+                        }
+                    });
+                })
                 .show();
     }
 

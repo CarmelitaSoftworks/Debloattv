@@ -1,6 +1,7 @@
-# Decodificadores VTR (d-BOX Smart, TV Stick). Solo se usa cuando se reconoce el equipo.
+# Perfil de operador VTR. Se elige solo al reconocer el equipo, o a mano al conectarse.
 # Un "*" final quita todos los paquetes activos que empiezan así.
 # Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de VTR en él.
-recomendado  com.tivo.*      Interfaz TV Smart de VTR (TiVo) y sus servicios
-recomendado  cl.vtr.*        Apps de VTR (VTR Play)
-recomendado  com.vtr.*       Apps de VTR
+recomendado  com.tivo.*    VTR Play TV / TV Smart (TiVo), p. ej. com.tivo.androidtv.llacl
+recomendado  cl.vtr.*      Apps de VTR
+recomendado  com.vtr.*     Apps de VTR (p. ej. com.vtr.clientes)
+recomendado  com.lgi.vtr   VTR Play antigua

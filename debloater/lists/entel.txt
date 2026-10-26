@@ -1,4 +1,5 @@
-# Decodificadores Entel (Deco 4K, Deco V2, Audio Box). Solo se usa cuando se reconoce el equipo.
+# Perfil de operador Entel. Se elige solo al reconocer el equipo, o a mano al conectarse.
+# Un "*" final quita todos los paquetes activos que empiezan así.
 # Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Entel en él.
-recomendado  cl.entel.*     Apps de Entel (Entel TV)
-recomendado  com.entel.*    Apps de Entel (Entel TV)
+recomendado  cl.entel.*    Entel TV (cl.entel.enteltv) y app Entel
+recomendado  com.entel.*   Apps de Entel

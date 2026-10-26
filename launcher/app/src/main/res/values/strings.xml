@@ -23,9 +23,7 @@
     <string name="clean_title">Limpiar TV</string>
     <string name="clean_connecting">Conectando con la propia TV…</string>
     <string name="clean_approve">Acepta el aviso «¿Permitir depuración?» con el mando y marca «Permitir siempre».</string>
-        <string name="clean_manual">Modo manual: esta TV no permite ADB desde las apps. Sin ADB, Android no deja que ninguna app desinstale ni desactive el launcher de Google.
-
-Para usar Halo como inicio, activa «Botón Inicio → Halo». Para quitar apps, pulsa cada una de la lista y elige «Desactivar».</string>
+        <string name="clean_manual">Modo manual: esta TV no permite ADB desde las apps. Sin ADB, Android no deja que ninguna app desinstale ni desactive el launcher de Google.\n\nPara usar Halo como inicio, activa «Botón Inicio → Halo». Para quitar apps, pulsa cada una de la lista y elige «Desactivar».</string>
     <string name="clean_manual_help">Para quitar el launcher de Google de verdad hace falta el modo automático: Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» (y «Depuración por red» si existe) y pulsa «Reintentar conexión». Si no aparece ninguna de las dos, la única vía es conectar la TV una vez a un PC por USB y usar los scripts.</string>
     <string name="clean_nothing">Nada que quitar en este nivel.</string>
     <string name="clean_remove">Quitar apps</string>
@@ -65,4 +63,38 @@ Para usar Halo como inicio, activa «Botón Inicio → Halo». Para quitar apps,
     </plurals>
     <string name="ltv_name" translatable="false">LTvLauncher</string>
     <string name="device_detected">Equipo reconocido: %1$s.</string>
+
+    <string name="operator_button">Operador: %1$s</string>
+    <string name="operator_auto">%1$s (automático)</string>
+    <string name="operator_none">Ninguno</string>
+    <string name="operator_title">Perfil de operador</string>
+    <string name="operator_desc">Quita las apps del operador elegido para dejar el equipo como Android TV stock. Dejarás de ver sus canales en este equipo.</string>
+
+    <!-- Modo teléfono (control remoto por WiFi) -->
+    <string name="phone_subtitle">Limpia tu Google TV desde el teléfono, por WiFi</string>
+    <string name="phone_steps_title">Antes de empezar</string>
+    <string name="phone_steps">1. En la TV: Ajustes → Sistema → Información → pulsa 7 veces «Compilación» para activar las opciones de desarrollador.\n2. Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB». No hace falta cable ni «Depuración inalámbrica»: la conexión va por WiFi.\n3. Conecta el teléfono a la misma red WiFi que la TV.\n4. Pulsa «Buscar TV» o escribe su IP (Ajustes → Red) y acepta el aviso en la TV.</string>
+    <string name="phone_tv_ip">IP de la TV</string>
+    <string name="phone_search">Buscar TV</string>
+    <string name="phone_connect">Conectar</string>
+    <string name="phone_disconnect">Desconectar</string>
+    <string name="phone_debloat_title">Quitar apps</string>
+    <string name="phone_level_seguro">Seguro</string>
+    <string name="phone_level_recomendado">Recomendado</string>
+    <string name="phone_level_agresivo">Agresivo</string>
+    <string name="phone_level_seguro_desc">Telemetría, demos y apps que nadie usa. Sin riesgo.</string>
+    <string name="phone_level_recomendado_desc">Además, anuncios y recomendaciones del inicio, modo ambiente y promociones.</string>
+    <string name="phone_level_agresivo_desc">Además, Asistente de Google, Chromecast integrado y apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.</string>
+    <string name="phone_remove_selected">Quitar seleccionadas</string>
+    <string name="phone_launcher_title">Launcher Halo</string>
+    <string name="phone_launcher_desc">Sustituye el inicio de Google TV por Halo: limpio, sin anuncios e inspirado en Apple TV.</string>
+    <string name="phone_install_halo">Instalar Halo</string>
+    <string name="phone_restore_launcher">Volver al original</string>
+    <string name="phone_install_ltv">Instalar LTvLauncher (código abierto)</string>
+    <string name="phone_ltv_desc">Alternativa de la comunidad, GPL-3.0, ~10 MB. Se descarga de GitHub.</string>
+    <string name="phone_restore_title">Deshacer</string>
+    <string name="phone_restore_desc">Reinstala o reactiva todo lo que se quitó desde este teléfono en esta TV.</string>
+    <string name="phone_restore_all">Restaurar todo</string>
+    <string name="phone_log_title">Registro</string>
+    <string name="phone_nothing_found">Esta TV ya está limpia en este nivel.</string>
 </resources>

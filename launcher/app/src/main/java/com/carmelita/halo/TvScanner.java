@@ -1,4 +1,4 @@
-package com.carmelita.debloattv;
+package com.carmelita.halo;
 
 import com.carmelita.tvtools.AdbConnection;
 

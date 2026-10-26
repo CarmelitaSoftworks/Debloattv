@@ -1,13 +1,18 @@
 # DebloatTV + Halo Launcher
 
-Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈65 KB, sin dependencias) inspirado en Apple TV. También puedes elegir **LTvLauncher**, un launcher de código abierto de la comunidad.
+Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈90 KB, sin dependencias) inspirado en Apple TV. También puedes elegir **LTvLauncher**, un launcher de código abierto de la comunidad.
 
 ![Halo, pantalla de inicio](docs/halo-inicio.png)
 
 El diseño está en Figma: [Halo – rediseño TV](https://www.figma.com/design/cOhkyFGCndvYC2di07C1EX) (pantalla de inicio, Limpiar TV, selector de launcher y componentes).
 
-- **Halo** se instala en la TV y **también limpia la TV desde la propia TV**: no hace falta teléfono ni PC.
-- **App para el teléfono** (`phone/`): hace lo mismo por WiFi desde el móvil.
+**Una sola app universal: `dist/halo.apk`.** Al abrirla detecta dónde está:
+
+- **En la TV** es el launcher Halo y además **limpia la TV desde la propia TV** (tarjeta ⚙ → Limpiar TV): no hace falta teléfono ni PC.
+- **En el teléfono** es el control remoto: se conecta a la TV por WiFi, la limpia y **se instala a sí misma en la TV** como launcher.
+<img src="docs/halo-telefono.png" alt="Halo en el teléfono" width="260" align="right">
+
+- **Al conectarse elige qué usar:** reconoce la marca y el decodificador del operador y propone su perfil (VTR, Claro, Entel, Movistar, DIRECTV, Mundo, WOM, GTD o ninguno), que puedes cambiar con el botón **Operador**.
 - **Debloater** (`debloater/`): quita las apps preinstaladas por niveles de riesgo, detecta la marca del televisor y guarda un backup de todo lo que toca para poder deshacerlo.
 - **Halo Launcher** (`launcher/`): cuadrícula limpia de apps en 16:9, foco con elevación y brillo, nombre bajo la app enfocada, lavado de color de fondo que sigue a la app, reloj, reordenar con "tembleque" y ocultar apps. Sin anuncios, sin recomendaciones, sin conexión a internet.
 
@@ -17,7 +22,7 @@ Todo es **reversible**: nada se borra de la partición del sistema. Las apps se 
 
 ## Opción A: solo con la TV (recomendada, p. ej. TCL)
 
-Solo necesitas instalar **`dist/halo-launcher.apk`** en la TV. Formas de hacerlo sin PC:
+Solo necesitas instalar **`dist/halo.apk`** en la TV. Formas de hacerlo sin PC:
 
 - **Memoria USB:** copia el APK a un pendrive, conéctalo a la TV y ábrelo con el gestor de archivos (en TCL: *Gestor de archivos* o *Media Center*). Si no tienes gestor, instala *File Commander* o *X-plore* desde Play Store.
 - **Desde el teléfono:** con la app *Send Files to TV* (Play Store en el móvil y en la TV).
@@ -47,14 +52,14 @@ Halo se conecta al ADB de la propia TV. Basta con activar **Depuración USB** (n
 
 ## Opción B: desde el teléfono
 
-`dist/debloattv-telefono.apk` es una app Android (75 KB) que habla directamente con la TV por WiFi. Lleva dentro las listas de paquetes y el launcher Halo.
+Instala el mismo **`dist/halo.apk`** en tu teléfono Android: allí se abre en modo control remoto y habla directamente con la TV por WiFi.
 
 1. **En la TV:** Ajustes → Sistema → Información → pulsa OK 7 veces sobre *Compilación* hasta que salga "Ya eres desarrollador".
 2. **En la TV:** Ajustes → Sistema → Opciones para desarrolladores → activa **Depuración USB** (y **Depuración por red** si existe).
    No hace falta la opción *Depuración inalámbrica* de Android 11+: la app se conecta igual que `adb connect IP:5555`. En la mayoría de televisores, con *Depuración USB* activada ya se acepta la conexión por la red.
-3. **En el teléfono:** instala `debloattv-telefono.apk` (permite "instalar apps desconocidas" cuando te lo pida) y conéctalo a la misma WiFi que la TV.
-4. Abre DebloatTV → **Buscar TV** → **Conectar**. En la TV saldrá *¿Permitir depuración?*: marca **Permitir siempre** y acepta.
-5. Elige el nivel, revisa la lista, pulsa **Quitar seleccionadas** y luego **Instalar Halo**.
+3. **En el teléfono:** instala `halo.apk` (permite "instalar apps desconocidas" cuando te lo pida) y conéctalo a la misma WiFi que la TV.
+4. Abre Halo → **Buscar TV** → **Conectar**. En la TV saldrá *¿Permitir depuración?*: marca **Permitir siempre** y acepta.
+5. Revisa el **Operador** propuesto, elige el nivel, pulsa **Quitar seleccionadas** y luego **Instalar Halo** (el teléfono copia la app a la TV).
 
 Para deshacer, en la misma app: **Restaurar todo** y **Volver al original**.
 
@@ -178,17 +183,17 @@ cd launcher
 # APK en launcher/app/build/outputs/apk/release/app-release.apk
 ```
 
-GitHub Actions compila los dos APK en cada cambio (pestaña *Actions → Compilar APKs → Artifacts*).
-
-La app del teléfono se compila igual desde `phone/` (`./gradlew assembleRelease`) y empaqueta `dist/halo-launcher.apk` y `debloater/lists/`.
+GitHub Actions compila el APK universal en cada cambio (pestaña *Actions → Compilar APK → Artifacts*). Empaqueta las listas de `debloater/lists/`.
 
 El APK release está firmado con la clave de depuración para que se pueda instalar directamente. Si compilas tu propia versión con otra clave, desinstala antes la de `dist/` (`adb uninstall com.carmelita.halo`), porque Android no deja actualizar una app firmada con una clave distinta.
 
 ## Decodificadores de operadores (Chile)
 
-Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/vtr.txt`, `claro.txt`, `entel.txt`, `mundo.txt`, `wom.txt`). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware. El launcher del operador se cambia con **Elegir launcher de inicio**.
+Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/operadores.txt` y una lista por operador). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware, e incluyen los paquetes reales comprobados de cada app (p. ej. `com.tivo.androidtv.llacl` de VTR Play TV, `cl.entel.enteltv`, `cl.movistarplay`, `br.com.claro.now.smarttvclient`). El launcher del operador se cambia con **Elegir launcher de inicio**.
 
-> Al quitar las apps del operador **dejarás de ver sus canales en ese equipo**. Es reversible: «Restaurar todo lo quitado» (o `--restore tv`) las devuelve, y un restablecimiento de fábrica también. Las listas solo se aplican en decodificadores reconocidos: en una TV normal, la app de Movistar o DGO que instalaste tú no se toca.
+El perfil se elige solo cuando se reconoce el decodificador. Para operadores sin decodificador Android propio (Movistar, DIRECTV) o si usas su app en otro TV box, elígelo a mano: botón **Operador** en la app, o `--operador movistar` / `-Operador Movistar` en los scripts.
+
+> Al quitar las apps del operador **dejarás de ver sus canales en ese equipo**. Es reversible: «Restaurar todo lo quitado» (o `--restore tv`) las devuelve, y un restablecimiento de fábrica también. En una TV normal no se aplica ningún perfil salvo que lo elijas.
 
 | Operador | Equipo | Fabricante · chip · Android TV | Notas |
 |---|---|---|---|
@@ -200,7 +205,9 @@ Las herramientas reconocen los decodificadores Android TV de los operadores chil
 | Entel | Audio Box (VSB3930) | Sagemcom · BCM72180 · 11 | Quita apps de Entel; no toca audio ni micrófono |
 | Mundo | Mundo GO! | Android TV | Quita MundoGo TV |
 | WOM | WOM TV Box (SEI500W) | SEI Robotics · 9 | Quita WOM TV (servicio cerrado en 2023) |
-| Movistar | Decos IPTV (Technicolor, Kaon, Arris, Skyworth) | — | No son Android TV: ADB no puede conectarse |
+| GTD / Telsur | GTD TV Box (SEI700GTD) | SEI Robotics · S905Y4 · 12 | Quita apps de GTD/Telsur |
+| Movistar | Decos IPTV (Technicolor, Kaon, Arris, Skyworth) | — | No son Android TV: ADB no puede conectarse. Perfil a mano para quitar Movistar TV de un TV box |
+| DIRECTV | — | — | Perfil a mano para quitar DGO |
 
 Para apps del fabricante (SEI Robotics, ZTE, SDMC, Sagemcom) no hay listas comprobadas y quitarlas a ciegas puede romper el mando, el HDMI-CEC o las actualizaciones, así que no se tocan. Si tienes uno de estos equipos, ejecuta `./debloat.sh -i IP --scan` y comparte el resultado para afinar su lista.
 
@@ -214,10 +221,10 @@ debloater/
   debloat.ps1      Windows (PowerShell)
   debloat.bat      Atajo para Windows
   lists/*.txt      Listas de paquetes por marca y nivel
-launcher/          Código fuente de Halo (Java, sin dependencias), incluida la pantalla Limpiar TV
-shared/            Cliente ADB y reglas de limpieza compartidos por Halo y la app del teléfono
-phone/             App DebloatTV para el teléfono (cliente ADB por WiFi en Java, sin dependencias)
-dist/              APKs listos para instalar
+launcher/          App universal Halo (Java, sin dependencias): launcher + Limpiar TV en la TV,
+                   control remoto por WiFi en el teléfono
+shared/            Cliente ADB y reglas de limpieza
+dist/halo.apk      APK universal listo para instalar
 ```
 
 ## Aviso

@@ -51,6 +51,7 @@ SERIAL=""
 APK=""
 RESTORE_FILE=""
 EXTRA_LISTS=()
+OPERATOR_ARG=""
 
 c_red=$'\e[31m'; c_grn=$'\e[32m'; c_ylw=$'\e[33m'; c_dim=$'\e[2m'; c_bld=$'\e[1m'; c_off=$'\e[0m'
 [[ -t 1 ]] || { c_red=""; c_grn=""; c_ylw=""; c_dim=""; c_bld=""; c_off=""; }
@@ -75,6 +76,8 @@ Opciones:
   -s, --serial SERIAL     Usa un dispositivo concreto si hay varios
   -l, --level NIVEL       seguro | recomendado | agresivo
       --list ARCHIVO      Añade una lista propia (mismo formato que lists/*.txt)
+      --operador NOMBRE   Perfil de operador: vtr, claro, entel, movistar, directv, mundo, wom
+                          o ninguno (por defecto, el del decodificador reconocido)
   -n, --dry-run           Muestra lo que haría sin cambiar nada
   -y, --yes               No pedir confirmación
   -h, --help              Esta ayuda
@@ -94,6 +97,7 @@ while [[ $# -gt 0 ]]; do
     -s|--serial) SERIAL="$2"; shift 2 ;;
     -l|--level) LEVEL="$2"; shift 2 ;;
     --list) EXTRA_LISTS+=("$2"); shift 2 ;;
+    --operador) OPERATOR_ARG="$2"; shift 2 ;;
     -n|--dry-run) DRY_RUN=1; shift ;;
     -y|--yes) ASSUME_YES=1; shift ;;
     --launcher)
@@ -144,13 +148,13 @@ SDK="$(sh_tv getprop ro.build.version.sdk)"
 info "Dispositivo: ${c_bld}$MODEL${c_off} ($MANUFACTURER, API $SDK)"
 
 # Decodificadores conocidos (lists/dispositivos.txt): por propiedades o por una app de sistema
-DEVICE_LIST=""
+DEVICE_OPERATOR=""
 trim() { local t="$1"; t="${t#"${t%%[![:space:]]*}"}"; printf '%s' "${t%"${t##*[![:space:]]}"}"; }
 detect_device() {
-  local identity system pattern operator name note list
+  local identity system pattern operator name note
   identity="$MANUFACTURER $MODEL $(sh_tv getprop ro.product.device) $(sh_tv getprop ro.product.name)"
   system="$(sh_tv pm list packages -s | sed 's/^package://')"
-  while IFS='|' read -r pattern operator name note list; do
+  while IFS='|' read -r pattern operator name note; do
     pattern="$(trim "$pattern")"
     [[ -z "$pattern" || "$pattern" == \#* ]] && continue
     if [[ "$pattern" == sistema:* ]]; then
@@ -164,11 +168,21 @@ detect_device() {
     info "Equipo reconocido: ${c_bld}$(trim "$operator") · $(trim "$name")${c_off}"
     note="$(trim "${note:-}")"
     [[ -n "$note" ]] && warn "$note"
-    DEVICE_LIST="$(trim "${list:-}")"
+    DEVICE_OPERATOR="$(trim "$operator")"
     return 0
   done <"$LISTS/dispositivos.txt"
 }
 detect_device
+
+# Perfil de operador (lists/operadores.txt): el del equipo reconocido, salvo --operador
+OPERATOR="${OPERATOR_ARG:-$DEVICE_OPERATOR}"
+[[ "${OPERATOR,,}" == ninguno ]] && OPERATOR=""
+OPERATOR_LIST=""
+if [[ -n "$OPERATOR" ]]; then
+  OPERATOR_LIST="$(awk -F'|' -v op="${OPERATOR,,}" '!/^#/ && NF==2 { n=$1; gsub(/^[ \t]+|[ \t]+$/, "", n); f=$2; gsub(/^[ \t]+|[ \t]+$/, "", f); if (tolower(n)==op) print f }' "$LISTS/operadores.txt")"
+  [[ -n "$OPERATOR_LIST" ]] || die "operador desconocido: $OPERATOR (usa: $(awk -F'|' '!/^#/ && NF==2 {gsub(/ /,"",$1); printf "%s ", tolower($1)}' "$LISTS/operadores.txt")o ninguno)"
+  info "Perfil de operador: ${c_bld}$OPERATOR${c_off}$([[ -z "$OPERATOR_ARG" ]] && echo " (automático; cámbialo con --operador)")"
+fi
 
 refresh_packages() {
   INSTALLED="$(sh_tv pm list packages | sed 's/^package://' | sort -u)"
@@ -265,7 +279,7 @@ do_debloat() {
   local files=("$LISTS/google.txt") vendor homes
   vendor="$(vendor_list)"
   [[ -n "$vendor" ]] && files+=("$LISTS/$vendor")
-  [[ -n "$DEVICE_LIST" ]] && files+=("$LISTS/$DEVICE_LIST")
+  [[ -n "$OPERATOR_LIST" ]] && files+=("$LISTS/$OPERATOR_LIST")
   files+=("${EXTRA_LISTS[@]+"${EXTRA_LISTS[@]}"}")
   # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
   homes="$(home_launchers; home_components | cut -d/ -f1)"
@@ -308,7 +322,7 @@ do_debloat() {
 find_apk() {
   [[ -n "$APK" ]] && { echo "$APK"; return; }
   local c
-  for c in "$HERE/../dist/halo-launcher.apk" \
+  for c in "$HERE/../dist/halo.apk" \
            "$HERE"/../launcher/app/build/outputs/apk/release/*.apk \
            "$HERE"/../launcher/app/build/outputs/apk/debug/*.apk; do
     [[ -f "$c" ]] && { echo "$c"; return; }

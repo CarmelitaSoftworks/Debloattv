@@ -4,9 +4,9 @@
         <shape><solid android:color="#FF2A2A30" /><corners android:radius="12dp" /></shape>
     </item>
     <item android:state_pressed="true">
-        <shape><solid android:color="@color/accent" /><corners android:radius="12dp" /><stroke android:width="2dp" android:color="#55FFFFFF" /></shape>
+        <shape><solid android:color="@color/phone_accent" /><corners android:radius="12dp" /><stroke android:width="2dp" android:color="#55FFFFFF" /></shape>
     </item>
     <item>
-        <shape><solid android:color="@color/accent" /><corners android:radius="12dp" /></shape>
+        <shape><solid android:color="@color/phone_accent" /><corners android:radius="12dp" /></shape>
     </item>
 </selector>

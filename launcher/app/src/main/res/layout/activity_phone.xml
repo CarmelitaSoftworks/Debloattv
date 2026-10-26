@@ -22,29 +22,29 @@
             android:textSize="32sp" />
 
         <TextView
-            style="@style/Body"
-            android:text="@string/subtitle" />
+            style="@style/PhoneBody"
+            android:text="@string/phone_subtitle" />
 
         <!-- Conexión -->
-        <LinearLayout style="@style/Card">
+        <LinearLayout style="@style/PhoneCard">
 
             <TextView
-                style="@style/CardTitle"
-                android:text="@string/steps_title" />
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_steps_title" />
 
             <TextView
                 android:id="@+id/steps"
-                style="@style/Body"
-                android:text="@string/steps" />
+                style="@style/PhoneBody"
+                android:text="@string/phone_steps" />
 
             <EditText
                 android:id="@+id/ip"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
                 android:layout_marginTop="16dp"
-                android:background="@drawable/input"
+                android:background="@drawable/phone_input"
                 android:digits="0123456789.:"
-                android:hint="@string/tv_ip"
+                android:hint="@string/phone_tv_ip"
                 android:importantForAutofill="no"
                 android:inputType="number|numberDecimal"
                 android:paddingStart="16dp"
@@ -61,19 +61,19 @@
 
                 <Button
                     android:id="@+id/search"
-                    style="@style/SecondaryButton"
+                    style="@style/PhoneSecondaryButton"
                     android:layout_marginEnd="8dp"
-                    android:text="@string/search" />
+                    android:text="@string/phone_search" />
 
                 <Button
                     android:id="@+id/connect"
-                    style="@style/PrimaryButton"
-                    android:text="@string/connect" />
+                    style="@style/PhonePrimaryButton"
+                    android:text="@string/phone_connect" />
             </LinearLayout>
 
             <TextView
                 android:id="@+id/status"
-                style="@style/Body"
+                style="@style/PhoneBody"
                 android:layout_marginTop="12dp"
                 android:visibility="gone" />
         </LinearLayout>
@@ -86,11 +86,11 @@
             android:orientation="vertical"
             android:visibility="gone">
 
-            <LinearLayout style="@style/Card">
+            <LinearLayout style="@style/PhoneCard">
 
                 <TextView
-                    style="@style/CardTitle"
-                    android:text="@string/debloat_title" />
+                    style="@style/PhoneCardTitle"
+                    android:text="@string/phone_debloat_title" />
 
                 <RadioGroup
                     android:id="@+id/levels"
@@ -104,7 +104,7 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        android:text="@string/level_seguro"
+                        android:text="@string/phone_level_seguro"
                         android:textColor="@color/text_primary" />
 
                     <RadioButton
@@ -113,7 +113,7 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1.4"
                         android:checked="true"
-                        android:text="@string/level_recomendado"
+                        android:text="@string/phone_level_recomendado"
                         android:textColor="@color/text_primary" />
 
                     <RadioButton
@@ -121,14 +121,24 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1.2"
-                        android:text="@string/level_agresivo"
+                        android:text="@string/phone_level_agresivo"
                         android:textColor="@color/text_primary" />
                 </RadioGroup>
 
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/operator"
+                        style="@style/PhoneSecondaryButton" />
+                </LinearLayout>
+
                 <TextView
                     android:id="@+id/level_desc"
-                    style="@style/Body"
-                    android:text="@string/level_recomendado_desc" />
+                    style="@style/PhoneBody"
+                    android:text="@string/phone_level_recomendado_desc" />
 
                 <LinearLayout
                     android:id="@+id/packages"
@@ -144,20 +154,20 @@
 
                     <Button
                         android:id="@+id/remove"
-                        style="@style/PrimaryButton"
-                        android:text="@string/remove_selected" />
+                        style="@style/PhonePrimaryButton"
+                        android:text="@string/phone_remove_selected" />
                 </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout style="@style/Card">
+            <LinearLayout style="@style/PhoneCard">
 
                 <TextView
-                    style="@style/CardTitle"
-                    android:text="@string/launcher_title" />
+                    style="@style/PhoneCardTitle"
+                    android:text="@string/phone_launcher_title" />
 
                 <TextView
-                    style="@style/Body"
-                    android:text="@string/launcher_desc" />
+                    style="@style/PhoneBody"
+                    android:text="@string/phone_launcher_desc" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -166,20 +176,20 @@
 
                     <Button
                         android:id="@+id/restore_launcher"
-                        style="@style/SecondaryButton"
+                        style="@style/PhoneSecondaryButton"
                         android:layout_marginEnd="8dp"
-                        android:text="@string/restore_launcher" />
+                        android:text="@string/phone_restore_launcher" />
 
                     <Button
                         android:id="@+id/install_halo"
-                        style="@style/PrimaryButton"
-                        android:text="@string/install_halo" />
+                        style="@style/PhonePrimaryButton"
+                        android:text="@string/phone_install_halo" />
                 </LinearLayout>
 
                 <TextView
-                    style="@style/Body"
+                    style="@style/PhoneBody"
                     android:layout_marginTop="16dp"
-                    android:text="@string/ltv_desc" />
+                    android:text="@string/phone_ltv_desc" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -188,20 +198,20 @@
 
                     <Button
                         android:id="@+id/install_ltv"
-                        style="@style/SecondaryButton"
-                        android:text="@string/install_ltv" />
+                        style="@style/PhoneSecondaryButton"
+                        android:text="@string/phone_install_ltv" />
                 </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout style="@style/Card">
+            <LinearLayout style="@style/PhoneCard">
 
                 <TextView
-                    style="@style/CardTitle"
-                    android:text="@string/restore_title" />
+                    style="@style/PhoneCardTitle"
+                    android:text="@string/phone_restore_title" />
 
                 <TextView
-                    style="@style/Body"
-                    android:text="@string/restore_desc" />
+                    style="@style/PhoneBody"
+                    android:text="@string/phone_restore_desc" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -210,24 +220,24 @@
 
                     <Button
                         android:id="@+id/restore_all"
-                        style="@style/SecondaryButton"
-                        android:text="@string/restore_all" />
+                        style="@style/PhoneSecondaryButton"
+                        android:text="@string/phone_restore_all" />
                 </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:id="@+id/log_card"
-            style="@style/Card"
+            style="@style/PhoneCard"
             android:visibility="gone">
 
             <TextView
-                style="@style/CardTitle"
-                android:text="@string/log_title" />
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_log_title" />
 
             <TextView
                 android:id="@+id/log"
-                style="@style/Body"
+                style="@style/PhoneBody"
                 android:fontFamily="monospace"
                 android:textIsSelectable="true"
                 android:textSize="12sp" />

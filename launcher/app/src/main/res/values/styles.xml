@@ -77,4 +77,59 @@
         <item name="android:textColor">@color/choice_body</item>
         <item name="android:textSize">11sp</item>
     </style>
+
+    <!-- Modo teléfono -->
+    <style name="Theme.Halo.Phone" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/phone_bg</item>
+        <item name="android:colorAccent">@color/phone_accent</item>
+        <item name="android:colorPrimary">@color/phone_bg</item>
+        <item name="android:colorPrimaryDark">@color/phone_bg</item>
+        <item name="android:statusBarColor">@color/phone_bg</item>
+        <item name="android:navigationBarColor">@color/phone_bg</item>
+        <item name="android:textColorPrimary">@color/text_primary</item>
+        <item name="android:textColorSecondary">@color/text_secondary</item>
+    </style>
+
+    <style name="PhoneCard">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">16dp</item>
+        <item name="android:background">@drawable/phone_card</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:padding">20dp</item>
+    </style>
+
+    <style name="PhoneCardTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/text_primary</item>
+        <item name="android:textSize">20sp</item>
+    </style>
+
+    <style name="PhoneBody">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:lineSpacingMultiplier">1.2</item>
+        <item name="android:textColor">@color/text_secondary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="PhonePrimaryButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:background">@drawable/phone_button_primary</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">#FFFFFFFF</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:stateListAnimator">@null</item>
+    </style>
+
+    <style name="PhoneSecondaryButton" parent="PhonePrimaryButton">
+        <item name="android:background">@drawable/phone_button_secondary</item>
+        <item name="android:textColor">@color/text_primary</item>
+    </style>
 </resources>

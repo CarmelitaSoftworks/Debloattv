@@ -1,5 +1,6 @@
 # Decodificadores y TV box conocidos. Las herramientas los reconocen y muestran su nombre y avisos.
-# Formato: patrón | operador | equipo | aviso | lista del operador (en lists/)
+# Formato: patrón | operador | equipo | aviso
+#   operador: nombre de lists/operadores.txt; su perfil se elige solo al reconocer el equipo.
 #   patrón: nombres separados por comas; basta con que uno aparezca (sin distinguir mayúsculas)
 #           en "fabricante modelo dispositivo nombre" (getprop ro.product.*), o
 #           "sistema:paquete" para reconocerlo por una app preinstalada de sistema.
@@ -7,14 +8,15 @@
 # Si tu equipo no aparece, ejecuta el script con --scan y abre un issue con el resultado.
 
 # --- Chile ---
-SEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher». | vtr.txt
-SEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher». | vtr.txt
-B866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | Se quitan las apps de Claro para dejarlo como Android TV stock. No cambies el firmware: Claro bloquea la vuelta atrás y el equipo puede quedar inservible. | claro.txt
-DIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | Se quitan las apps de Entel para dejarlo como Android TV stock. Cambia el inicio de Entel con «Elegir launcher». | entel.txt
-DIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | Se quitan las apps de Entel para dejarlo como Android TV stock. | entel.txt
-VSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | Se quitan las apps de Entel. Los servicios de audio y micrófono del equipo no se tocan: los usan sus parlantes y el control por voz. | entel.txt
-SEI500W | WOM | WOM TV Box (SEI Robotics, Android TV 9) | WOM cerró su servicio de TV en 2023 (pasó a Zapping). El equipo sigue sirviendo como Android TV: se propone quitar la app de WOM TV, que ya no funciona. | wom.txt
-sistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | Se quita la app MundoGo TV para dejarlo como Android TV stock (dejarás de ver los canales de Mundo en él). | mundo.txt
+SEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher».
+SEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher».
+B866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | Se quitan las apps de Claro para dejarlo como Android TV stock. No cambies el firmware: Claro bloquea la vuelta atrás y el equipo puede quedar inservible.
+DIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | Se quitan las apps de Entel para dejarlo como Android TV stock. Cambia el inicio de Entel con «Elegir launcher».
+DIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | Se quitan las apps de Entel para dejarlo como Android TV stock.
+VSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | Se quitan las apps de Entel. Los servicios de audio y micrófono del equipo no se tocan: los usan sus parlantes y el control por voz.
+SEI500W | WOM | WOM TV Box (SEI Robotics, Android TV 9) | WOM cerró su servicio de TV en 2023 (pasó a Zapping). El equipo sigue sirviendo como Android TV: se propone quitar la app de WOM TV, que ya no funciona.
+SEI700GTD | GTD | GTD TV Box de Telsur (SEI Robotics, Amlogic S905Y4, Android TV 12, 2024) | Se quitan las apps de GTD/Telsur para dejarlo como Android TV stock (dejarás de ver los canales de GTD en él).
+sistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | Se quita la app MundoGo TV para dejarlo como Android TV stock (dejarás de ver los canales de Mundo en él).
 
 # Movistar Chile: sus decodificadores IPTV (Technicolor DSI810, Kaon NA1180/NA1710, Arris VIP,
 # Skyworth HP4500-CL) no usan Android TV, así que ADB no puede conectarse a ellos.

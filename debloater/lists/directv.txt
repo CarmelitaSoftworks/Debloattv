@@ -1,0 +1,4 @@
+# Perfil de operador DIRECTV. Se elige solo al reconocer el equipo, o a mano al conectarse.
+# Un "*" final quita todos los paquetes activos que empiezan así.
+# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de DIRECTV en él.
+recomendado  com.directv.*   DGO / DIRECTV GO (com.directv.dtvlatam)

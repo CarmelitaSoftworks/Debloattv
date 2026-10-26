@@ -1,0 +1,10 @@
+# Perfiles de operador que se pueden elegir al conectarse. Formato: nombre | lista
+# Cuando el equipo se reconoce (dispositivos.txt), su perfil se elige solo.
+VTR | vtr.txt
+Claro | claro.txt
+Entel | entel.txt
+Movistar | movistar.txt
+DIRECTV | directv.txt
+Mundo | mundo.txt
+WOM | wom.txt
+GTD | gtd.txt

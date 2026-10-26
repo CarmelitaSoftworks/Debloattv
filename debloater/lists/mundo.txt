@@ -1,3 +1,4 @@
-# Mundo GO!. Solo se usa cuando se reconoce el equipo.
+# Perfil de operador Mundo. Se elige solo al reconocer el equipo, o a mano al conectarse.
+# Un "*" final quita todos los paquetes activos que empiezan así.
 # Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Mundo en él.
-recomendado  cl.mundogo.*   App MundoGo TV
+recomendado  cl.mundogo.*   MundoGo TV (cl.mundogo.atv)
