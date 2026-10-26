@@ -97,7 +97,13 @@ public class PhoneActivity extends Activity {
         connectButton.setOnClickListener(v -> {
             if (adb == null) connect(); else disconnect();
         });
+        // El nivel elegido se recuerda entre usos (por defecto, recomendado)
+        int savedLevel = prefs.getInt("level", TvDebloater.DEFAULT_LEVEL);
+        levels.check(savedLevel == 1 ? R.id.level_seguro : savedLevel == 3 ? R.id.level_agresivo : R.id.level_recomendado);
+        levelDesc.setText(levelDescription());
+        levelDesc.setTextColor(getColor(savedLevel == 3 ? R.color.phone_warning : R.color.text_secondary));
         levels.setOnCheckedChangeListener((group, id) -> {
+            prefs.edit().putInt("level", selectedLevel()).apply();
             levelDesc.setText(levelDescription());
             levelDesc.setTextColor(getColor(id == R.id.level_agresivo ? R.color.phone_warning : R.color.text_secondary));
             renderPackages();
@@ -116,6 +122,9 @@ public class PhoneActivity extends Activity {
             tv.restoreAll();
             candidates = tv.candidates();
         }));
+
+        // Al abrir, busca la TV sola en la WiFi (como pulsar «Buscar TV»)
+        search();
     }
 
     @Override
@@ -138,9 +147,11 @@ public class PhoneActivity extends Activity {
                 if (found.isEmpty()) {
                     setStatus("No se encontró ninguna TV con la depuración activada. Revisa los pasos de arriba "
                             + "o escribe la IP a mano.");
-                } else if (found.size() == 1) {
-                    ipInput.setText(found.get(0));
-                    setStatus("TV encontrada: " + found.get(0));
+                } else if (found.size() == 1 || found.contains(prefs.getString("ip", ""))) {
+                    // Si hay varias, se prefiere la TV a la que ya se conectó antes
+                    String ip = found.size() == 1 ? found.get(0) : prefs.getString("ip", "");
+                    ipInput.setText(ip);
+                    setStatus("TV encontrada: " + ip + ". Pulsa «Conectar».");
                 } else {
                     final String[] items = found.toArray(new String[0]);
                     setStatus("Se encontraron " + items.length + " equipos.");

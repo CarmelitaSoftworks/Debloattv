@@ -116,11 +116,13 @@ public class CleanActivity extends Activity {
         retry = findViewById(R.id.retry);
         restoreLauncher = findViewById(R.id.restore_launcher);
         restoreAll = findViewById(R.id.restore_all);
+        level = getSharedPreferences("debloattv", MODE_PRIVATE).getInt("level", TvDebloater.DEFAULT_LEVEL);
 
         for (int i = 0; i < levelPills.length; i++) {
             final int value = i + 1;
             levelPills[i].setOnClickListener(v -> {
                 level = value;
+                getSharedPreferences("debloattv", MODE_PRIVATE).edit().putInt("level", value).apply();
                 refreshUi();
             });
         }
