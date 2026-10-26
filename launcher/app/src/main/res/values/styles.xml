@@ -22,6 +22,62 @@
         <item name="android:textSize">15sp</item>
     </style>
 
+    <!-- Opción del control segmentado de nivel -->
+    <style name="SegPill">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/seg_pill</item>
+        <item name="android:focusable">true</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:paddingStart">14dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:paddingTop">7dp</item>
+        <item name="android:paddingBottom">7dp</item>
+        <item name="android:textColor">@color/seg_text</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <!-- Tarjetas del selector de launcher: cristal en reposo, blancas con foco -->
+    <style name="ChoiceCard">
+        <item name="android:layout_width">276dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/choice_card</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:padding">18dp</item>
+    </style>
+
+    <style name="ChoiceTitle">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:textColor">@color/choice_title</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ChoiceMeta">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:fontFamily">sans-serif-medium</item>
+        <item name="android:textColor">@color/choice_body</item>
+        <item name="android:textSize">10sp</item>
+    </style>
+
+    <style name="ChoiceBody">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">8dp</item>
+        <item name="android:duplicateParentState">true</item>
+        <item name="android:lineSpacingMultiplier">1.15</item>
+        <item name="android:textColor">@color/choice_body</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+
     <!-- Modo teléfono -->
     <style name="Theme.Halo.Phone" parent="android:Theme.Material.NoActionBar">
         <item name="android:windowBackground">@color/phone_bg</item>

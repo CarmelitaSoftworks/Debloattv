@@ -41,7 +41,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 28px 64px;
-  min-height: 100vh;
+  min-height: 100%;
 }
 .wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; }
 a { color: var(--accent); }
@@ -142,16 +142,6 @@ pre { margin: 0; background: var(--code-bg); border: 1px solid var(--stroke); bo
 footer { color: var(--faint); font-size: 13px; text-align: center; }
 footer p { margin: 4px 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-.card .big { font: 600 clamp(22px, 3.2vw, 28px)/1.2 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.bar { height: 4px; border-radius: 4px; background: var(--surface-hi); overflow: hidden; }
-.bar::before { content: ""; display: block; height: 100%; width: 40%; border-radius: 4px; background: var(--accent);
-  animation: slide 1.2s ease-in-out infinite; }
-@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-@media (prefers-reduced-motion: reduce) { .bar::before { animation: none; width: 100%; opacity: .5; } }
-.state { display: grid; gap: 12px; }
-.state p { margin: 0; color: var(--muted); white-space: pre-line; max-width: 62ch; }
-.single { max-width: 720px; width: 100%; justify-self: center; display: grid; gap: 22px; }
-.state .pill { justify-self: start; }
 </style>
 </head>
 <body>
@@ -161,7 +151,7 @@ footer p { margin: 4px 0; }
       <div class="halo-mark" aria-hidden="true"></div>
       <div>
         <h1>DebloatTV</h1>
-        <p class="tag">Conecta tu Android TV o Google TV y listo: reconoce el equipo solo, quita la publicidad y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
+        <p class="tag">Quita la publicidad y las apps de fábrica de tu Android TV o Google TV y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
       </div>
     </div>
     <div class="modes" role="tablist" aria-label="Forma de conectarse">
@@ -170,48 +160,134 @@ footer p { margin: 4px 0; }
     </div>
   </header>
 
-  <!-- ===== Por USB (WebUSB): un botón y todo automático ===== -->
-  <section id="usb" class="single" role="tabpanel" aria-labelledby="tab-usb">
-    <div class="card state" aria-live="polite">
-      <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
-      <h2 class="big" id="headline">Conecta la TV con un cable USB</h2>
-      <div class="bar" id="bar" hidden></div>
-      <p id="detail">Elige el nivel, pulsa el botón y elige tu TV. La página reconoce sola la marca y el decodificador, quita lo de ese nivel y deja Halo como inicio.</p>
-      <div id="level-box">
-        <div class="seg" id="usb-levels" role="group" aria-label="Nivel de limpieza"></div>
-        <p class="level-desc" id="usb-level-desc"></p>
+  <!-- ===== Por USB (WebUSB) ===== -->
+  <section id="usb" role="tabpanel" aria-labelledby="tab-usb">
+    <div class="grid">
+      <div class="stack">
+        <div class="card" id="connect-card">
+          <p class="eyebrow">Paso 1 · Conectar</p>
+          <h2>Conecta la TV o el TV box a este computador</h2>
+          <p class="sub">Funciona en Chrome o Edge para Windows, macOS, Linux o ChromeOS, con un cable de datos al puerto USB de servicio o OTG del equipo.</p>
+          <ol class="steps">
+            <li><span>En la TV: <b>Ajustes → Preferencias del dispositivo → Información</b>, pulsa 7 veces <b>Compilación</b>.</span></li>
+            <li><span>En <b>Opciones para desarrolladores</b>, activa <b>Depuración USB</b>.</span></li>
+            <li><span>Conecta el cable y pulsa <b>Conectar</b>. En la TV, marca «Permitir siempre» y acepta.</span></li>
+          </ol>
+          <div class="row">
+            <button class="btn primary" id="connect">Conectar</button>
+            <button class="btn" id="disconnect" hidden>Desconectar</button>
+            <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
+          </div>
+          <p class="notice" id="usb-warning" hidden></p>
+        </div>
+
+        <div class="card" id="device-card" hidden>
+          <p class="eyebrow">Equipo</p>
+          <dl class="facts">
+            <dt>Modelo</dt><dd id="d-model"></dd>
+            <dt>Android</dt><dd id="d-android"></dd>
+            <dt>Reconocido</dt><dd id="d-known"></dd>
+          </dl>
+          <p class="notice info" id="d-note" hidden></p>
+          <label class="field" style="margin-top:14px">Perfil de operador
+            <select id="operator"></select>
+          </label>
+        </div>
+
+        <div class="card" id="launcher-card" hidden>
+          <p class="eyebrow">Paso 3 · Pantalla de inicio</p>
+          <h2>Cambia el launcher</h2>
+          <p class="sub">Si la TV no deja cambiarlo (algunas TCL), se deshace solo y Halo se abre con el botón Inicio mediante su servicio de accesibilidad.</p>
+          <div class="launchers">
+            <div class="choice">
+              <h3>Halo</h3>
+              <p>Inspirado en Apple TV, ligero y con «Limpiar TV» integrado.</p>
+              <label class="file">APK (opcional): <input type="file" id="halo-file" accept=".apk"></label>
+              <button class="btn primary small" id="set-halo">Poner Halo</button>
+            </div>
+            <div class="choice">
+              <h3>LTvLauncher</h3>
+              <p>Código abierto (GPL-3.0). <a id="ltv-link" href="https://github.com/leanbitlab-org/LtvLauncher/releases/latest" target="_blank" rel="noopener">Descarga el APK</a> y elígelo.</p>
+              <label class="file">APK: <input type="file" id="ltv-file" accept=".apk"></label>
+              <button class="btn small" id="set-ltv">Poner LTvLauncher</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn small" id="restore-launcher">Volver al launcher original</button>
+            <button class="btn small danger" id="restore-all">Restaurar todo</button>
+          </div>
+        </div>
       </div>
-      <label class="file" id="halo-pick" hidden>Elige el archivo halo.apk (está en la carpeta dist/ del repositorio): <input type="file" id="halo-file" accept=".apk"></label>
-      <div class="row">
-        <button class="btn primary" id="action">Conectar y limpiar</button>
-        <button class="btn danger" id="undo" hidden>Deshacer todo</button>
+
+      <div class="stack">
+        <div class="card" id="apps-card">
+          <p class="eyebrow">Paso 2 · Elegir qué quitar</p>
+          <div class="list-head">
+            <div class="seg" id="usb-levels" role="group" aria-label="Nivel"></div>
+            <span class="count" id="usb-count"></span>
+          </div>
+          <p class="level-desc" id="usb-level-desc"></p>
+          <div class="apps" id="usb-apps"><div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="remove" disabled>Quitar apps</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Registro</h3><button class="btn small" id="clear-log">Limpiar</button></div>
+          <pre class="log" id="log" aria-live="polite">Esperando conexión…</pre>
+        </div>
       </div>
-      <p class="notice" id="usb-warning" hidden></p>
-    </div>
-    <div class="card">
-      <p class="eyebrow">Antes de empezar (una sola vez)</p>
-      <ol class="steps">
-        <li><span>En la TV: <b>Ajustes → Preferencias del dispositivo → Información</b>, pulsa 7 veces <b>Compilación</b>.</span></li>
-        <li><span>En <b>Opciones para desarrolladores</b>, activa <b>Depuración USB</b>.</span></li>
-        <li><span>Usa Chrome o Edge en un computador y un cable de datos al puerto USB de servicio u OTG del equipo. En la TV, marca «Permitir siempre» y acepta.</span></li>
-      </ol>
     </div>
   </section>
 
-  <!-- ===== Sin cable: un script que también lo detecta todo ===== -->
-  <section id="gen" class="single" role="tabpanel" aria-labelledby="tab-gen" hidden>
-    <div class="card">
-      <p class="eyebrow">Sin cable</p>
-      <h2>Un comando que lo hace todo</h2>
-      <p class="sub">Un navegador no puede conectarse a la TV por WiFi. Desde el teléfono, usa la app Halo, que busca la TV y la limpia sola. Desde un computador con <code>adb</code>: <code>adb connect IP:5555</code>, luego <code>adb shell</code>, y pega este script. Reconoce la TV y el decodificador solo y quita lo mismo que la app.</p>
-      <div class="seg" id="g-levels" role="group" aria-label="Nivel de limpieza"></div>
-      <p class="level-desc" id="g-level-desc"></p>
-      <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
-      <pre id="g-script"></pre>
-    </div>
-    <div class="card">
-      <div class="code-head"><h3>Deshacer todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
-      <pre id="g-restore"></pre>
+  <!-- ===== Sin cable: generador ===== -->
+  <section id="gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
+    <div class="grid">
+      <div class="stack">
+        <div class="card">
+          <p class="eyebrow">Sin cable</p>
+          <h2>Comandos para tu TV</h2>
+          <p class="sub">Un navegador no puede abrir una conexión ADB por WiFi. Elige tu equipo y copia el script en «adb shell» desde un computador, o usa la app Halo del teléfono, que se conecta por WiFi sola.</p>
+          <div class="stack">
+            <label class="field">Marca de la TV
+              <select id="g-vendor"></select>
+            </label>
+            <label class="field">Operador del TV box
+              <select id="g-operator"></select>
+            </label>
+            <div>
+              <div class="seg" id="g-levels" role="group" aria-label="Nivel"></div>
+              <p class="level-desc" id="g-level-desc"></p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="eyebrow">Cómo usarlo</p>
+          <ol class="steps">
+            <li><span>Activa <b>Depuración USB</b> (o depuración inalámbrica) en la TV y anota su IP.</span></li>
+            <li><span>En el computador: <code>adb connect IP:5555</code> y luego <code>adb shell</code>.</span></li>
+            <li><span>Pega el script. Para deshacerlo, pega el de restaurar.</span></li>
+          </ol>
+          <p class="notice info">En Windows, macOS o Linux también puedes usar <code>debloat.bat</code> o <code>debloat.sh</code> del repositorio, que hacen todo esto y además cambian el launcher.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="list-head">
+            <h2>Apps que se quitarán</h2>
+            <span class="count" id="g-count"></span>
+          </div>
+          <div class="apps" id="g-apps"></div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
+          <pre id="g-script"></pre>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Restaurar todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
+          <pre id="g-restore"></pre>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -222,7 +298,7 @@ footer p { margin: 4px 0; }
 </div>
 
 <script>
-window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Claro en él.\nrecomendado  br.com.claro.*     Claro tv+ (br.com.claro.now.smarttvclient)\nrecomendado  com.claro.*        Apps de Claro\nrecomendado  com.clarovideo.*   Claro video\n", "directv.txt": "# Perfil de operador DIRECTV. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de DIRECTV en él.\nrecomendado  com.directv.*   DGO / DIRECTV GO (com.directv.dtvlatam)\n", "dispositivos.txt": "# Decodificadores y TV box conocidos. Las herramientas los reconocen y muestran su nombre y avisos.\n# Formato: patrón | operador | equipo | aviso\n#   operador: nombre de lists/operadores.txt; su perfil se elige solo al reconocer el equipo.\n#   patrón: nombres separados por comas; basta con que uno aparezca (sin distinguir mayúsculas)\n#           en \"fabricante modelo dispositivo nombre\" (getprop ro.product.*), o\n#           \"sistema:paquete\" para reconocerlo por una app preinstalada de sistema.\n# Fuentes: androidtv-guide.com, tavilatam.com, pisapapeles.net, tumundo.cl (ver README).\n# Si tu equipo no aparece, ejecuta el script con --scan y abre un issue con el resultado.\n\n# --- Chile ---\nSEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él).\nSEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él).\nB866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | Se quitan las apps de Claro para dejarlo como Android TV stock. No cambies el firmware: Claro bloquea la vuelta atrás y el equipo puede quedar inservible.\nDIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | Se quitan las apps de Entel para dejarlo como Android TV stock.\nDIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | Se quitan las apps de Entel para dejarlo como Android TV stock.\nVSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | Se quitan las apps de Entel. Los servicios de audio y micrófono del equipo no se tocan: los usan sus parlantes y el control por voz.\nSEI500W | WOM | WOM TV Box (SEI Robotics, Android TV 9) | WOM cerró su servicio de TV en 2023 (pasó a Zapping). El equipo sigue sirviendo como Android TV: se propone quitar la app de WOM TV, que ya no funciona.\nSEI700GTD | GTD | GTD TV Box de Telsur (SEI Robotics, Amlogic S905Y4, Android TV 12, 2024) | Se quitan las apps de GTD/Telsur para dejarlo como Android TV stock (dejarás de ver los canales de GTD en él).\nsistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | Se quita la app MundoGo TV para dejarlo como Android TV stock (dejarás de ver los canales de Mundo en él).\n\n# Movistar Chile: sus decodificadores IPTV (Technicolor DSI810, Kaon NA1180/NA1710, Arris VIP,\n# Skyworth HP4500-CL) no usan Android TV, así que ADB no puede conectarse a ellos.\n", "entel.txt": "# Perfil de operador Entel. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Entel en él.\nrecomendado  cl.entel.*    Entel TV (cl.entel.enteltv) y app Entel\nrecomendado  com.entel.*   Apps de Entel\n", "google.txt": "# Google TV / Android TV (Chromecast con Google TV, Google TV Streamer y televisores con Google TV)\n# Formato: <nivel> <paquete> <descripción>\n# Niveles: seguro < recomendado < agresivo (cada nivel incluye los anteriores)\n# Todo se elimina con \"pm uninstall -k --user 0\", así que se puede restaurar sin reinstalar la ROM.\n\nseguro       com.google.android.feedback                   Envío de comentarios a Google\nseguro       com.google.android.tv.bugreportsender         Envío automático de informes de errores\nseguro       com.google.android.play.games                 Google Play Juegos\nseguro       com.google.android.youtube.tvmusic            YouTube Music para TV\nseguro       com.google.android.apps.youtube.kids          YouTube Kids (preinstalado en algunos modelos)\nseguro       com.android.printspooler                      Servicio de impresión (inútil en una TV)\nseguro       com.google.android.leanbacklauncher.recommendations  Recomendaciones del launcher antiguo\nseguro       com.google.android.marvin.talkback            TalkBack (quítalo solo si no usas accesibilidad)\n\nrecomendado  com.google.android.videos                     Google TV / Play Películas (tienda de películas)\nrecomendado  com.google.android.tvrecommendations          Servicio de recomendaciones y anuncios del home\nrecomendado  com.google.android.apps.tv.dreamx             Modo ambiente de Google TV (vuelve el salvapantallas simple)\nrecomendado  com.google.android.backdrop                   Modo ambiente de Android TV\nrecomendado  android.autoinstalls.config.google.gtvpai  Instalación automática de apps de socios\nrecomendado  com.google.android.partnersetup               Configuración de socios / promociones del fabricante\n\nagresivo     com.google.android.katniss                    Asistente de Google y búsqueda por voz (rompe el botón de micrófono)\nagresivo     com.google.android.speech.pumpkin             Reconocimiento de voz offline\nagresivo     com.google.android.apps.mediashell            Chromecast integrado (rompe la función de enviar/cast)\nagresivo     com.google.android.tts                        Texto a voz de Google\nagresivo     com.google.android.tv                         Canales en vivo (Live Channels)\nagresivo     com.google.android.youtube.tv                 YouTube para TV\nagresivo     com.netflix.ninja                             Netflix preinstalado\nagresivo     com.amazon.amazonvideo.livingroom             Prime Video preinstalado\nagresivo     com.disney.disneyplus                         Disney+ preinstalado\nagresivo     com.spotify.tv.android                        Spotify preinstalado\nagresivo     com.apple.atve.androidtv.appletv              Apple TV preinstalado\nagresivo     com.hbo.hbonow                                Max (HBO) preinstalado\nagresivo     com.wbd.stream                                Max preinstalado (versión nueva)\nagresivo     com.plexapp.android                           Plex preinstalado\nagresivo     tv.pluto.android                              Pluto TV preinstalado\n", "gtd.txt": "# Perfil de operador GTD / Telsur (GTD TV Box SEI700GTD). Se elige solo al reconocer el equipo, o a mano.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de GTD en él.\nrecomendado  cl.gtd.*         Apps de GTD\nrecomendado  com.gtd.*        Apps de GTD\nrecomendado  cl.telsur.*      Apps de Telsur\nrecomendado  com.telsur.*     Apps de Telsur\n", "hisense.txt": "# Hisense (Android TV / Google TV)\nseguro       com.hisense.hiphoto                           Visor de fotos Hisense\nrecomendado  com.hisense.store.tv                          Tienda/promociones Hisense\nrecomendado  com.hisense.weather                           Widget del tiempo\n", "movistar.txt": "# Perfil de operador Movistar. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Movistar en él.\nrecomendado  cl.movistarplay    Movistar TV / Movistar Play Chile\nrecomendado  cl.movistar.*      Apps de Movistar Chile\nrecomendado  com.movistar.*     Apps de Movistar\nrecomendado  com.telefonica.*   Apps de Telefónica\n", "mundo.txt": "# Perfil de operador Mundo. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Mundo en él.\nrecomendado  cl.mundogo.*   MundoGo TV (cl.mundogo.atv)\n", "operadores.txt": "# Perfiles de operador que se pueden elegir al conectarse. Formato: nombre | lista\n# Cuando el equipo se reconoce (dispositivos.txt), su perfil se elige solo.\nVTR | vtr.txt\nClaro | claro.txt\nEntel | entel.txt\nMovistar | movistar.txt\nDIRECTV | directv.txt\nMundo | mundo.txt\nWOM | wom.txt\nGTD | gtd.txt\n", "philips.txt": "# Philips (TP Vision, Android TV / Google TV)\nseguro       org.droidtv.demome                            Modo demostración de tienda\nseguro       org.droidtv.help                              Ayuda / manual\nrecomendado  org.droidtv.nettvrecommender                  Recomendaciones Smart TV\nrecomendado  org.droidtv.appgallery                        Galería de apps Philips\n", "sony.txt": "# Sony Bravia (Android TV / Google TV)\nseguro       com.sony.dtv.imanual                          Manual de ayuda (i-Manual)\nseguro       com.sony.dtv.promos                           Promociones de Sony\nseguro       com.sony.dtv.demomode                         Modo demostración de tienda\nseguro       com.sony.dtv.smarthelp                        Ayuda inteligente\nrecomendado  com.sony.dtv.sonyselect                       Sony Select (recomendaciones de apps)\nrecomendado  com.sony.dtv.photoshareplus                   Photo Sharing Plus\nrecomendado  com.sony.dtv.discovery                        Barra \"Discover\" de Sony\nagresivo     com.sony.dtv.bravialifehack                   Bravia Core / contenido promocional\n", "tcl.txt": "# TCL (Android TV / Google TV)\n# Basado en listas comprobadas en TCL reales, sobre todo github.com/amfakh/tcl-g09-debloat\n# (TCL Smart TV Pro, Google TV, Android 12). Los nombres cambian entre modelos: los que no\n# existan en tu TV simplemente se ignoran.\n# NUNCA quitar (protegidos en el código): com.tcl.tv, com.tcl.tvinput, com.tcl.suspension,\n# com.tcl.dashboard, com.tcl.autopair, com.tcl.systemserver, com.tcl.providers.config,\n# com.tcl.globalkeyoverlay, com.tcl.initsetup y com.google.android.tungsten.setupwraith\n# (desactivarlo borra la red WiFi guardada).\n\n# Telemetría\nseguro       com.tcl.ttvs                       Telemetría e identificadores de TCL (las actualizaciones llegan por Play Services)\nseguro       com.tcl.logkit                     Captura y envío de registros a TCL\nseguro       com.tcl.interactive                Servicio de telemetría TIAS de TCL\nseguro       com.tcl.guard                      TCL Guard: rastreo de uso y \"limpiador\"\n\n# Demos y extras de tienda\nseguro       com.tcl.exhibit                    Modo demostración de tienda\nseguro       com.tcl.esticker                   Pegatinas del modo tienda\nseguro       com.tcl.hotelmenu                  Modo hotel\nseguro       com.tcl.ocean.instructions         Manual electrónico\nseguro       com.tcl.repairguide                Guía de reparación\n\n# Anuncios y contenido promocional\nrecomendado  com.tcl.bootadservice              Anuncios al encender la TV\nrecomendado  com.tcl.channelplus                Canales FAST de TCL (con anuncios)\nrecomendado  com.tcl.waterfall.overseas         Recomendaciones \"waterfall\" de TCL\nrecomendado  com.tcl.tv.tclhome_passive         Empuja contenido de TCL al inicio al arrancar\nrecomendado  com.tcl.partnercustomizer          Pestaña y filas de TCL en el inicio de Google TV\nrecomendado  com.tcl.messagebox                 Mensajes y promociones de TCL\nrecomendado  com.tcl.appmarket2                 Tienda de apps de TCL\nrecomendado  com.tcl.browser                    Navegador de TCL\n\n# Servicios en segundo plano\nrecomendado  com.tcl.useragreement              Pantallas de EULA y privacidad de TCL\nrecomendado  com.tcl.usercenter                 Cuenta de TCL\nrecomendado  com.tcl.smartalexa                 Cliente de Alexa\nrecomendado  com.tcl.hearaid                    Prueba de audición y ajuste de volumen\n\n# Funciones que quizá uses\nagresivo     com.tcl.gamebar                    Barra de juego para consolas\nagresivo     com.tcl.UpdatePeripheral           Actualizador de barras de sonido TCL\nagresivo     com.tcl.miracast                   Duplicar pantalla desde móviles Android\nagresivo     com.tcl.magiconnectfree            MagiConnect (control desde el móvil)\nagresivo     com.tcl.MultiScreenInteraction_TV  Interacción multipantalla (T-Cast)\nagresivo     com.tcl.ui_mediaCenter             Reproductor de USB de TCL\nagresivo     com.tcl.gallery                    Galería de fotos de TCL\n", "vtr.txt": "# Perfil de operador VTR. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de VTR en él.\nrecomendado  com.tivo.*    VTR Play TV / TV Smart (TiVo), p. ej. com.tivo.androidtv.llacl\nrecomendado  cl.vtr.*      Apps de VTR\nrecomendado  com.vtr.*     Apps de VTR (p. ej. com.vtr.clientes)\nrecomendado  com.lgi.vtr   VTR Play antigua\n", "wom.txt": "# Perfil WOM (WOM TV Box SEI500W). WOM cerró su servicio de TV en 2023 y lo traspasó a Zapping.\n# Se elige solo al reconocer el equipo, o a mano al conectarse.\nrecomendado  cl.wom.*   WOM TV (cl.wom.mk.android.tv), servicio cerrado en 2023\n", "xiaomi.txt": "# Xiaomi (Mi Box, Mi TV Stick, Xiaomi TV con PatchWall)\nseguro       com.xiaomi.mitv.calendar                      Calendario\nseguro       com.mitv.care                                 Mi Care / soporte\nrecomendado  com.xiaomi.mitv.upgrade                       Promociones de actualización\nrecomendado  com.mitv.videoplayer                          Reproductor de vídeo Mi\nagresivo     com.xiaomi.mitv.tvmanager                     Gestor de TV (limpiador)\n"};
+window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Claro en él.\nrecomendado  br.com.claro.*     Claro tv+ (br.com.claro.now.smarttvclient)\nrecomendado  com.claro.*        Apps de Claro\nrecomendado  com.clarovideo.*   Claro video\n", "directv.txt": "# Perfil de operador DIRECTV. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de DIRECTV en él.\nrecomendado  com.directv.*   DGO / DIRECTV GO (com.directv.dtvlatam)\n", "dispositivos.txt": "# Decodificadores y TV box conocidos. Las herramientas los reconocen y muestran su nombre y avisos.\n# Formato: patrón | operador | equipo | aviso\n#   operador: nombre de lists/operadores.txt; su perfil se elige solo al reconocer el equipo.\n#   patrón: nombres separados por comas; basta con que uno aparezca (sin distinguir mayúsculas)\n#           en \"fabricante modelo dispositivo nombre\" (getprop ro.product.*), o\n#           \"sistema:paquete\" para reconocerlo por una app preinstalada de sistema.\n# Fuentes: androidtv-guide.com, tavilatam.com, pisapapeles.net, tumundo.cl (ver README).\n# Si tu equipo no aparece, ejecuta el script con --scan y abre un issue con el resultado.\n\n# --- Chile ---\nSEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher».\nSEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher».\nB866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | Se quitan las apps de Claro para dejarlo como Android TV stock. No cambies el firmware: Claro bloquea la vuelta atrás y el equipo puede quedar inservible.\nDIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | Se quitan las apps de Entel para dejarlo como Android TV stock. Cambia el inicio de Entel con «Elegir launcher».\nDIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | Se quitan las apps de Entel para dejarlo como Android TV stock.\nVSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | Se quitan las apps de Entel. Los servicios de audio y micrófono del equipo no se tocan: los usan sus parlantes y el control por voz.\nSEI500W | WOM | WOM TV Box (SEI Robotics, Android TV 9) | WOM cerró su servicio de TV en 2023 (pasó a Zapping). El equipo sigue sirviendo como Android TV: se propone quitar la app de WOM TV, que ya no funciona.\nSEI700GTD | GTD | GTD TV Box de Telsur (SEI Robotics, Amlogic S905Y4, Android TV 12, 2024) | Se quitan las apps de GTD/Telsur para dejarlo como Android TV stock (dejarás de ver los canales de GTD en él).\nsistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | Se quita la app MundoGo TV para dejarlo como Android TV stock (dejarás de ver los canales de Mundo en él).\n\n# Movistar Chile: sus decodificadores IPTV (Technicolor DSI810, Kaon NA1180/NA1710, Arris VIP,\n# Skyworth HP4500-CL) no usan Android TV, así que ADB no puede conectarse a ellos.\n", "entel.txt": "# Perfil de operador Entel. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Entel en él.\nrecomendado  cl.entel.*    Entel TV (cl.entel.enteltv) y app Entel\nrecomendado  com.entel.*   Apps de Entel\n", "google.txt": "# Google TV / Android TV (Chromecast con Google TV, Google TV Streamer y televisores con Google TV)\n# Formato: <nivel> <paquete> <descripción>\n# Niveles: seguro < recomendado < agresivo (cada nivel incluye los anteriores)\n# Todo se elimina con \"pm uninstall -k --user 0\", así que se puede restaurar sin reinstalar la ROM.\n\nseguro       com.google.android.feedback                   Envío de comentarios a Google\nseguro       com.google.android.tv.bugreportsender         Envío automático de informes de errores\nseguro       com.google.android.play.games                 Google Play Juegos\nseguro       com.google.android.youtube.tvmusic            YouTube Music para TV\nseguro       com.google.android.apps.youtube.kids          YouTube Kids (preinstalado en algunos modelos)\nseguro       com.android.printspooler                      Servicio de impresión (inútil en una TV)\nseguro       com.google.android.leanbacklauncher.recommendations  Recomendaciones del launcher antiguo\nseguro       com.google.android.marvin.talkback            TalkBack (quítalo solo si no usas accesibilidad)\n\nrecomendado  com.google.android.videos                     Google TV / Play Películas (tienda de películas)\nrecomendado  com.google.android.tvrecommendations          Servicio de recomendaciones y anuncios del home\nrecomendado  com.google.android.apps.tv.dreamx             Modo ambiente de Google TV (vuelve el salvapantallas simple)\nrecomendado  com.google.android.backdrop                   Modo ambiente de Android TV\nrecomendado  android.autoinstalls.config.google.gtvpai  Instalación automática de apps de socios\nrecomendado  com.google.android.partnersetup               Configuración de socios / promociones del fabricante\n\nagresivo     com.google.android.katniss                    Asistente de Google y búsqueda por voz (rompe el botón de micrófono)\nagresivo     com.google.android.speech.pumpkin             Reconocimiento de voz offline\nagresivo     com.google.android.apps.mediashell            Chromecast integrado (rompe la función de enviar/cast)\nagresivo     com.google.android.tts                        Texto a voz de Google\nagresivo     com.google.android.tv                         Canales en vivo (Live Channels)\nagresivo     com.google.android.youtube.tv                 YouTube para TV\nagresivo     com.netflix.ninja                             Netflix preinstalado\nagresivo     com.amazon.amazonvideo.livingroom             Prime Video preinstalado\nagresivo     com.disney.disneyplus                         Disney+ preinstalado\nagresivo     com.spotify.tv.android                        Spotify preinstalado\nagresivo     com.apple.atve.androidtv.appletv              Apple TV preinstalado\nagresivo     com.hbo.hbonow                                Max (HBO) preinstalado\nagresivo     com.wbd.stream                                Max preinstalado (versión nueva)\nagresivo     com.plexapp.android                           Plex preinstalado\nagresivo     tv.pluto.android                              Pluto TV preinstalado\n", "gtd.txt": "# Perfil de operador GTD / Telsur (GTD TV Box SEI700GTD). Se elige solo al reconocer el equipo, o a mano.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de GTD en él.\nrecomendado  cl.gtd.*         Apps de GTD\nrecomendado  com.gtd.*        Apps de GTD\nrecomendado  cl.telsur.*      Apps de Telsur\nrecomendado  com.telsur.*     Apps de Telsur\n", "hisense.txt": "# Hisense (Android TV / Google TV)\nseguro       com.hisense.hiphoto                           Visor de fotos Hisense\nrecomendado  com.hisense.store.tv                          Tienda/promociones Hisense\nrecomendado  com.hisense.weather                           Widget del tiempo\n", "movistar.txt": "# Perfil de operador Movistar. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Movistar en él.\nrecomendado  cl.movistarplay    Movistar TV / Movistar Play Chile\nrecomendado  cl.movistar.*      Apps de Movistar Chile\nrecomendado  com.movistar.*     Apps de Movistar\nrecomendado  com.telefonica.*   Apps de Telefónica\n", "mundo.txt": "# Perfil de operador Mundo. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Mundo en él.\nrecomendado  cl.mundogo.*   MundoGo TV (cl.mundogo.atv)\n", "operadores.txt": "# Perfiles de operador que se pueden elegir al conectarse. Formato: nombre | lista\n# Cuando el equipo se reconoce (dispositivos.txt), su perfil se elige solo.\nVTR | vtr.txt\nClaro | claro.txt\nEntel | entel.txt\nMovistar | movistar.txt\nDIRECTV | directv.txt\nMundo | mundo.txt\nWOM | wom.txt\nGTD | gtd.txt\n", "philips.txt": "# Philips (TP Vision, Android TV / Google TV)\nseguro       org.droidtv.demome                            Modo demostración de tienda\nseguro       org.droidtv.help                              Ayuda / manual\nrecomendado  org.droidtv.nettvrecommender                  Recomendaciones Smart TV\nrecomendado  org.droidtv.appgallery                        Galería de apps Philips\n", "sony.txt": "# Sony Bravia (Android TV / Google TV)\nseguro       com.sony.dtv.imanual                          Manual de ayuda (i-Manual)\nseguro       com.sony.dtv.promos                           Promociones de Sony\nseguro       com.sony.dtv.demomode                         Modo demostración de tienda\nseguro       com.sony.dtv.smarthelp                        Ayuda inteligente\nrecomendado  com.sony.dtv.sonyselect                       Sony Select (recomendaciones de apps)\nrecomendado  com.sony.dtv.photoshareplus                   Photo Sharing Plus\nrecomendado  com.sony.dtv.discovery                        Barra \"Discover\" de Sony\nagresivo     com.sony.dtv.bravialifehack                   Bravia Core / contenido promocional\n", "tcl.txt": "# TCL (Android TV / Google TV)\n# Basado en listas comprobadas en TCL reales, sobre todo github.com/amfakh/tcl-g09-debloat\n# (TCL Smart TV Pro, Google TV, Android 12). Los nombres cambian entre modelos: los que no\n# existan en tu TV simplemente se ignoran.\n# NUNCA quitar (protegidos en el código): com.tcl.tv, com.tcl.tvinput, com.tcl.suspension,\n# com.tcl.dashboard, com.tcl.autopair, com.tcl.systemserver, com.tcl.providers.config,\n# com.tcl.globalkeyoverlay, com.tcl.initsetup y com.google.android.tungsten.setupwraith\n# (desactivarlo borra la red WiFi guardada).\n\n# Telemetría\nseguro       com.tcl.ttvs                       Telemetría e identificadores de TCL (las actualizaciones llegan por Play Services)\nseguro       com.tcl.logkit                     Captura y envío de registros a TCL\nseguro       com.tcl.interactive                Servicio de telemetría TIAS de TCL\nseguro       com.tcl.guard                      TCL Guard: rastreo de uso y \"limpiador\"\n\n# Demos y extras de tienda\nseguro       com.tcl.exhibit                    Modo demostración de tienda\nseguro       com.tcl.esticker                   Pegatinas del modo tienda\nseguro       com.tcl.hotelmenu                  Modo hotel\nseguro       com.tcl.ocean.instructions         Manual electrónico\nseguro       com.tcl.repairguide                Guía de reparación\n\n# Anuncios y contenido promocional\nrecomendado  com.tcl.bootadservice              Anuncios al encender la TV\nrecomendado  com.tcl.channelplus                Canales FAST de TCL (con anuncios)\nrecomendado  com.tcl.waterfall.overseas         Recomendaciones \"waterfall\" de TCL\nrecomendado  com.tcl.tv.tclhome_passive         Empuja contenido de TCL al inicio al arrancar\nrecomendado  com.tcl.partnercustomizer          Pestaña y filas de TCL en el inicio de Google TV\nrecomendado  com.tcl.messagebox                 Mensajes y promociones de TCL\nrecomendado  com.tcl.appmarket2                 Tienda de apps de TCL\nrecomendado  com.tcl.browser                    Navegador de TCL\n\n# Servicios en segundo plano\nrecomendado  com.tcl.useragreement              Pantallas de EULA y privacidad de TCL\nrecomendado  com.tcl.usercenter                 Cuenta de TCL\nrecomendado  com.tcl.smartalexa                 Cliente de Alexa\nrecomendado  com.tcl.hearaid                    Prueba de audición y ajuste de volumen\n\n# Funciones que quizá uses\nagresivo     com.tcl.gamebar                    Barra de juego para consolas\nagresivo     com.tcl.UpdatePeripheral           Actualizador de barras de sonido TCL\nagresivo     com.tcl.miracast                   Duplicar pantalla desde móviles Android\nagresivo     com.tcl.magiconnectfree            MagiConnect (control desde el móvil)\nagresivo     com.tcl.MultiScreenInteraction_TV  Interacción multipantalla (T-Cast)\nagresivo     com.tcl.ui_mediaCenter             Reproductor de USB de TCL\nagresivo     com.tcl.gallery                    Galería de fotos de TCL\n", "vtr.txt": "# Perfil de operador VTR. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de VTR en él.\nrecomendado  com.tivo.*    VTR Play TV / TV Smart (TiVo), p. ej. com.tivo.androidtv.llacl\nrecomendado  cl.vtr.*      Apps de VTR\nrecomendado  com.vtr.*     Apps de VTR (p. ej. com.vtr.clientes)\nrecomendado  com.lgi.vtr   VTR Play antigua\n", "wom.txt": "# Perfil WOM (WOM TV Box SEI500W). WOM cerró su servicio de TV en 2023 y lo traspasó a Zapping.\n# Se elige solo al reconocer el equipo, o a mano al conectarse.\nrecomendado  cl.wom.*   WOM TV (cl.wom.mk.android.tv), servicio cerrado en 2023\n", "xiaomi.txt": "# Xiaomi (Mi Box, Mi TV Stick, Xiaomi TV con PatchWall)\nseguro       com.xiaomi.mitv.calendar                      Calendario\nseguro       com.mitv.care                                 Mi Care / soporte\nrecomendado  com.xiaomi.mitv.upgrade                       Promociones de actualización\nrecomendado  com.mitv.videoplayer                          Reproductor de vídeo Mi\nagresivo     com.xiaomi.mitv.tvmanager                     Gestor de TV (limpiador)\n"};
 </script>
 <script>
 /*
@@ -790,34 +866,9 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
       return out;
     }
 
-    /**
-     * Todo de una vez, como la app: quita lo del nivel elegido para el equipo y operador detectados
-     * y deja Halo como inicio. getHalo() devuelve el APK de Halo si hace falta instalarlo (o null).
-     */
-    async autoClean(level, getHalo, progress) {
-      progress('Buscando publicidad y apps de fábrica…');
-      const pkgs = (await this.candidates()).filter((i) => levelRank(i.level) <= levelRank(level)).map((i) => i.pkg);
-      let removed = 0;
-      if (pkgs.length) {
-        progress('Quitando ' + pkgs.length + (pkgs.length === 1 ? ' app…' : ' apps…'));
-        removed = await this.remove(pkgs);
-      }
-      if (!this.installed.has(HALO_PKG)) {
-        const apk = await getHalo();
-        if (!apk) return { removed, haloHome: false, viaService: false, needsHalo: true };
-        progress('Instalando Halo en la TV…');
-        await this.installApk(apk, 'Halo');
-      }
-      progress('Poniendo Halo como inicio…');
-      const ok = await this.setHome(HALO_PKG, 'Halo', true);
-      const service = !ok && (await this.adb.shell('settings get secure enabled_accessibility_services')).includes(HALO_HOME_SERVICE);
-      return { removed, haloHome: ok || service, viaService: service, needsHalo: false };
-    }
-
     /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. */
     async remove(pkgs) {
       const isProtected = this.isProtected || makeProtected([]);
-      let removed = 0;
       for (const pkg of pkgs) {
         if (isProtected(pkg)) continue;
         if ((await this.adb.shell('pm uninstall -k --user 0 ' + pkg)).includes('Success')) {
@@ -828,12 +879,9 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
           this.log('✔ ' + pkg + ' (desactivado)');
         } else {
           this.log('! no se pudo quitar ' + pkg);
-          continue;
         }
-        removed++;
       }
       await this.refreshInstalled();
-      return removed;
     }
 
     /** Launchers conocidos más cualquier app de sistema que responda a HOME. */
@@ -1051,22 +1099,9 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
    * restaurarlo luego desde la app, los scripts o esta web.
    */
   function removalScript(pkgs) {
-    return [
-      '# DebloatTV: pégalo en «adb shell» (o guárdalo y ejecútalo con «adb shell sh archivo.sh»)',
-      ...quitarFunction(),
-      ...pkgs.map(quitarLine),
-      'echo "Listo. Para deshacerlo, usa «Restaurar todo» en la app o en la web."',
-    ].join('\n');
-  }
-
-  function quitarLine(p) {
-    return 'quitar ' + shQuote(p.endsWith('*') ? p.slice(0, -1).replace(/\./g, '\\.') + '.*' : p.replace(/\./g, '\\.'));
-  }
-
-  /** Función «quitar PATRÓN» del script: nunca toca la app de inicio ni lo protegido y lo anota todo en la TV. */
-  function quitarFunction() {
     const protectedList = [...PROTECTED].join(' ');
     return [
+      '# DebloatTV: pégalo en «adb shell» (o guárdalo y ejecútalo con «adb shell sh archivo.sh»)',
       'mkdir -p /sdcard/DebloatTV',
       'HOMES=$(cmd package query-activities --brief ' + HOME_QUERY + ' 2>/dev/null | sed -n "s#^ *\\([A-Za-z0-9_.]*\\)/.*#\\1#p" | tr "\\n" " ")',
       'HOMES="$HOMES ' + STOCK_LAUNCHERS.join(' ') + '"',
@@ -1079,53 +1114,9 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
       '    else echo "! no se pudo quitar $p"; fi',
       '  done',
       '}',
-    ];
-  }
-
-  /**
-   * Script automático para «adb shell»: reconoce en la propia TV la marca y el decodificador
-   * (como la app) y quita lo del nivel elegido de Google, la marca y el operador.
-   */
-  function autoScript(lists, level) {
-    const stem = (f) => f.replace(/\.txt$/, '').replace(/[^A-Za-z0-9]/g, '_');
-    const out = ['# DebloatTV automático (nivel ' + (level || 'recomendado') + '): pégalo en «adb shell». Reconoce la TV solo.'];
-    out.push(...quitarFunction());
-    // Una función por lista con lo que se quita en el nivel recomendado
-    const files = ['google.txt', ...VENDORS.filter((v) => v.file).map((v) => v.file), ...operators(lists).map((o) => o.file)];
-    for (const file of [...new Set(files)]) {
-      const pkgs = [];
-      for (const line of lines(lists[file])) {
-        const m = line.match(/^(\S+)\s+(\S+)/);
-        if (m && levelRank(m[1]) && levelRank(m[1]) <= levelRank(level || 'recomendado') && !PROTECTED.has(m[2])) pkgs.push(m[2]);
-      }
-      out.push('lista_' + stem(file) + '() {', '  :', ...pkgs.map((p) => '  ' + quitarLine(p)), '}');
-    }
-    out.push(
-      'MARCA=$(getprop ro.product.manufacturer | tr "A-Z" "a-z")',
-      'ID=$(echo "$MARCA $(getprop ro.product.model) $(getprop ro.product.device) $(getprop ro.product.name)" | tr "A-Z" "a-z")',
-      'SISTEMA=$(pm list packages -s)',
-      'V=""; OP=""; EQUIPO=""');
-    out.push('case "$MARCA" in');
-    for (const v of VENDORS) if (v.file) out.push('  ' + v.match.map((m) => '*' + shQuote(m) + '*').join('|') + ') V=' + stem(v.file) + ';;');
-    out.push('esac');
-    const opFile = Object.fromEntries(operators(lists).map((o) => [o.name.toLowerCase(), stem(o.file)]));
-    for (const line of lines(lists['dispositivos.txt'])) {
-      const f = line.split(/\s*\|\s*/);
-      const op = f.length >= 3 && opFile[f[1].toLowerCase()];
-      if (!op) continue;
-      const test = f[0].startsWith('sistema:')
-        ? 'echo "$SISTEMA" | grep -qx ' + shQuote('package:' + f[0].slice(8))
-        : 'case "$ID" in ' + f[0].split(',').map((n) => '*' + shQuote(n.trim().toLowerCase()) + '*').join('|') + ') true;; *) false;; esac';
-      out.push('[ -z "$OP" ] && ' + test + ' && { OP=' + op + '; EQUIPO=' + shQuote(f[1] + ' · ' + f[2]) + '; }');
-    }
-    out.push(
-      'echo "TV: $ID"',
-      '[ -n "$EQUIPO" ] && echo "Equipo reconocido: $EQUIPO"',
-      'lista_google',
-      '[ -n "$V" ] && lista_$V',
-      '[ -n "$OP" ] && lista_$OP',
-      'echo "Listo. Para deshacerlo, usa «Deshacer todo» en la app o pega el script de restaurar."');
-    return out.join('\n');
+      ...pkgs.map((p) => 'quitar ' + shQuote(p.endsWith('*') ? p.slice(0, -1).replace(/\./g, '\\.') + '.*' : p.replace(/\./g, '\\.'))),
+      'echo "Listo. Para deshacerlo, usa «Restaurar todo» en la app o en la web."',
+    ].join('\n');
   }
 
   /** Script para «adb shell» que deshace lo anotado en /sdcard/DebloatTV/backup.txt. */
@@ -1148,7 +1139,7 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
 
   const api = {
     TvDebloater, LEVELS, VENDORS, HALO_PKG, LTV_PKG, STOCK_LAUNCHERS, SETUPWRAITH,
-    levelRank, operators, detectDevice, vendorList, plannedEntries, removalScript, restoreScript, autoScript,
+    levelRank, operators, detectDevice, vendorList, plannedEntries, removalScript, restoreScript,
     LTV_URL: 'https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-%s-release.apk',
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
@@ -1167,6 +1158,67 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
     get: (k) => localStorage.getItem('debloattv:' + k),
     set: (k, v) => localStorage.setItem('debloattv:' + k, v),
   };
+  const LEVEL_TEXT = {
+    seguro: 'Telemetría, demos y apps que nadie usa. Sin riesgo.',
+    recomendado: 'Además, anuncios del inicio, recomendaciones, modo ambiente, promociones y las apps del operador.',
+    agresivo: 'Además, Asistente de Google, Chromecast integrado y apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
+  };
+  const LEVEL_NAME = { seguro: 'Seguro', recomendado: 'Recomendado', agresivo: 'Agresivo' };
+
+  // ---- Utilidades de interfaz ----
+  function segmented(container, value, onChange) {
+    container.textContent = '';
+    for (const level of D.LEVELS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = LEVEL_NAME[level];
+      b.setAttribute('aria-pressed', String(level === value));
+      b.addEventListener('click', () => {
+        for (const x of container.children) x.setAttribute('aria-pressed', String(x === b));
+        onChange(level);
+      });
+      container.appendChild(b);
+    }
+  }
+
+  function appRows(container, items, selected, onToggle) {
+    container.textContent = '';
+    if (!items.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No queda nada que quitar en este nivel.';
+      container.appendChild(e);
+      return;
+    }
+    for (const it of items) {
+      const row = document.createElement('label');
+      row.className = 'app';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(it.pkg);
+      cb.addEventListener('change', () => { cb.checked ? selected.add(it.pkg) : selected.delete(it.pkg); onToggle(); });
+      const t = document.createElement('span');
+      t.className = 't';
+      const d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = it.description;
+      const c = document.createElement('code');
+      c.textContent = it.pkg;
+      t.append(d, c);
+      const l = document.createElement('span');
+      l.className = 'lvl ' + it.level;
+      l.textContent = LEVEL_NAME[it.level];
+      row.append(cb, t, l);
+      container.appendChild(row);
+    }
+  }
+
+  function fillOperators(select, autoLabel) {
+    select.textContent = '';
+    const opts = [['', 'Ninguno (TV normal)']].concat(D.operators(LISTS).map((o) => [o.name, o.name]));
+    if (autoLabel) opts[0][1] = autoLabel;
+    for (const [v, t] of opts) select.add(new Option(t, v));
+  }
 
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
     const pre = $(b.dataset.copy);
@@ -1177,6 +1229,7 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
     } catch (e) { select(); }
   }));
 
+  // ---- Pestañas ----
   function showMode(mode) {
     $('usb').hidden = mode !== 'usb';
     $('gen').hidden = mode !== 'gen';
@@ -1186,78 +1239,180 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
   $('tab-usb').addEventListener('click', () => showMode('usb'));
   $('tab-gen').addEventListener('click', () => showMode('gen'));
 
-  // ---- Nivel: lo único que se elige ----
-  const LEVELS = [['seguro', 'Seguro'], ['recomendado', 'Normal'], ['agresivo', 'Agresivo']];
-  const LEVEL_TEXT = {
-    seguro: 'Solo telemetría, demos y apps que nadie usa. Sin ningún riesgo.',
-    recomendado: 'Además, la publicidad y las recomendaciones del inicio, el modo ambiente, las promociones y las apps del operador. La voz y Chromecast siguen funcionando.',
-    agresivo: 'Además, el Asistente de Google, Chromecast integrado y las apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
-  };
-  let level = 'recomendado';
-  try { level = localStorage.getItem('debloattv:level') || level; } catch (e) { /* sin almacenamiento */ }
-  if (!LEVEL_TEXT[level]) level = 'recomendado';
-  const levelUis = [];
-  function levelControl(seg, desc) {
-    for (const [value, name] of LEVELS) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = name;
-      b.dataset.level = value;
-      b.addEventListener('click', () => setLevel(value));
-      seg.appendChild(b);
-    }
-    levelUis.push([seg, desc]);
+  // ---- Generador sin cable ----
+  const gen = { vendor: 'tcl.txt', operator: '', level: 'recomendado', selected: new Set(), items: [] };
+  for (const v of D.VENDORS) $('g-vendor').add(new Option(v.name, v.file || ''));
+  $('g-vendor').value = gen.vendor;
+  fillOperators($('g-operator'));
+  function genRefresh(resetSelection) {
+    gen.items = D.plannedEntries(LISTS, gen.vendor || null, gen.operator || null, gen.level);
+    if (resetSelection) gen.selected = new Set(gen.items.map((i) => i.pkg));
+    $('g-level-desc').textContent = LEVEL_TEXT[gen.level];
+    appRows($('g-apps'), gen.items.map((i) => ({ ...i, pkg: i.pkg, description: i.description + (i.pkg.endsWith('*') ? ' (todas las que empiezan así)' : '') })), gen.selected, genScripts);
+    genScripts();
   }
-  function setLevel(value) {
-    level = value;
-    try { localStorage.setItem('debloattv:level', value); } catch (e) { /* sin almacenamiento */ }
-    for (const [seg, desc] of levelUis) {
-      for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.level === value));
-      desc.textContent = LEVEL_TEXT[value];
-      desc.style.color = value === 'agresivo' ? 'var(--warn)' : '';
-    }
-    $('g-script').textContent = D.autoScript(LISTS, value);
+  function genScripts() {
+    const pkgs = gen.items.map((i) => i.pkg).filter((p) => gen.selected.has(p));
+    $('g-count').textContent = pkgs.length + ' de ' + gen.items.length;
+    $('g-script').textContent = D.removalScript(pkgs);
+    $('g-restore').textContent = D.restoreScript();
   }
-  levelControl($('usb-levels'), $('usb-level-desc'));
-  levelControl($('g-levels'), $('g-level-desc'));
-  setLevel(level);
-  $('g-restore').textContent = D.restoreScript();
+  segmented($('g-levels'), gen.level, (l) => { gen.level = l; genRefresh(true); });
+  $('g-vendor').addEventListener('change', (e) => { gen.vendor = e.target.value; genRefresh(true); });
+  $('g-operator').addEventListener('change', (e) => { gen.operator = e.target.value; genRefresh(true); });
+  genRefresh(true);
 
-  // ---- Flujo automático por USB ----
-  const usb = { adb: null, tv: null, busy: false };
+  // ---- Conexión USB ----
+  const usb = { adb: null, tv: null, items: [], selected: new Set(), level: 'recomendado', busy: false };
+  const logEl = $('log');
+  function log(line) {
+    if (logEl.dataset.fresh !== '1') { logEl.textContent = ''; logEl.dataset.fresh = '1'; }
+    logEl.textContent += line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  $('clear-log').addEventListener('click', () => { logEl.textContent = ''; });
 
   function setStatus(kind, text) {
     $('status').className = 'pill ' + kind;
     $('status-text').textContent = text;
   }
 
-  /** working: muestra la barra y oculta los botones. */
-  function show(head, detail, opts) {
-    opts = opts || {};
-    $('headline').textContent = head;
-    $('detail').textContent = detail || '';
-    $('bar').hidden = !opts.working;
-    $('action').hidden = !!opts.working || !opts.action;
-    if (opts.action) $('action').textContent = opts.action;
-    $('undo').hidden = !!opts.working || !usb.tv || !usb.tv.hasBackup;
-    $('halo-pick').hidden = !opts.pickHalo;
-    $('level-box').hidden = !!opts.working || !!opts.pickHalo;
+  function setBusy(b) {
+    usb.busy = b;
+    for (const id of ['remove', 'set-halo', 'set-ltv', 'restore-launcher', 'restore-all', 'operator', 'disconnect']) $(id).disabled = b;
+    if (!b) updateCount();
   }
 
-  function warn(text) {
+  function usbWarning(text) {
     $('usb-warning').hidden = !text;
     $('usb-warning').textContent = text || '';
   }
 
   if (!WebUsbTransport.supported()) {
-    warn('Este navegador no permite conectar por USB. Abre esta página en Chrome o Edge en un computador, o usa la pestaña «Sin cable».');
-    $('action').disabled = true;
+    usbWarning('Este navegador no permite conectar por USB. Abre esta página en Chrome o Edge en un computador, o usa la pestaña «Sin cable».');
+    $('connect').disabled = true;
     showMode('gen');
+  }
+  segmented($('usb-levels'), usb.level, (l) => { usb.level = l; renderUsbApps(true); });
+  $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+
+  function renderUsbApps(resetSelection) {
+    $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+    if (!usb.tv) return;
+    const visible = usb.items.filter((i) => D.levelRank(i.level) <= D.levelRank(usb.level));
+    if (resetSelection) usb.selected = new Set(visible.map((i) => i.pkg));
+    for (const p of [...usb.selected]) if (!visible.some((i) => i.pkg === p)) usb.selected.delete(p);
+    usb.visible = visible;
+    appRows($('usb-apps'), visible, usb.selected, updateCount);
+    updateCount();
+  }
+
+  function updateCount() {
+    const n = usb.selected.size;
+    $('usb-count').textContent = usb.tv ? n + ' de ' + (usb.visible || []).length : '';
+    $('remove').textContent = n === 1 ? 'Quitar 1 app' : 'Quitar ' + n + ' apps';
+    $('remove').disabled = usb.busy || !usb.tv || n === 0;
+  }
+
+  async function loadCandidates() {
+    usb.items = await usb.tv.candidates();
+    renderUsbApps(true);
+  }
+
+  async function run(task) {
+    if (usb.busy) return;
+    setBusy(true);
+    try {
+      await task();
+    } catch (e) {
+      log('! ' + (e && e.message ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  $('connect').addEventListener('click', () => run(async () => {
+    usbWarning('');
+    let transport;
+    try {
+      transport = await WebUsbTransport.request();
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') { log('No se eligió ningún equipo.'); return; }
+      if (e && e.name === 'SecurityError') {
+        usbWarning('Esta página no tiene permiso para usar USB aquí. Ábrela directamente en Chrome o Edge (por ejemplo desde GitHub) o usa la pestaña «Sin cable».');
+        return;
+      }
+      throw e;
+    }
+    setStatus('wait', 'Esperando permiso en la TV…');
+    log('Conectando con ' + transport.name.trim() + '…');
+    const key = await AdbKey.loadOrCreate(store);
+    try {
+      usb.adb = await AdbConnection.connect(transport, key, () => log('En la TV, marca «Permitir siempre desde este computador» y pulsa Aceptar.'));
+    } catch (e) {
+      await transport.close();
+      setStatus('bad', 'Sin conectar');
+      throw e;
+    }
+    usb.tv = await new D.TvDebloater(usb.adb, LISTS, log, store).init();
+    const tv = usb.tv;
+    setStatus('ok', 'Conectada');
+    $('connect').hidden = true;
+    $('disconnect').hidden = false;
+    $('device-card').hidden = false;
+    $('launcher-card').hidden = false;
+    $('d-model').textContent = (tv.manufacturer ? tv.manufacturer.toUpperCase() + ' ' : '') + tv.model;
+    $('d-android').textContent = tv.android || '—';
+    $('d-known').textContent = tv.device ? tv.device.operator + ' · ' + tv.device.name : 'No es un decodificador conocido';
+    $('d-note').hidden = !(tv.device && tv.device.note);
+    $('d-note').textContent = tv.device ? tv.device.note : '';
+    fillOperators($('operator'));
+    $('operator').value = tv.operator || '';
+    log('✔ Conectada: ' + $('d-model').textContent + (tv.operator ? ' · perfil ' + tv.operator : ''));
+    if (tv.hasBackup) log('Hay cambios anteriores guardados en la TV: «Restaurar todo» los deshace.');
+    await loadCandidates();
+  }));
+
+  async function disconnect(reason) {
+    if (usb.adb) await usb.adb.close();
+    usb.adb = null;
+    usb.tv = null;
+    setStatus('', 'Sin conectar');
+    $('connect').hidden = false;
+    $('disconnect').hidden = true;
+    $('device-card').hidden = true;
+    $('launcher-card').hidden = true;
+    $('usb-apps').innerHTML = '<div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div>';
+    updateCount();
+    if (reason) log(reason);
+  }
+  $('disconnect').addEventListener('click', () => disconnect('Desconectada.'));
+  if (WebUsbTransport.supported()) {
+    navigator.usb.addEventListener('disconnect', (e) => {
+      if (usb.adb && usb.adb.t.device === e.device) disconnect('Se desconectó el cable.');
+    });
+  }
+
+  $('operator').addEventListener('change', (e) => run(async () => {
+    usb.tv.operator = e.target.value || null;
+    log('Perfil de operador: ' + (usb.tv.operator || 'ninguno'));
+    await loadCandidates();
+  }));
+
+  $('remove').addEventListener('click', () => run(async () => {
+    const pkgs = usb.visible.map((i) => i.pkg).filter((p) => usb.selected.has(p));
+    log('Quitando ' + pkgs.length + ' apps…');
+    await usb.tv.remove(pkgs);
+    log('Listo. «Restaurar todo» lo deshace.');
+    await loadCandidates();
+  }));
+
+  async function readFile(input) {
+    const f = input.files && input.files[0];
+    return f ? new Uint8Array(await f.arrayBuffer()) : null;
   }
 
   async function fetchHalo() {
-    const picked = $('halo-file').files && $('halo-file').files[0];
-    if (picked) return new Uint8Array(await picked.arrayBuffer());
     for (const url of ['../dist/halo.apk', 'halo.apk']) {
       try {
         const r = await fetch(url);
@@ -1270,102 +1425,68 @@ window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo 
     return null;
   }
 
-  async function ensureConnected() {
-    if (usb.tv) return;
-    let transport;
-    try {
-      transport = await WebUsbTransport.request();
-    } catch (e) {
-      if (e && e.name === 'NotFoundError') throw new Error('No se eligió ninguna TV. Pulsa el botón y elígela en la lista.');
-      if (e && e.name === 'SecurityError') {
-        throw new Error('Esta página no tiene permiso para usar USB aquí. Ábrela directamente en Chrome o Edge (por ejemplo desde GitHub) o usa la pestaña «Sin cable».');
-      }
-      throw e;
-    }
-    setStatus('wait', 'Conectando');
-    show('Conectando con la TV…', 'No desconectes el cable.', { working: true });
-    const key = await AdbKey.loadOrCreate(store);
-    try {
-      usb.adb = await AdbConnection.connect(transport, key, () =>
-        show('Mira la TV', 'Acepta «¿Permitir depuración?» con el mando y marca «Permitir siempre desde este computador».', { working: true }));
-    } catch (e) {
-      await transport.close();
-      throw e;
-    }
-    show('Reconociendo la TV…', 'No desconectes el cable.', { working: true });
-    usb.tv = await new D.TvDebloater(usb.adb, LISTS, () => {}, store).init();
-    setStatus('ok', 'Conectada · ' + (usb.tv.device ? usb.tv.device.operator + ' ' + usb.tv.device.name.split(' (')[0]
-      : usb.tv.manufacturer.toUpperCase() + ' ' + usb.tv.model));
-  }
-
-  async function run(task) {
-    if (usb.busy) return;
-    usb.busy = true;
-    warn('');
-    try {
-      await ensureConnected();
-      await task();
-    } catch (e) {
-      if (!usb.tv) setStatus('bad', 'Sin conectar');
-      show('No se pudo terminar', e && e.message ? e.message : String(e), { action: 'Reintentar' });
-    } finally {
-      usb.busy = false;
-    }
-  }
-
-  function clean() {
-    return run(async () => {
-      const tv = usb.tv;
-      const r = await tv.autoClean(level, fetchHalo, (text) => show(text, 'No desconectes el cable. Tarda menos de un minuto.', { working: true }));
-      let text = r.removed === 0 ? 'No quedaba publicidad que quitar.'
-        : 'Se ' + (r.removed === 1 ? 'quitó 1 app' : 'quitaron ' + r.removed + ' apps') + ' de publicidad o de fábrica.';
-      if (r.needsHalo) {
-        show('Falta Halo', text + '\n\nPara ponerlo como inicio, elige el archivo halo.apk y pulsa «Continuar».', { action: 'Continuar', pickHalo: true });
+  $('set-halo').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.HALO_PKG)) {
+      const apk = (await readFile($('halo-file'))) || (await fetchHalo());
+      if (!apk) {
+        log('Elige el archivo halo.apk (está en la carpeta dist/ del repositorio) y vuelve a pulsar «Poner Halo».');
+        $('halo-file').focus();
         return;
       }
-      text += ' ' + (!r.haloHome ? 'No se pudo poner Halo como inicio en esta TV.'
-        : r.viaService ? 'Esta TV no deja cambiar el inicio, así que se activó «Botón Inicio → Halo»: al pulsar Inicio se abre Halo.'
-        : 'El botón Inicio ya abre Halo.');
-      if (tv.device) text += '\n\nEquipo reconocido: ' + tv.device.operator + ' · ' + tv.device.name + '.';
-      show('¡Listo!', text, { action: 'Revisar otra vez' });
-    });
-  }
+      await tv.installApk(apk, 'Halo');
+    } else {
+      log('✔ Halo ya estaba instalado');
+    }
+    await tv.setHome(D.HALO_PKG, 'Halo', true);
+    await loadCandidates();
+  }));
 
-  $('action').addEventListener('click', clean);
-  $('halo-file').addEventListener('change', () => { if ($('halo-file').files.length) clean(); });
+  $('set-ltv').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.LTV_PKG)) {
+      const apk = await readFile($('ltv-file'));
+      if (!apk) {
+        const flavor = await tv.abiFlavor();
+        log('Descarga LTvLauncher-' + flavor + '-release.apk desde GitHub, elígelo y vuelve a pulsar el botón.');
+        $('ltv-link').href = D.LTV_URL.replace('%s', flavor);
+        $('ltv-file').focus();
+        return;
+      }
+      await tv.installApk(apk, 'LTvLauncher');
+    } else {
+      log('✔ LTvLauncher ya estaba instalado');
+    }
+    await tv.setHome(D.LTV_PKG, 'LTvLauncher', true);
+    await loadCandidates();
+  }));
+
+  $('restore-launcher').addEventListener('click', () => run(async () => {
+    await usb.tv.restoreStockLauncher();
+    await loadCandidates();
+  }));
 
   let confirmTimer = null;
-  $('undo').addEventListener('click', () => {
-    const b = $('undo');
+  $('restore-all').addEventListener('click', () => {
+    const b = $('restore-all');
     if (b.dataset.armed !== '1') {
       // Confirmación en el propio botón: los diálogos del navegador no siempre se muestran
       b.dataset.armed = '1';
       b.textContent = '¿Seguro? Pulsa otra vez';
       clearTimeout(confirmTimer);
-      confirmTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Deshacer todo'; }, 4000);
+      confirmTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Restaurar todo'; }, 4000);
       return;
     }
     clearTimeout(confirmTimer);
     b.dataset.armed = '';
-    b.textContent = 'Deshacer todo';
+    b.textContent = 'Restaurar todo';
     run(async () => {
-      show('Deshaciendo…', 'No desconectes el cable.', { working: true });
       await usb.tv.restoreAll();
-      await usb.tv.restoreStockLauncher();
-      show('TV como estaba', 'Se recuperaron las apps y el inicio original.', { action: 'Limpiar otra vez' });
+      await loadCandidates();
     });
   });
 
-  if (WebUsbTransport.supported()) {
-    navigator.usb.addEventListener('disconnect', (e) => {
-      if (usb.adb && usb.adb.t.device === e.device) {
-        usb.adb = null;
-        usb.tv = null;
-        setStatus('', 'Sin conectar');
-        show('Se desconectó el cable', 'Vuelve a conectarlo y pulsa el botón.', { action: 'Conectar y limpiar' });
-      }
-    });
-  }
+  setBusy(false);
 })();
 </script>
 </body>

@@ -36,7 +36,7 @@ body {
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 28px 64px;
-  min-height: 100vh;
+  min-height: 100%;
 }
 .wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; }
 a { color: var(--accent); }
@@ -137,16 +137,6 @@ pre { margin: 0; background: var(--code-bg); border: 1px solid var(--stroke); bo
 footer { color: var(--faint); font-size: 13px; text-align: center; }
 footer p { margin: 4px 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-.card .big { font: 600 clamp(22px, 3.2vw, 28px)/1.2 var(--font-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
-.bar { height: 4px; border-radius: 4px; background: var(--surface-hi); overflow: hidden; }
-.bar::before { content: ""; display: block; height: 100%; width: 40%; border-radius: 4px; background: var(--accent);
-  animation: slide 1.2s ease-in-out infinite; }
-@keyframes slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
-@media (prefers-reduced-motion: reduce) { .bar::before { animation: none; width: 100%; opacity: .5; } }
-.state { display: grid; gap: 12px; }
-.state p { margin: 0; color: var(--muted); white-space: pre-line; max-width: 62ch; }
-.single { max-width: 720px; width: 100%; justify-self: center; display: grid; gap: 22px; }
-.state .pill { justify-self: start; }
 </style>
 
 <div class="wrap">
@@ -155,7 +145,7 @@ footer p { margin: 4px 0; }
       <div class="halo-mark" aria-hidden="true"></div>
       <div>
         <h1>DebloatTV</h1>
-        <p class="tag">Conecta tu Android TV o Google TV y listo: reconoce el equipo solo, quita la publicidad y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
+        <p class="tag">Quita la publicidad y las apps de fábrica de tu Android TV o Google TV y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
       </div>
     </div>
     <div class="modes" role="tablist" aria-label="Forma de conectarse">
@@ -164,48 +154,134 @@ footer p { margin: 4px 0; }
     </div>
   </header>
 
-  <!-- ===== Por USB (WebUSB): un botón y todo automático ===== -->
-  <section id="usb" class="single" role="tabpanel" aria-labelledby="tab-usb">
-    <div class="card state" aria-live="polite">
-      <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
-      <h2 class="big" id="headline">Conecta la TV con un cable USB</h2>
-      <div class="bar" id="bar" hidden></div>
-      <p id="detail">Elige el nivel, pulsa el botón y elige tu TV. La página reconoce sola la marca y el decodificador, quita lo de ese nivel y deja Halo como inicio.</p>
-      <div id="level-box">
-        <div class="seg" id="usb-levels" role="group" aria-label="Nivel de limpieza"></div>
-        <p class="level-desc" id="usb-level-desc"></p>
+  <!-- ===== Por USB (WebUSB) ===== -->
+  <section id="usb" role="tabpanel" aria-labelledby="tab-usb">
+    <div class="grid">
+      <div class="stack">
+        <div class="card" id="connect-card">
+          <p class="eyebrow">Paso 1 · Conectar</p>
+          <h2>Conecta la TV o el TV box a este computador</h2>
+          <p class="sub">Funciona en Chrome o Edge para Windows, macOS, Linux o ChromeOS, con un cable de datos al puerto USB de servicio o OTG del equipo.</p>
+          <ol class="steps">
+            <li><span>En la TV: <b>Ajustes → Preferencias del dispositivo → Información</b>, pulsa 7 veces <b>Compilación</b>.</span></li>
+            <li><span>En <b>Opciones para desarrolladores</b>, activa <b>Depuración USB</b>.</span></li>
+            <li><span>Conecta el cable y pulsa <b>Conectar</b>. En la TV, marca «Permitir siempre» y acepta.</span></li>
+          </ol>
+          <div class="row">
+            <button class="btn primary" id="connect">Conectar</button>
+            <button class="btn" id="disconnect" hidden>Desconectar</button>
+            <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
+          </div>
+          <p class="notice" id="usb-warning" hidden></p>
+        </div>
+
+        <div class="card" id="device-card" hidden>
+          <p class="eyebrow">Equipo</p>
+          <dl class="facts">
+            <dt>Modelo</dt><dd id="d-model"></dd>
+            <dt>Android</dt><dd id="d-android"></dd>
+            <dt>Reconocido</dt><dd id="d-known"></dd>
+          </dl>
+          <p class="notice info" id="d-note" hidden></p>
+          <label class="field" style="margin-top:14px">Perfil de operador
+            <select id="operator"></select>
+          </label>
+        </div>
+
+        <div class="card" id="launcher-card" hidden>
+          <p class="eyebrow">Paso 3 · Pantalla de inicio</p>
+          <h2>Cambia el launcher</h2>
+          <p class="sub">Si la TV no deja cambiarlo (algunas TCL), se deshace solo y Halo se abre con el botón Inicio mediante su servicio de accesibilidad.</p>
+          <div class="launchers">
+            <div class="choice">
+              <h3>Halo</h3>
+              <p>Inspirado en Apple TV, ligero y con «Limpiar TV» integrado.</p>
+              <label class="file">APK (opcional): <input type="file" id="halo-file" accept=".apk"></label>
+              <button class="btn primary small" id="set-halo">Poner Halo</button>
+            </div>
+            <div class="choice">
+              <h3>LTvLauncher</h3>
+              <p>Código abierto (GPL-3.0). <a id="ltv-link" href="https://github.com/leanbitlab-org/LtvLauncher/releases/latest" target="_blank" rel="noopener">Descarga el APK</a> y elígelo.</p>
+              <label class="file">APK: <input type="file" id="ltv-file" accept=".apk"></label>
+              <button class="btn small" id="set-ltv">Poner LTvLauncher</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn small" id="restore-launcher">Volver al launcher original</button>
+            <button class="btn small danger" id="restore-all">Restaurar todo</button>
+          </div>
+        </div>
       </div>
-      <label class="file" id="halo-pick" hidden>Elige el archivo halo.apk (está en la carpeta dist/ del repositorio): <input type="file" id="halo-file" accept=".apk"></label>
-      <div class="row">
-        <button class="btn primary" id="action">Conectar y limpiar</button>
-        <button class="btn danger" id="undo" hidden>Deshacer todo</button>
+
+      <div class="stack">
+        <div class="card" id="apps-card">
+          <p class="eyebrow">Paso 2 · Elegir qué quitar</p>
+          <div class="list-head">
+            <div class="seg" id="usb-levels" role="group" aria-label="Nivel"></div>
+            <span class="count" id="usb-count"></span>
+          </div>
+          <p class="level-desc" id="usb-level-desc"></p>
+          <div class="apps" id="usb-apps"><div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="remove" disabled>Quitar apps</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Registro</h3><button class="btn small" id="clear-log">Limpiar</button></div>
+          <pre class="log" id="log" aria-live="polite">Esperando conexión…</pre>
+        </div>
       </div>
-      <p class="notice" id="usb-warning" hidden></p>
-    </div>
-    <div class="card">
-      <p class="eyebrow">Antes de empezar (una sola vez)</p>
-      <ol class="steps">
-        <li><span>En la TV: <b>Ajustes → Preferencias del dispositivo → Información</b>, pulsa 7 veces <b>Compilación</b>.</span></li>
-        <li><span>En <b>Opciones para desarrolladores</b>, activa <b>Depuración USB</b>.</span></li>
-        <li><span>Usa Chrome o Edge en un computador y un cable de datos al puerto USB de servicio u OTG del equipo. En la TV, marca «Permitir siempre» y acepta.</span></li>
-      </ol>
     </div>
   </section>
 
-  <!-- ===== Sin cable: un script que también lo detecta todo ===== -->
-  <section id="gen" class="single" role="tabpanel" aria-labelledby="tab-gen" hidden>
-    <div class="card">
-      <p class="eyebrow">Sin cable</p>
-      <h2>Un comando que lo hace todo</h2>
-      <p class="sub">Un navegador no puede conectarse a la TV por WiFi. Desde el teléfono, usa la app Halo, que busca la TV y la limpia sola. Desde un computador con <code>adb</code>: <code>adb connect IP:5555</code>, luego <code>adb shell</code>, y pega este script. Reconoce la TV y el decodificador solo y quita lo mismo que la app.</p>
-      <div class="seg" id="g-levels" role="group" aria-label="Nivel de limpieza"></div>
-      <p class="level-desc" id="g-level-desc"></p>
-      <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
-      <pre id="g-script"></pre>
-    </div>
-    <div class="card">
-      <div class="code-head"><h3>Deshacer todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
-      <pre id="g-restore"></pre>
+  <!-- ===== Sin cable: generador ===== -->
+  <section id="gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
+    <div class="grid">
+      <div class="stack">
+        <div class="card">
+          <p class="eyebrow">Sin cable</p>
+          <h2>Comandos para tu TV</h2>
+          <p class="sub">Un navegador no puede abrir una conexión ADB por WiFi. Elige tu equipo y copia el script en «adb shell» desde un computador, o usa la app Halo del teléfono, que se conecta por WiFi sola.</p>
+          <div class="stack">
+            <label class="field">Marca de la TV
+              <select id="g-vendor"></select>
+            </label>
+            <label class="field">Operador del TV box
+              <select id="g-operator"></select>
+            </label>
+            <div>
+              <div class="seg" id="g-levels" role="group" aria-label="Nivel"></div>
+              <p class="level-desc" id="g-level-desc"></p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="eyebrow">Cómo usarlo</p>
+          <ol class="steps">
+            <li><span>Activa <b>Depuración USB</b> (o depuración inalámbrica) en la TV y anota su IP.</span></li>
+            <li><span>En el computador: <code>adb connect IP:5555</code> y luego <code>adb shell</code>.</span></li>
+            <li><span>Pega el script. Para deshacerlo, pega el de restaurar.</span></li>
+          </ol>
+          <p class="notice info">En Windows, macOS o Linux también puedes usar <code>debloat.bat</code> o <code>debloat.sh</code> del repositorio, que hacen todo esto y además cambian el launcher.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="list-head">
+            <h2>Apps que se quitarán</h2>
+            <span class="count" id="g-count"></span>
+          </div>
+          <div class="apps" id="g-apps"></div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
+          <pre id="g-script"></pre>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Restaurar todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
+          <pre id="g-restore"></pre>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -229,6 +305,67 @@ footer p { margin: 4px 0; }
     get: (k) => localStorage.getItem('debloattv:' + k),
     set: (k, v) => localStorage.setItem('debloattv:' + k, v),
   };
+  const LEVEL_TEXT = {
+    seguro: 'Telemetría, demos y apps que nadie usa. Sin riesgo.',
+    recomendado: 'Además, anuncios del inicio, recomendaciones, modo ambiente, promociones y las apps del operador.',
+    agresivo: 'Además, Asistente de Google, Chromecast integrado y apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
+  };
+  const LEVEL_NAME = { seguro: 'Seguro', recomendado: 'Recomendado', agresivo: 'Agresivo' };
+
+  // ---- Utilidades de interfaz ----
+  function segmented(container, value, onChange) {
+    container.textContent = '';
+    for (const level of D.LEVELS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = LEVEL_NAME[level];
+      b.setAttribute('aria-pressed', String(level === value));
+      b.addEventListener('click', () => {
+        for (const x of container.children) x.setAttribute('aria-pressed', String(x === b));
+        onChange(level);
+      });
+      container.appendChild(b);
+    }
+  }
+
+  function appRows(container, items, selected, onToggle) {
+    container.textContent = '';
+    if (!items.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No queda nada que quitar en este nivel.';
+      container.appendChild(e);
+      return;
+    }
+    for (const it of items) {
+      const row = document.createElement('label');
+      row.className = 'app';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(it.pkg);
+      cb.addEventListener('change', () => { cb.checked ? selected.add(it.pkg) : selected.delete(it.pkg); onToggle(); });
+      const t = document.createElement('span');
+      t.className = 't';
+      const d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = it.description;
+      const c = document.createElement('code');
+      c.textContent = it.pkg;
+      t.append(d, c);
+      const l = document.createElement('span');
+      l.className = 'lvl ' + it.level;
+      l.textContent = LEVEL_NAME[it.level];
+      row.append(cb, t, l);
+      container.appendChild(row);
+    }
+  }
+
+  function fillOperators(select, autoLabel) {
+    select.textContent = '';
+    const opts = [['', 'Ninguno (TV normal)']].concat(D.operators(LISTS).map((o) => [o.name, o.name]));
+    if (autoLabel) opts[0][1] = autoLabel;
+    for (const [v, t] of opts) select.add(new Option(t, v));
+  }
 
   document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
     const pre = $(b.dataset.copy);
@@ -239,6 +376,7 @@ footer p { margin: 4px 0; }
     } catch (e) { select(); }
   }));
 
+  // ---- Pestañas ----
   function showMode(mode) {
     $('usb').hidden = mode !== 'usb';
     $('gen').hidden = mode !== 'gen';
@@ -248,78 +386,180 @@ footer p { margin: 4px 0; }
   $('tab-usb').addEventListener('click', () => showMode('usb'));
   $('tab-gen').addEventListener('click', () => showMode('gen'));
 
-  // ---- Nivel: lo único que se elige ----
-  const LEVELS = [['seguro', 'Seguro'], ['recomendado', 'Normal'], ['agresivo', 'Agresivo']];
-  const LEVEL_TEXT = {
-    seguro: 'Solo telemetría, demos y apps que nadie usa. Sin ningún riesgo.',
-    recomendado: 'Además, la publicidad y las recomendaciones del inicio, el modo ambiente, las promociones y las apps del operador. La voz y Chromecast siguen funcionando.',
-    agresivo: 'Además, el Asistente de Google, Chromecast integrado y las apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
-  };
-  let level = 'recomendado';
-  try { level = localStorage.getItem('debloattv:level') || level; } catch (e) { /* sin almacenamiento */ }
-  if (!LEVEL_TEXT[level]) level = 'recomendado';
-  const levelUis = [];
-  function levelControl(seg, desc) {
-    for (const [value, name] of LEVELS) {
-      const b = document.createElement('button');
-      b.type = 'button';
-      b.textContent = name;
-      b.dataset.level = value;
-      b.addEventListener('click', () => setLevel(value));
-      seg.appendChild(b);
-    }
-    levelUis.push([seg, desc]);
+  // ---- Generador sin cable ----
+  const gen = { vendor: 'tcl.txt', operator: '', level: 'recomendado', selected: new Set(), items: [] };
+  for (const v of D.VENDORS) $('g-vendor').add(new Option(v.name, v.file || ''));
+  $('g-vendor').value = gen.vendor;
+  fillOperators($('g-operator'));
+  function genRefresh(resetSelection) {
+    gen.items = D.plannedEntries(LISTS, gen.vendor || null, gen.operator || null, gen.level);
+    if (resetSelection) gen.selected = new Set(gen.items.map((i) => i.pkg));
+    $('g-level-desc').textContent = LEVEL_TEXT[gen.level];
+    appRows($('g-apps'), gen.items.map((i) => ({ ...i, pkg: i.pkg, description: i.description + (i.pkg.endsWith('*') ? ' (todas las que empiezan así)' : '') })), gen.selected, genScripts);
+    genScripts();
   }
-  function setLevel(value) {
-    level = value;
-    try { localStorage.setItem('debloattv:level', value); } catch (e) { /* sin almacenamiento */ }
-    for (const [seg, desc] of levelUis) {
-      for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.level === value));
-      desc.textContent = LEVEL_TEXT[value];
-      desc.style.color = value === 'agresivo' ? 'var(--warn)' : '';
-    }
-    $('g-script').textContent = D.autoScript(LISTS, value);
+  function genScripts() {
+    const pkgs = gen.items.map((i) => i.pkg).filter((p) => gen.selected.has(p));
+    $('g-count').textContent = pkgs.length + ' de ' + gen.items.length;
+    $('g-script').textContent = D.removalScript(pkgs);
+    $('g-restore').textContent = D.restoreScript();
   }
-  levelControl($('usb-levels'), $('usb-level-desc'));
-  levelControl($('g-levels'), $('g-level-desc'));
-  setLevel(level);
-  $('g-restore').textContent = D.restoreScript();
+  segmented($('g-levels'), gen.level, (l) => { gen.level = l; genRefresh(true); });
+  $('g-vendor').addEventListener('change', (e) => { gen.vendor = e.target.value; genRefresh(true); });
+  $('g-operator').addEventListener('change', (e) => { gen.operator = e.target.value; genRefresh(true); });
+  genRefresh(true);
 
-  // ---- Flujo automático por USB ----
-  const usb = { adb: null, tv: null, busy: false };
+  // ---- Conexión USB ----
+  const usb = { adb: null, tv: null, items: [], selected: new Set(), level: 'recomendado', busy: false };
+  const logEl = $('log');
+  function log(line) {
+    if (logEl.dataset.fresh !== '1') { logEl.textContent = ''; logEl.dataset.fresh = '1'; }
+    logEl.textContent += line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  $('clear-log').addEventListener('click', () => { logEl.textContent = ''; });
 
   function setStatus(kind, text) {
     $('status').className = 'pill ' + kind;
     $('status-text').textContent = text;
   }
 
-  /** working: muestra la barra y oculta los botones. */
-  function show(head, detail, opts) {
-    opts = opts || {};
-    $('headline').textContent = head;
-    $('detail').textContent = detail || '';
-    $('bar').hidden = !opts.working;
-    $('action').hidden = !!opts.working || !opts.action;
-    if (opts.action) $('action').textContent = opts.action;
-    $('undo').hidden = !!opts.working || !usb.tv || !usb.tv.hasBackup;
-    $('halo-pick').hidden = !opts.pickHalo;
-    $('level-box').hidden = !!opts.working || !!opts.pickHalo;
+  function setBusy(b) {
+    usb.busy = b;
+    for (const id of ['remove', 'set-halo', 'set-ltv', 'restore-launcher', 'restore-all', 'operator', 'disconnect']) $(id).disabled = b;
+    if (!b) updateCount();
   }
 
-  function warn(text) {
+  function usbWarning(text) {
     $('usb-warning').hidden = !text;
     $('usb-warning').textContent = text || '';
   }
 
   if (!WebUsbTransport.supported()) {
-    warn('Este navegador no permite conectar por USB. Abre esta página en Chrome o Edge en un computador, o usa la pestaña «Sin cable».');
-    $('action').disabled = true;
+    usbWarning('Este navegador no permite conectar por USB. Abre esta página en Chrome o Edge en un computador, o usa la pestaña «Sin cable».');
+    $('connect').disabled = true;
     showMode('gen');
+  }
+  segmented($('usb-levels'), usb.level, (l) => { usb.level = l; renderUsbApps(true); });
+  $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+
+  function renderUsbApps(resetSelection) {
+    $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+    if (!usb.tv) return;
+    const visible = usb.items.filter((i) => D.levelRank(i.level) <= D.levelRank(usb.level));
+    if (resetSelection) usb.selected = new Set(visible.map((i) => i.pkg));
+    for (const p of [...usb.selected]) if (!visible.some((i) => i.pkg === p)) usb.selected.delete(p);
+    usb.visible = visible;
+    appRows($('usb-apps'), visible, usb.selected, updateCount);
+    updateCount();
+  }
+
+  function updateCount() {
+    const n = usb.selected.size;
+    $('usb-count').textContent = usb.tv ? n + ' de ' + (usb.visible || []).length : '';
+    $('remove').textContent = n === 1 ? 'Quitar 1 app' : 'Quitar ' + n + ' apps';
+    $('remove').disabled = usb.busy || !usb.tv || n === 0;
+  }
+
+  async function loadCandidates() {
+    usb.items = await usb.tv.candidates();
+    renderUsbApps(true);
+  }
+
+  async function run(task) {
+    if (usb.busy) return;
+    setBusy(true);
+    try {
+      await task();
+    } catch (e) {
+      log('! ' + (e && e.message ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  $('connect').addEventListener('click', () => run(async () => {
+    usbWarning('');
+    let transport;
+    try {
+      transport = await WebUsbTransport.request();
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') { log('No se eligió ningún equipo.'); return; }
+      if (e && e.name === 'SecurityError') {
+        usbWarning('Esta página no tiene permiso para usar USB aquí. Ábrela directamente en Chrome o Edge (por ejemplo desde GitHub) o usa la pestaña «Sin cable».');
+        return;
+      }
+      throw e;
+    }
+    setStatus('wait', 'Esperando permiso en la TV…');
+    log('Conectando con ' + transport.name.trim() + '…');
+    const key = await AdbKey.loadOrCreate(store);
+    try {
+      usb.adb = await AdbConnection.connect(transport, key, () => log('En la TV, marca «Permitir siempre desde este computador» y pulsa Aceptar.'));
+    } catch (e) {
+      await transport.close();
+      setStatus('bad', 'Sin conectar');
+      throw e;
+    }
+    usb.tv = await new D.TvDebloater(usb.adb, LISTS, log, store).init();
+    const tv = usb.tv;
+    setStatus('ok', 'Conectada');
+    $('connect').hidden = true;
+    $('disconnect').hidden = false;
+    $('device-card').hidden = false;
+    $('launcher-card').hidden = false;
+    $('d-model').textContent = (tv.manufacturer ? tv.manufacturer.toUpperCase() + ' ' : '') + tv.model;
+    $('d-android').textContent = tv.android || '—';
+    $('d-known').textContent = tv.device ? tv.device.operator + ' · ' + tv.device.name : 'No es un decodificador conocido';
+    $('d-note').hidden = !(tv.device && tv.device.note);
+    $('d-note').textContent = tv.device ? tv.device.note : '';
+    fillOperators($('operator'));
+    $('operator').value = tv.operator || '';
+    log('✔ Conectada: ' + $('d-model').textContent + (tv.operator ? ' · perfil ' + tv.operator : ''));
+    if (tv.hasBackup) log('Hay cambios anteriores guardados en la TV: «Restaurar todo» los deshace.');
+    await loadCandidates();
+  }));
+
+  async function disconnect(reason) {
+    if (usb.adb) await usb.adb.close();
+    usb.adb = null;
+    usb.tv = null;
+    setStatus('', 'Sin conectar');
+    $('connect').hidden = false;
+    $('disconnect').hidden = true;
+    $('device-card').hidden = true;
+    $('launcher-card').hidden = true;
+    $('usb-apps').innerHTML = '<div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div>';
+    updateCount();
+    if (reason) log(reason);
+  }
+  $('disconnect').addEventListener('click', () => disconnect('Desconectada.'));
+  if (WebUsbTransport.supported()) {
+    navigator.usb.addEventListener('disconnect', (e) => {
+      if (usb.adb && usb.adb.t.device === e.device) disconnect('Se desconectó el cable.');
+    });
+  }
+
+  $('operator').addEventListener('change', (e) => run(async () => {
+    usb.tv.operator = e.target.value || null;
+    log('Perfil de operador: ' + (usb.tv.operator || 'ninguno'));
+    await loadCandidates();
+  }));
+
+  $('remove').addEventListener('click', () => run(async () => {
+    const pkgs = usb.visible.map((i) => i.pkg).filter((p) => usb.selected.has(p));
+    log('Quitando ' + pkgs.length + ' apps…');
+    await usb.tv.remove(pkgs);
+    log('Listo. «Restaurar todo» lo deshace.');
+    await loadCandidates();
+  }));
+
+  async function readFile(input) {
+    const f = input.files && input.files[0];
+    return f ? new Uint8Array(await f.arrayBuffer()) : null;
   }
 
   async function fetchHalo() {
-    const picked = $('halo-file').files && $('halo-file').files[0];
-    if (picked) return new Uint8Array(await picked.arrayBuffer());
     for (const url of ['../dist/halo.apk', 'halo.apk']) {
       try {
         const r = await fetch(url);
@@ -332,101 +572,67 @@ footer p { margin: 4px 0; }
     return null;
   }
 
-  async function ensureConnected() {
-    if (usb.tv) return;
-    let transport;
-    try {
-      transport = await WebUsbTransport.request();
-    } catch (e) {
-      if (e && e.name === 'NotFoundError') throw new Error('No se eligió ninguna TV. Pulsa el botón y elígela en la lista.');
-      if (e && e.name === 'SecurityError') {
-        throw new Error('Esta página no tiene permiso para usar USB aquí. Ábrela directamente en Chrome o Edge (por ejemplo desde GitHub) o usa la pestaña «Sin cable».');
-      }
-      throw e;
-    }
-    setStatus('wait', 'Conectando');
-    show('Conectando con la TV…', 'No desconectes el cable.', { working: true });
-    const key = await AdbKey.loadOrCreate(store);
-    try {
-      usb.adb = await AdbConnection.connect(transport, key, () =>
-        show('Mira la TV', 'Acepta «¿Permitir depuración?» con el mando y marca «Permitir siempre desde este computador».', { working: true }));
-    } catch (e) {
-      await transport.close();
-      throw e;
-    }
-    show('Reconociendo la TV…', 'No desconectes el cable.', { working: true });
-    usb.tv = await new D.TvDebloater(usb.adb, LISTS, () => {}, store).init();
-    setStatus('ok', 'Conectada · ' + (usb.tv.device ? usb.tv.device.operator + ' ' + usb.tv.device.name.split(' (')[0]
-      : usb.tv.manufacturer.toUpperCase() + ' ' + usb.tv.model));
-  }
-
-  async function run(task) {
-    if (usb.busy) return;
-    usb.busy = true;
-    warn('');
-    try {
-      await ensureConnected();
-      await task();
-    } catch (e) {
-      if (!usb.tv) setStatus('bad', 'Sin conectar');
-      show('No se pudo terminar', e && e.message ? e.message : String(e), { action: 'Reintentar' });
-    } finally {
-      usb.busy = false;
-    }
-  }
-
-  function clean() {
-    return run(async () => {
-      const tv = usb.tv;
-      const r = await tv.autoClean(level, fetchHalo, (text) => show(text, 'No desconectes el cable. Tarda menos de un minuto.', { working: true }));
-      let text = r.removed === 0 ? 'No quedaba publicidad que quitar.'
-        : 'Se ' + (r.removed === 1 ? 'quitó 1 app' : 'quitaron ' + r.removed + ' apps') + ' de publicidad o de fábrica.';
-      if (r.needsHalo) {
-        show('Falta Halo', text + '\n\nPara ponerlo como inicio, elige el archivo halo.apk y pulsa «Continuar».', { action: 'Continuar', pickHalo: true });
+  $('set-halo').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.HALO_PKG)) {
+      const apk = (await readFile($('halo-file'))) || (await fetchHalo());
+      if (!apk) {
+        log('Elige el archivo halo.apk (está en la carpeta dist/ del repositorio) y vuelve a pulsar «Poner Halo».');
+        $('halo-file').focus();
         return;
       }
-      text += ' ' + (!r.haloHome ? 'No se pudo poner Halo como inicio en esta TV.'
-        : r.viaService ? 'Esta TV no deja cambiar el inicio, así que se activó «Botón Inicio → Halo»: al pulsar Inicio se abre Halo.'
-        : 'El botón Inicio ya abre Halo.');
-      if (tv.device) text += '\n\nEquipo reconocido: ' + tv.device.operator + ' · ' + tv.device.name + '.';
-      show('¡Listo!', text, { action: 'Revisar otra vez' });
-    });
-  }
+      await tv.installApk(apk, 'Halo');
+    } else {
+      log('✔ Halo ya estaba instalado');
+    }
+    await tv.setHome(D.HALO_PKG, 'Halo', true);
+    await loadCandidates();
+  }));
 
-  $('action').addEventListener('click', clean);
-  $('halo-file').addEventListener('change', () => { if ($('halo-file').files.length) clean(); });
+  $('set-ltv').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.LTV_PKG)) {
+      const apk = await readFile($('ltv-file'));
+      if (!apk) {
+        const flavor = await tv.abiFlavor();
+        log('Descarga LTvLauncher-' + flavor + '-release.apk desde GitHub, elígelo y vuelve a pulsar el botón.');
+        $('ltv-link').href = D.LTV_URL.replace('%s', flavor);
+        $('ltv-file').focus();
+        return;
+      }
+      await tv.installApk(apk, 'LTvLauncher');
+    } else {
+      log('✔ LTvLauncher ya estaba instalado');
+    }
+    await tv.setHome(D.LTV_PKG, 'LTvLauncher', true);
+    await loadCandidates();
+  }));
+
+  $('restore-launcher').addEventListener('click', () => run(async () => {
+    await usb.tv.restoreStockLauncher();
+    await loadCandidates();
+  }));
 
   let confirmTimer = null;
-  $('undo').addEventListener('click', () => {
-    const b = $('undo');
+  $('restore-all').addEventListener('click', () => {
+    const b = $('restore-all');
     if (b.dataset.armed !== '1') {
       // Confirmación en el propio botón: los diálogos del navegador no siempre se muestran
       b.dataset.armed = '1';
       b.textContent = '¿Seguro? Pulsa otra vez';
       clearTimeout(confirmTimer);
-      confirmTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Deshacer todo'; }, 4000);
+      confirmTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Restaurar todo'; }, 4000);
       return;
     }
     clearTimeout(confirmTimer);
     b.dataset.armed = '';
-    b.textContent = 'Deshacer todo';
+    b.textContent = 'Restaurar todo';
     run(async () => {
-      show('Deshaciendo…', 'No desconectes el cable.', { working: true });
       await usb.tv.restoreAll();
-      await usb.tv.restoreStockLauncher();
-      show('TV como estaba', 'Se recuperaron las apps y el inicio original.', { action: 'Limpiar otra vez' });
+      await loadCandidates();
     });
   });
 
-  if (WebUsbTransport.supported()) {
-    navigator.usb.addEventListener('disconnect', (e) => {
-      if (usb.adb && usb.adb.t.device === e.device) {
-        usb.adb = null;
-        usb.tv = null;
-        setStatus('', 'Sin conectar');
-        show('Se desconectó el cable', 'Vuelve a conectarlo y pulsa el botón.', { action: 'Conectar y limpiar' });
-      }
-    });
-  }
+  setBusy(false);
 })();
 </script>

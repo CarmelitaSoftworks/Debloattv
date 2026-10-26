@@ -1,6 +1,6 @@
 # DebloatTV + Halo Launcher
 
-Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈90 KB, sin dependencias) inspirado en Apple TV. Con los scripts también puedes elegir **LTvLauncher**, un launcher de código abierto de la comunidad.
+Limpia tu Smart TV con **Google TV / Android TV** y cambia el launcher de Google, lleno de anuncios y recomendaciones, por **Halo**: un launcher ligero (≈90 KB, sin dependencias) inspirado en Apple TV. También puedes elegir **LTvLauncher**, un launcher de código abierto de la comunidad.
 
 ![Halo, pantalla de inicio](docs/halo-inicio.png)
 
@@ -10,7 +10,9 @@ El diseño está en Figma: [Halo – rediseño TV](https://www.figma.com/design/
 
 - **En la TV** es el launcher Halo y además **limpia la TV desde la propia TV** (tarjeta ⚙ → Limpiar TV): no hace falta teléfono ni PC.
 - **En el teléfono** es el control remoto: se conecta a la TV por WiFi, la limpia y **se instala a sí misma en la TV** como launcher.
-- **Todo automático:** al conectarse reconoce la marca y el decodificador del operador (VTR, Claro, Entel, Movistar, DIRECTV, Mundo, WOM, GTD) y con un solo botón quita lo del nivel elegido (Seguro, Normal o Agresivo) y deja Halo como inicio. Sin listas.
+<img src="docs/halo-telefono.png" alt="Halo en el teléfono" width="260" align="right">
+
+- **Al conectarse elige qué usar:** reconoce la marca y el decodificador del operador y propone su perfil (VTR, Claro, Entel, Movistar, DIRECTV, Mundo, WOM, GTD o ninguno), que puedes cambiar con el botón **Operador**.
 - **Debloater** (`debloater/`): quita las apps preinstaladas por niveles de riesgo, detecta la marca del televisor y guarda un backup de todo lo que toca para poder deshacerlo.
 - **Halo Launcher** (`launcher/`): cuadrícula limpia de apps en 16:9, foco con elevación y brillo, nombre bajo la app enfocada, lavado de color de fondo que sigue a la app, reloj, reordenar con "tembleque" y ocultar apps. Sin anuncios, sin recomendaciones, sin conexión a internet.
 
@@ -28,45 +30,49 @@ Solo necesitas instalar **`dist/halo.apk`** en la TV. Formas de hacerlo sin PC:
 
 La primera vez Android pedirá permitir **instalar apps desconocidas** para la app con la que lo abras: acéptalo.
 
-Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**. Es automático: Halo se conecta solo al ADB de la propia TV, reconoce la marca y el decodificador del operador, y con **Limpiar ahora** quita lo del nivel elegido (**Seguro**, **Normal** o **Agresivo**; el botón *Nivel* cambia en cada pulsación) y deja Halo como pantalla de inicio. No hay listas que revisar. **Deshacer todo** lo devuelve como estaba.
+Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**.
 
 ![Limpiar TV](docs/halo-limpiar-tv.png)
 
-Para que pueda conectarse basta con activar una vez **Depuración USB** (no hace falta cable ni *Depuración inalámbrica*): Ajustes → Sistema → Información → pulsa 7 veces *Compilación*, y en *Opciones para desarrolladores* activa **Depuración USB** (y **Depuración por red** si aparece). La primera vez la TV muestra *¿Permitir depuración?*: marca **Permitir siempre** y acepta con el mando.
+Halo se conecta al ADB de la propia TV. Basta con activar **Depuración USB** (no hace falta cable ni *Depuración inalámbrica*): Halo prueba `127.0.0.1:5555` y, si no responde, la IP WiFi/Ethernet de la propia TV, igual que haría un móvil.
 
-- Si la TV no deja cambiar la app de inicio (algunas TCL con Google TV), Halo lo deshace solo y activa **Botón Inicio → Halo**, un servicio de accesibilidad que abre Halo cuando pulsas Inicio.
-- Si la TV no permite ADB, Halo explica cómo activarlo y ofrece **Botón Inicio → Halo** mientras tanto.
+- **Si funciona (modo automático):** la TV mostrará *¿Permitir depuración?*; marca **Permitir siempre** y acepta con el mando. Luego eliges el nivel, pulsas **Quitar N apps** y **Elegir launcher de inicio** (Halo o LTvLauncher). Todo se deshace con **Restaurar todo lo quitado** y **Volver al launcher original**.
+  Para que funcione: Ajustes → Sistema → Información → pulsa 7 veces *Compilación*, y en *Opciones para desarrolladores* activa **Depuración USB** (y **Depuración por red** si aparece).
+- **Si tu TV no lo permite (modo manual):** Halo te muestra las apps basura que tiene tu TV; pulsa cada una para abrir sus ajustes y elige **Desactivar**. Y activa **Botón Inicio → Halo**: un servicio de accesibilidad que, cuando el botón HOME abre el launcher de TCL/Google, abre Halo encima. Así Halo queda como inicio sin ADB.
 
 > Si el interruptor de *Halo: botón Inicio* aparece bloqueado (Android 13+ lo hace con las apps instaladas desde un archivo), ve a Ajustes → Apps → Halo, pulsa ⋮ / Más opciones → **Permitir ajustes restringidos** y vuelve a intentarlo.
+>
+> Si usas *Botón Inicio → Halo* y luego quieres volver al launcher original, desactiva el servicio en Ajustes → Accesibilidad.
 
-**Niveles** (de las listas de `debloater/lists`: Google, la marca de la TV y el operador reconocido):
+![Elegir launcher](docs/halo-elegir-launcher.png)
 
-- **Seguro:** telemetría, demos y apps que nadie usa.
-- **Normal** (por defecto): además, la publicidad y las recomendaciones del inicio, el modo ambiente, las promociones y las apps del operador. La voz y Chromecast siguen funcionando.
-- **Agresivo:** además, el Asistente de Google, Chromecast integrado y las apps de streaming preinstaladas.
+### Launcher alternativo: LTvLauncher
+
+[LTvLauncher](https://github.com/leanbitlab-org/LtvLauncher) es un launcher de código abierto (GPL-3.0) para Android TV, derivado de FLauncher y mantenido activamente: fondos, categorías, widgets, sin anuncios. Pesa unos 10 MB. Si lo eliges, la app descarga la última versión desde sus releases de GitHub (la variante para el procesador de tu TV), la instala y la deja como inicio. Halo sigue instalado para abrir **Limpiar TV** desde la lista de apps.
 
 ## Opción B: desde el teléfono
 
-Instala el mismo **`dist/halo.apk`** en tu teléfono Android: allí se abre en modo control remoto.
+Instala el mismo **`dist/halo.apk`** en tu teléfono Android: allí se abre en modo control remoto y habla directamente con la TV por WiFi.
 
-1. Activa una vez **Depuración USB** en la TV (pasos de arriba) y conecta el teléfono a la misma WiFi.
-2. Abre Halo en el teléfono: **busca la TV solo**.
-3. Elige el nivel (Seguro, Normal o Agresivo), pulsa **Limpiar mi TV** y acepta *¿Permitir depuración?* en la TV. El teléfono reconoce el equipo y el operador, quita la publicidad, copia Halo a la TV y lo deja como inicio.
+1. **En la TV:** Ajustes → Sistema → Información → pulsa OK 7 veces sobre *Compilación* hasta que salga "Ya eres desarrollador".
+2. **En la TV:** Ajustes → Sistema → Opciones para desarrolladores → activa **Depuración USB** (y **Depuración por red** si existe).
+   No hace falta la opción *Depuración inalámbrica* de Android 11+: la app se conecta igual que `adb connect IP:5555`. En la mayoría de televisores, con *Depuración USB* activada ya se acepta la conexión por la red.
+3. **En el teléfono:** instala `halo.apk` (permite "instalar apps desconocidas" cuando te lo pida) y conéctalo a la misma WiFi que la TV.
+4. Abre Halo → **Buscar TV** → **Conectar**. En la TV saldrá *¿Permitir depuración?*: marca **Permitir siempre** y acepta.
+5. Revisa el **Operador** propuesto, elige el nivel, pulsa **Quitar seleccionadas** y luego **Instalar Halo** (el teléfono copia la app a la TV).
 
-<img src="docs/halo-telefono.png" alt="Halo en el teléfono" width="260">
+Para deshacer, en la misma app: **Restaurar todo** y **Volver al original**.
 
-**Deshacer todo** devuelve la TV a como estaba.
-
-> **Si no encuentra la TV:** algunas TV no abren el puerto 5555 solo con *Depuración USB*. Activa *Depuración por red* si tu modelo la tiene, o escribe la IP de la TV en el recuadro que aparece. Si aun así no responde, conecta la TV una vez a un PC por USB y ejecuta `adb tcpip 5555`.
+> **Si "Buscar TV" no la encuentra:** tu TV no abre el puerto 5555 solo con *Depuración USB*. Prueba a activar *Depuración por red* si tu modelo la tiene. Si no, conecta la TV una vez a un PC por USB y ejecuta `adb tcpip 5555`; desde ese momento la app funciona por WiFi hasta que reinicies la TV.
 
 ## Opción C: desde el navegador (versión web)
 
-Abre **`web/index.html`** en **Chrome o Edge** de un computador (basta con descargarlo y abrirlo).
+Abre **`web/index.html`** en **Chrome o Edge** de un computador (basta con descargarlo y abrirlo; no necesita instalar nada ni conexión a internet). Tiene dos modos:
 
-- **Por cable USB:** con un cable de datos al puerto USB de servicio u OTG del equipo, elige el nivel y pulsa **Conectar y limpiar**. La página hace lo mismo que la app, sola: reconoce el equipo y el operador, quita la publicidad y deja Halo como inicio (si no lo encuentra junto a la página, te pide el archivo `halo.apk`). Si `adb` está abierto en el PC, ciérralo antes con `adb kill-server`.
-- **Sin cable:** elige el nivel y copia un único script para pegar en `adb shell`. Reconoce la TV y el decodificador en la propia TV y quita lo mismo que la app; también hay un script para deshacerlo.
+- **Por cable USB:** conecta la TV o el TV box con un cable de datos (puerto USB de servicio u OTG, con *Depuración USB* activada) y pulsa **Conectar**. La página habla ADB directamente por WebUSB y hace lo mismo que la app: reconoce el equipo y el operador, propone qué quitar por niveles, pone Halo o LTvLauncher como inicio (con la misma vuelta atrás y el servicio de accesibilidad en las TCL) y restaura lo que se quitó, también lo hecho desde la app o los scripts. Si `adb` está abierto en el PC, ciérralo antes con `adb kill-server`.
+- **Sin cable:** eliges marca, operador y nivel, y la página genera el script para pegar en `adb shell` y el de restaurar. El script nunca quita la app de inicio ni nada protegido y anota los cambios en la TV para poder deshacerlos.
 
-Un navegador no puede conectarse a la TV por WiFi; para eso está la app del teléfono (opción B).
+Un navegador no puede abrir conexiones ADB por WiFi, así que sin cable USB usa la app del teléfono (opción B) o el script generado.
 
 La página se arma con `python3 web/build.py` a partir de `web/index.src.html`, `web/adb.js`, `web/debloat.js` y las listas de `debloater/lists`.
 
@@ -194,9 +200,9 @@ El APK release está firmado con la clave de depuración para que se pueda insta
 
 ## Decodificadores de operadores (Chile)
 
-Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/operadores.txt` y una lista por operador). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware, e incluyen los paquetes reales comprobados de cada app (p. ej. `com.tivo.androidtv.llacl` de VTR Play TV, `cl.entel.enteltv`, `cl.movistarplay`, `br.com.claro.now.smarttvclient`). La limpieza automática deja Halo en lugar del launcher del operador.
+Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/operadores.txt` y una lista por operador). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware, e incluyen los paquetes reales comprobados de cada app (p. ej. `com.tivo.androidtv.llacl` de VTR Play TV, `cl.entel.enteltv`, `cl.movistarplay`, `br.com.claro.now.smarttvclient`). El launcher del operador se cambia con **Elegir launcher de inicio**.
 
-El perfil se elige solo cuando se reconoce el decodificador. Para operadores sin decodificador Android propio (Movistar, DIRECTV) o si usas su app en otro TV box, elígelo a mano en los scripts: `--operador movistar` / `-Operador Movistar`.
+El perfil se elige solo cuando se reconoce el decodificador. Para operadores sin decodificador Android propio (Movistar, DIRECTV) o si usas su app en otro TV box, elígelo a mano: botón **Operador** en la app, o `--operador movistar` / `-Operador Movistar` en los scripts.
 
 > Al quitar las apps del operador **dejarás de ver sus canales en ese equipo**. Es reversible: «Restaurar todo lo quitado» (o `--restore tv`) las devuelve, y un restablecimiento de fábrica también. En una TV normal no se aplica ningún perfil salvo que lo elijas.
 

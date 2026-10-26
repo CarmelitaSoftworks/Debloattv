@@ -353,66 +353,21 @@ public final class TvDebloater {
         return null;
     }
 
-    /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. Devuelve cuántas se quitaron. */
-    public int remove(List<String> packages) throws IOException {
-        int removed = 0;
+    /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. */
+    public void remove(List<String> packages) throws IOException {
         for (String pkg : packages) {
             if (isProtected(pkg)) continue;
             if (adb.shell("pm uninstall -k --user 0 " + pkg).contains("Success")) {
                 record("uninstall", pkg);
                 log.line("✔ " + pkg);
-                removed++;
             } else if (adb.shell("pm disable-user --user 0 " + pkg).contains("disabled")) {
                 record("disable", pkg);
                 log.line("✔ " + pkg + " (desactivado)");
-                removed++;
             } else {
                 log.line("! no se pudo quitar " + pkg);
             }
         }
         refreshInstalled();
-        return removed;
-    }
-
-    /** Nivel por defecto («normal»): quita publicidad y apps del operador sin romper la voz ni el cast. */
-    public static final int DEFAULT_LEVEL = 2;
-
-    public interface Progress {
-        void step(String text);
-    }
-
-    /** Resultado de autoClean(), para el resumen final. */
-    public static final class AutoResult {
-        public final int removed;
-        /** true si el botón Inicio abre Halo (directamente o con su servicio de accesibilidad). */
-        public final boolean haloHome;
-        /** true si fue con el servicio de accesibilidad porque la TV no deja cambiar el inicio. */
-        public final boolean viaService;
-
-        AutoResult(int removed, boolean haloHome, boolean viaService) {
-            this.removed = removed;
-            this.haloHome = haloHome;
-            this.viaService = viaService;
-        }
-    }
-
-    /**
-     * Todo de una vez, sin listas: con el equipo y el operador ya detectados, quita lo del nivel
-     * elegido (1 seguro, 2 normal, 3 agresivo) y deja Halo como inicio.
-     */
-    public AutoResult autoClean(int level, boolean pressHome, Progress progress) throws IOException {
-        progress.step("Buscando publicidad y apps de fábrica…");
-        List<String> pkgs = new ArrayList<>();
-        for (Item item : candidates()) if (item.rank() <= level) pkgs.add(item.pkg);
-        int removed = 0;
-        if (!pkgs.isEmpty()) {
-            progress.step("Quitando " + pkgs.size() + (pkgs.size() == 1 ? " app…" : " apps…"));
-            removed = remove(pkgs);
-        }
-        progress.step(installed.contains(HALO_PKG) ? "Poniendo Halo como inicio…" : "Instalando Halo en la TV…");
-        boolean ok = installHaloAndSetHome(pressHome);
-        boolean service = !ok && adb.shell("settings get secure enabled_accessibility_services").contains(HALO_HOME_SERVICE);
-        return new AutoResult(removed, ok || service, service);
     }
 
     /**

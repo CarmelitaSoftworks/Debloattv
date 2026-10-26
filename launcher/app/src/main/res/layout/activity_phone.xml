@@ -25,94 +25,15 @@
             style="@style/PhoneBody"
             android:text="@string/phone_subtitle" />
 
-        <!-- Estado: lo único que se ve. Todo lo demás lo decide la app sola. -->
+        <!-- Conexión -->
         <LinearLayout style="@style/PhoneCard">
-
-            <ProgressBar
-                android:id="@+id/progress"
-                style="@android:style/Widget.Material.ProgressBar.Horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="12dp"
-                android:indeterminate="true"
-                android:visibility="gone" />
-
-            <TextView
-                android:id="@+id/title"
-                style="@style/PhoneCardTitle"
-                android:text="@string/phone_searching" />
-
-            <TextView
-                android:id="@+id/detail"
-                style="@style/PhoneBody" />
-
-            <!-- Nivel: lo único que se elige; conectarse y detectar la TV es automático -->
-            <LinearLayout
-                android:id="@+id/level_box"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:orientation="vertical">
-
-                <RadioGroup
-                    android:id="@+id/levels"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <RadioButton
-                        android:id="@+id/level_seguro"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/level_seguro"
-                        android:textColor="@color/text_primary" />
-
-                    <RadioButton
-                        android:id="@+id/level_normal"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/level_normal"
-                        android:textColor="@color/text_primary" />
-
-                    <RadioButton
-                        android:id="@+id/level_agresivo"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="@string/level_agresivo"
-                        android:textColor="@color/text_primary" />
-                </RadioGroup>
-
-                <TextView
-                    android:id="@+id/level_desc"
-                    style="@style/PhoneBody" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp">
-
-                <Button
-                    android:id="@+id/action"
-                    style="@style/PhonePrimaryButton"
-                    android:text="@string/phone_clean" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Solo si la búsqueda no encuentra la TV -->
-        <LinearLayout
-            android:id="@+id/help_card"
-            style="@style/PhoneCard"
-            android:visibility="gone">
 
             <TextView
                 style="@style/PhoneCardTitle"
                 android:text="@string/phone_steps_title" />
 
             <TextView
+                android:id="@+id/steps"
                 style="@style/PhoneBody"
                 android:text="@string/phone_steps" />
 
@@ -135,24 +56,191 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp">
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
 
                 <Button
-                    android:id="@+id/connect_ip"
+                    android:id="@+id/search"
                     style="@style/PhoneSecondaryButton"
-                    android:text="@string/phone_clean_ip" />
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/phone_search" />
+
+                <Button
+                    android:id="@+id/connect"
+                    style="@style/PhonePrimaryButton"
+                    android:text="@string/phone_connect" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/status"
+                style="@style/PhoneBody"
+                android:layout_marginTop="12dp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <!-- Todo lo que necesita conexión -->
+        <LinearLayout
+            android:id="@+id/connected_panel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <LinearLayout style="@style/PhoneCard">
+
+                <TextView
+                    style="@style/PhoneCardTitle"
+                    android:text="@string/phone_debloat_title" />
+
+                <RadioGroup
+                    android:id="@+id/levels"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="horizontal">
+
+                    <RadioButton
+                        android:id="@+id/level_seguro"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/phone_level_seguro"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/level_recomendado"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1.4"
+                        android:checked="true"
+                        android:text="@string/phone_level_recomendado"
+                        android:textColor="@color/text_primary" />
+
+                    <RadioButton
+                        android:id="@+id/level_agresivo"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1.2"
+                        android:text="@string/phone_level_agresivo"
+                        android:textColor="@color/text_primary" />
+                </RadioGroup>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/operator"
+                        style="@style/PhoneSecondaryButton" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/level_desc"
+                    style="@style/PhoneBody"
+                    android:text="@string/phone_level_recomendado_desc" />
+
+                <LinearLayout
+                    android:id="@+id/packages"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:orientation="vertical" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/remove"
+                        style="@style/PhonePrimaryButton"
+                        android:text="@string/phone_remove_selected" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout style="@style/PhoneCard">
+
+                <TextView
+                    style="@style/PhoneCardTitle"
+                    android:text="@string/phone_launcher_title" />
+
+                <TextView
+                    style="@style/PhoneBody"
+                    android:text="@string/phone_launcher_desc" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/restore_launcher"
+                        style="@style/PhoneSecondaryButton"
+                        android:layout_marginEnd="8dp"
+                        android:text="@string/phone_restore_launcher" />
+
+                    <Button
+                        android:id="@+id/install_halo"
+                        style="@style/PhonePrimaryButton"
+                        android:text="@string/phone_install_halo" />
+                </LinearLayout>
+
+                <TextView
+                    style="@style/PhoneBody"
+                    android:layout_marginTop="16dp"
+                    android:text="@string/phone_ltv_desc" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp">
+
+                    <Button
+                        android:id="@+id/install_ltv"
+                        style="@style/PhoneSecondaryButton"
+                        android:text="@string/phone_install_ltv" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout style="@style/PhoneCard">
+
+                <TextView
+                    style="@style/PhoneCardTitle"
+                    android:text="@string/phone_restore_title" />
+
+                <TextView
+                    style="@style/PhoneBody"
+                    android:text="@string/phone_restore_desc" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp">
+
+                    <Button
+                        android:id="@+id/restore_all"
+                        style="@style/PhoneSecondaryButton"
+                        android:text="@string/phone_restore_all" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp">
+            android:id="@+id/log_card"
+            style="@style/PhoneCard"
+            android:visibility="gone">
 
-            <Button
-                android:id="@+id/undo"
-                style="@style/PhoneSecondaryButton"
-                android:text="@string/phone_undo" />
+            <TextView
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_log_title" />
+
+            <TextView
+                android:id="@+id/log"
+                style="@style/PhoneBody"
+                android:fontFamily="monospace"
+                android:textIsSelectable="true"
+                android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>
