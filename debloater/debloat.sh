@@ -143,6 +143,33 @@ MODEL="$(sh_tv getprop ro.product.model)"
 SDK="$(sh_tv getprop ro.build.version.sdk)"
 info "Dispositivo: ${c_bld}$MODEL${c_off} ($MANUFACTURER, API $SDK)"
 
+# Decodificadores conocidos (lists/dispositivos.txt): por propiedades o por una app de sistema
+DEVICE_LIST=""
+trim() { local t="$1"; t="${t#"${t%%[![:space:]]*}"}"; printf '%s' "${t%"${t##*[![:space:]]}"}"; }
+detect_device() {
+  local identity system pattern operator name note list
+  identity="$MANUFACTURER $MODEL $(sh_tv getprop ro.product.device) $(sh_tv getprop ro.product.name)"
+  system="$(sh_tv pm list packages -s | sed 's/^package://')"
+  while IFS='|' read -r pattern operator name note list; do
+    pattern="$(trim "$pattern")"
+    [[ -z "$pattern" || "$pattern" == \#* ]] && continue
+    if [[ "$pattern" == sistema:* ]]; then
+      grep -qxF "${pattern#sistema:}" <<<"$system" || continue
+    else
+      local hit=0 n
+      IFS=',' read -ra names <<<"$pattern"
+      for n in "${names[@]}"; do n="$(trim "$n")"; [[ -n "$n" ]] && grep -qiF "$n" <<<"$identity" && hit=1; done
+      [[ "$hit" -eq 1 ]] || continue
+    fi
+    info "Equipo reconocido: ${c_bld}$(trim "$operator") · $(trim "$name")${c_off}"
+    note="$(trim "${note:-}")"
+    [[ -n "$note" ]] && warn "$note"
+    DEVICE_LIST="$(trim "${list:-}")"
+    return 0
+  done <"$LISTS/dispositivos.txt"
+}
+detect_device
+
 refresh_packages() {
   INSTALLED="$(sh_tv pm list packages | sed 's/^package://' | sort -u)"
   ENABLED="$(sh_tv pm list packages -e | sed 's/^package://' | sort -u)"
@@ -151,7 +178,17 @@ refresh_packages
 is_installed() { grep -qxF "$1" <<<"$INSTALLED"; }
 is_enabled() { grep -qxF "$1" <<<"$ENABLED"; }
 in_list() { local x="$1" p; shift; for p in "$@"; do [[ "$p" == "$x" ]] && return 0; done; return 1; }
-is_protected() { in_list "$1" "${PROTECTED[@]}"; }
+# Líneas "proteger" de las listas (apps de los operadores...); "paquete.*" protege un prefijo
+PROTECT_LINES="$(cat "$LISTS"/*.txt "${EXTRA_LISTS[@]+"${EXTRA_LISTS[@]}"}" | awk '$1 == "proteger" {print $2}')"
+is_protected() {
+  local p
+  in_list "$1" "${PROTECTED[@]}" && return 0
+  while read -r p; do
+    [[ -z "$p" ]] && continue
+    if [[ "$p" == *'*' ]]; then [[ "$1" == "${p%\*}"* ]] && return 0; else [[ "$1" == "$p" ]] && return 0; fi
+  done <<<"$PROTECT_LINES"
+  return 1
+}
 
 # "paquete/.Actividad" de cada app que responde a HOME
 home_components() {
@@ -228,6 +265,7 @@ do_debloat() {
   local files=("$LISTS/google.txt") vendor homes
   vendor="$(vendor_list)"
   [[ -n "$vendor" ]] && files+=("$LISTS/$vendor")
+  [[ -n "$DEVICE_LIST" ]] && files+=("$LISTS/$DEVICE_LIST")
   files+=("${EXTRA_LISTS[@]+"${EXTRA_LISTS[@]}"}")
   # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
   homes="$(home_launchers; home_components | cut -d/ -f1)"
@@ -442,10 +480,11 @@ do_restore() {
 
 do_scan() {
   local listed
-  listed="$( { cat "$LISTS"/*.txt | awk '!/^#/ && NF>=2 {print $2}'; printf '%s\n' "${STOCK_LAUNCHERS[@]}" "${PROTECTED[@]}"; } | sort -u)"
+  listed="$( { grep -hv '|' "$LISTS"/*.txt | awk '!/^#/ && NF>=2 {print $2}'; printf '%s\n' "${STOCK_LAUNCHERS[@]}" "${PROTECTED[@]}"; } | sort -u)"
   info "Apps del sistema que no están en ninguna lista (revísalas con cuidado):"
   sh_tv pm list packages -s | sed 's/^package://' | sort -u | while read -r p; do
     grep -qxF "$p" <<<"$listed" && continue
+    is_protected "$p" && continue
     case "$p" in
       android|com.android.*|com.google.android.gms*|com.google.android.ext.*|com.qualcomm.*|com.mediatek.*|com.amlogic.*|com.realtek.*) continue ;;
     esac

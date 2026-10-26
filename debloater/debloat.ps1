@@ -97,6 +97,28 @@ $Model = Tv @('getprop', 'ro.product.model')
 $Sdk = Tv @('getprop', 'ro.build.version.sdk')
 Info "Dispositivo: $Model ($Manufacturer, API $Sdk)"
 
+# Decodificadores conocidos (lists\dispositivos.txt): por propiedades o por una app de sistema
+$script:DeviceList = $null
+function Find-Device {
+  $identity = "$Manufacturer $Model $(Tv @('getprop', 'ro.product.device')) $(Tv @('getprop', 'ro.product.name'))"
+  $system = (Tv @('pm', 'list', 'packages', '-s')) -split "`r?`n" | ForEach-Object { $_ -replace '^package:', '' }
+  foreach ($line in Get-Content -Encoding UTF8 (Join-Path $Lists 'dispositivos.txt')) {
+    if ($line -match '^\s*(#|$)') { continue }
+    $f = $line -split '\s*\|\s*', 5
+    if ($f.Count -lt 3) { continue }
+    $pattern = $f[0].Trim()
+    $match = if ($pattern -like 'sistema:*') { $system -contains $pattern.Substring(8) }
+             else { @($pattern -split ',' | Where-Object { $_.Trim() -and $identity -like "*$($_.Trim())*" }).Count -gt 0 }
+    if ($match) {
+      Info "Equipo reconocido: $($f[1]) · $($f[2])"
+      if ($f.Count -gt 3 -and $f[3]) { Warn $f[3] }
+      if ($f.Count -gt 4 -and $f[4].Trim()) { $script:DeviceList = $f[4].Trim() }
+      return
+    }
+  }
+}
+Find-Device
+
 function Get-Packages([string[]]$extra) {
   $set = @{}
   (Tv (@('pm', 'list', 'packages') + $extra)) -split "`r?`n" | ForEach-Object {
@@ -131,6 +153,18 @@ function Get-CurrentHome {
   $h = (Tv @('cmd', 'package', 'resolve-activity', '--brief', '-a', 'android.intent.action.MAIN', '-c', 'android.intent.category.HOME')) -split "`r?`n" |
     Where-Object { $_ -match $ComponentRe } | Select-Object -Last 1
   if ($h) { $h.Trim() } else { '' }
+}
+
+# Líneas "proteger" de las listas (apps de los operadores...); "paquete.*" protege un prefijo
+$ProtectLines = @(Get-ChildItem (Join-Path $Lists '*.txt')) + @($List | ForEach-Object { Get-Item $_ }) |
+  Get-Content -Encoding UTF8 | ForEach-Object { if ($_ -match '^\s*proteger\s+(\S+)') { $Matches[1] } }
+function Test-Protected($pkg) {
+  if ($Protected -contains $pkg) { return $true }
+  foreach ($p in $ProtectLines) {
+    if ($p.EndsWith('*')) { if ($pkg.StartsWith($p.TrimEnd('*'))) { return $true } }
+    elseif ($p -eq $pkg) { return $true }
+  }
+  $false
 }
 
 function Confirm-Action($q) {
@@ -176,6 +210,7 @@ function Invoke-Debloat {
   $files = @(Join-Path $Lists 'google.txt')
   $vendor = Get-VendorList
   if ($vendor) { $files += Join-Path $Lists $vendor }
+  if ($script:DeviceList) { $files += Join-Path $Lists $script:DeviceList }
   $files += $List
   $max = $Ranks[$Level]
   # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
@@ -190,7 +225,7 @@ function Invoke-Debloat {
       if (-not $Ranks.ContainsKey($lvl) -or $Ranks[$lvl] -gt $max) { continue }
       if (-not $Enabled.ContainsKey($pkg)) { continue }
       if ($targets.Pkg -contains $pkg) { continue }
-      if ($Protected -contains $pkg -or $homes -contains $pkg) { Warn "se ignora $pkg (protegido)"; continue }
+      if ((Test-Protected $pkg) -or $homes -contains $pkg) { Warn "se ignora $pkg (protegido)"; continue }
       $targets += [pscustomobject]@{ Pkg = $pkg; Desc = "${lvl}: $desc" }
     }
   }
@@ -375,13 +410,13 @@ function Invoke-Scan {
   $listed = @{}
   $StockLaunchers + $Protected | ForEach-Object { $listed[$_] = $true }
   Get-ChildItem (Join-Path $Lists '*.txt') | Get-Content -Encoding UTF8 | ForEach-Object {
-    if ($_ -notmatch '^\s*(#|$)') { $listed[($_.Trim() -split '\s+')[1]] = $true }
+    if ($_ -notmatch '^\s*(#|$)' -and $_ -notmatch '\|') { $listed[($_.Trim() -split '\s+')[1]] = $true }
   }
   Info 'Apps del sistema que no están en ninguna lista (revísalas con cuidado):'
   (Tv @('pm', 'list', 'packages', '-s')) -split "`r?`n" | ForEach-Object {
     if ($_ -match '^package:(.+)$') {
       $p = $Matches[1].Trim()
-      if ($listed.ContainsKey($p)) { return }
+      if ($listed.ContainsKey($p) -or (Test-Protected $p)) { return }
       if ($p -match '^(android$|com\.android\.|com\.google\.android\.gms|com\.google\.android\.ext\.|com\.qualcomm\.|com\.mediatek\.|com\.amlogic\.|com\.realtek\.)') { return }
       Write-Host "  $p"
     }

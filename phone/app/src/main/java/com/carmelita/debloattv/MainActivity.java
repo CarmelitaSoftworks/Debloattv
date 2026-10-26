@@ -185,7 +185,9 @@ public class MainActivity extends Activity {
             final String vendor = tv.vendorList();
             runOnUiThread(() -> {
                 setStatus("Conectado a " + tv.model + " (" + tv.manufacturer + ")"
-                        + (vendor != null ? " · lista de " + vendor.replace(".txt", "") + " incluida" : ""));
+                        + (vendor != null ? " · lista de " + vendor.replace(".txt", "") + " incluida" : "")
+                        + (tv.device != null ? "\n\nEquipo reconocido: " + tv.device + ". "
+                        + tv.device.note : ""));
                 appendLog("Conectado a " + tv.model);
             });
         });

@@ -75,6 +75,7 @@ public class CleanActivity extends Activity {
     private AdbConnection adb;
     private TvDebloater tv;
     private String connectedHost;
+    private TvDebloater.Device device;
     private List<TvDebloater.Item> candidates = Collections.emptyList();
     private final Set<String> unchecked = new HashSet<>();
     private int level = 2;
@@ -176,6 +177,7 @@ public class CleanActivity extends Activity {
                 try {
                     tv = new TvDebloater(this, connection, this::appendLog);
                     candidates = tv.candidates();
+                    device = tv.device;
                     adb = connection;
                     connectedHost = host;
                     manual = false;
@@ -188,6 +190,7 @@ public class CleanActivity extends Activity {
             }
             manual = true;
             candidates = TvDebloater.candidatesOnThisDevice(this);
+            device = TvDebloater.detectThisDevice(this);
             appendLog("ADB no disponible: " + (last != null ? last.getMessage() : "?"));
         });
     }
@@ -221,12 +224,12 @@ public class CleanActivity extends Activity {
         if (auto) {
             setConn("127.0.0.1".equals(connectedHost) ? getString(R.string.conn_local)
                     : getString(R.string.conn_wifi, connectedHost + ":" + AdbConnection.DEFAULT_PORT), R.color.status_ok);
-            status.setText(level == 1 ? R.string.level_seguro_desc
-                    : level == 3 ? R.string.level_agresivo_desc : R.string.level_recomendado_desc);
+            status.setText(withDeviceNote(getString(level == 1 ? R.string.level_seguro_desc
+                    : level == 3 ? R.string.level_agresivo_desc : R.string.level_recomendado_desc)));
             status.setTextColor(getColor(level == 3 ? R.color.status_warn : R.color.text_secondary));
         } else if (manual) {
             setConn(getString(R.string.conn_none), R.color.status_warn);
-            status.setText(R.string.clean_manual);
+            status.setText(withDeviceNote(getString(R.string.clean_manual)));
             status.setTextColor(getColor(R.color.text_secondary));
         }
         levels.setVisibility(ready ? View.VISIBLE : View.GONE);
@@ -239,6 +242,19 @@ public class CleanActivity extends Activity {
         show(retry, manual);
         help.setVisibility(manual ? View.VISIBLE : View.GONE);
         if (ready) renderPackages();
+    }
+
+    /** Añade el aviso del decodificador reconocido (lists/dispositivos.txt), si lo hay. */
+    private String withDeviceNote(String text) {
+        if (device == null) return text;
+        String note = getString(R.string.device_detected, device.toString());
+        if (!device.note.isEmpty()) note += " " + device.note;
+        return text + "\n\n" + note;
+    }
+
+    private static String shortName(String name) {
+        int paren = name.indexOf(" (");
+        return paren < 0 ? name : name.substring(0, paren);
     }
 
     private void show(View v, boolean visible) {
@@ -255,7 +271,8 @@ public class CleanActivity extends Activity {
     private void renderPackages() {
         packageList.removeAllViews();
         List<TvDebloater.Item> items = visibleItems();
-        listHeader.setText(getString(R.string.clean_found, items.size(), Build.MANUFACTURER.toUpperCase(Locale.ROOT)));
+        String where = device != null ? device.operator + " · " + shortName(device.name) : Build.MANUFACTURER;
+        listHeader.setText(getString(R.string.clean_found, items.size(), where.toUpperCase(Locale.ROOT)));
         for (TvDebloater.Item item : items) packageList.addView(row(item));
         if (items.isEmpty()) {
             TextView empty = new TextView(this);

@@ -81,6 +81,19 @@ public final class TvDebloater {
             "com.tcl.systemserver", "com.tcl.providers.config", "com.tcl.globalkeyoverlay", "com.tcl.initsetup",
             HALO_PKG, LTV_PKG));
 
+    /** Líneas "proteger" de las listas (p. ej. apps de los operadores); "pkg.*" protege un prefijo. */
+    private static final Set<String> EXTRA_PROTECTED = new HashSet<>();
+
+    static boolean isProtected(String pkg) {
+        if (PROTECTED.contains(pkg)) return true;
+        synchronized (EXTRA_PROTECTED) {
+            for (String p : EXTRA_PROTECTED) {
+                if (p.endsWith("*") ? pkg.startsWith(p.substring(0, p.length() - 1)) : p.equals(pkg)) return true;
+            }
+        }
+        return false;
+    }
+
     public static final String[] LEVELS = {"seguro", "recomendado", "agresivo"};
 
     public interface Log {
@@ -112,6 +125,8 @@ public final class TvDebloater {
     private final Log log;
     public final String manufacturer;
     public final String model;
+    /** Decodificador reconocido en lists/dispositivos.txt (o null), con su aviso. */
+    public final Device device;
     private final File backupFile;
     private Set<String> installed;
     private Set<String> enabled;
@@ -124,10 +139,15 @@ public final class TvDebloater {
         this.log = log;
         manufacturer = adb.shell("getprop ro.product.manufacturer").toLowerCase(Locale.ROOT);
         model = adb.shell("getprop ro.product.model");
+        String identity = manufacturer + " " + model + " " + adb.shell("getprop ro.product.device")
+                + " " + adb.shell("getprop ro.product.name");
+        final Set<String> system = packages("pm list packages -s");
+        device = Device.detect(context, identity, system::contains);
         String serial = adb.shell("getprop ro.serialno");
         String id = (serial.isEmpty() ? model : serial).replaceAll("[^A-Za-z0-9]+", "-");
         backupFile = new File(context.getFilesDir(), "backup-" + id + ".txt");
         refreshInstalled();
+        parseLists(context, manufacturer, device, pkg -> false); // carga las líneas "proteger"
         hasBackup = !backupEntries().isEmpty();
     }
 
@@ -155,7 +175,70 @@ public final class TvDebloater {
      */
     public List<Item> candidates() throws IOException {
         final Set<String> homes = new HashSet<>(stockLaunchers());
-        return parseLists(context, manufacturer, pkg -> enabled.contains(pkg) && !homes.contains(pkg));
+        return parseLists(context, manufacturer, device, pkg -> enabled.contains(pkg) && !homes.contains(pkg));
+    }
+
+    /** Equipo reconocido y su aviso, para mostrarlo en la interfaz. */
+    public static final class Device {
+        public final String operator;
+        public final String name;
+        public final String note;
+        /** Lista extra para este equipo (p. ej. wom.txt), o null. */
+        final String list;
+
+        Device(String operator, String name, String note, String list) {
+            this.operator = operator;
+            this.name = name;
+            this.note = note;
+            this.list = list;
+        }
+
+        @Override
+        public String toString() {
+            return operator + " · " + name;
+        }
+
+        interface SystemPackages {
+            boolean contains(String pkg);
+        }
+
+        /** Busca el equipo en lists/dispositivos.txt por sus propiedades o por una app de sistema. */
+        static Device detect(Context context, String identity, SystemPackages system) throws IOException {
+            String text = new String(readAsset(context, "lists/dispositivos.txt"), StandardCharsets.UTF_8);
+            for (String raw : text.split("\n")) {
+                String line = raw.trim();
+                if (line.isEmpty() || line.startsWith("#")) continue;
+                String[] f = line.split("\\s*\\|\\s*", 5);
+                if (f.length < 3) continue;
+                boolean match = false;
+                if (f[0].startsWith("sistema:")) {
+                    match = system.contains(f[0].substring("sistema:".length()));
+                } else {
+                    for (String name : f[0].split(",")) {
+                        String n = name.trim().toLowerCase(Locale.ROOT);
+                        if (!n.isEmpty() && identity.toLowerCase(Locale.ROOT).contains(n)) match = true;
+                    }
+                }
+                if (match) {
+                    return new Device(f[1], f[2], f.length > 3 ? f[3] : "",
+                            f.length > 4 && !f[4].trim().isEmpty() ? f[4].trim() : null);
+                }
+            }
+            return null;
+        }
+    }
+
+    /** El equipo de esta propia TV (modo manual de Halo, sin ADB). */
+    public static Device detectThisDevice(Context context) throws IOException {
+        final PackageManager pm = context.getPackageManager();
+        String identity = Build.MANUFACTURER + " " + Build.MODEL + " " + Build.DEVICE + " " + Build.PRODUCT;
+        return Device.detect(context, identity, pkg -> {
+            try {
+                return (pm.getApplicationInfo(pkg, 0).flags & android.content.pm.ApplicationInfo.FLAG_SYSTEM) != 0;
+            } catch (PackageManager.NameNotFoundException e) {
+                return false;
+            }
+        });
     }
 
     public String vendorList() {
@@ -173,7 +256,7 @@ public final class TvDebloater {
         for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(home, 0)) {
             homes.add(ri.activityInfo.packageName);
         }
-        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), pkg -> {
+        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), detectThisDevice(context), pkg -> {
             if (homes.contains(pkg)) return false;
             try {
                 return pm.getApplicationInfo(pkg, 0).enabled;
@@ -183,25 +266,38 @@ public final class TvDebloater {
         });
     }
 
-    private static List<Item> parseLists(Context context, String manufacturer, Installed installed)
+    private static List<Item> parseLists(Context context, String manufacturer, Device device, Installed installed)
             throws IOException {
         List<String> files = new ArrayList<>();
         files.add("google.txt");
         String vendor = vendorList(manufacturer);
         if (vendor != null) files.add(vendor);
+        if (device != null && device.list != null) files.add(device.list);
+        files.add("operadores-chile.txt");
 
-        List<Item> out = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
+        List<String[]> lines = new ArrayList<>();
+        Set<String> protect = new HashSet<>();
         for (String file : files) {
             for (String raw : new String(readAsset(context, "lists/" + file), StandardCharsets.UTF_8).split("\n")) {
                 String line = raw.trim();
                 if (line.isEmpty() || line.startsWith("#")) continue;
                 String[] parts = line.split("\\s+", 3);
-                if (parts.length < 2 || levelRank(parts[0]) == 0) continue;
-                String pkg = parts[1];
-                if (PROTECTED.contains(pkg) || !installed.contains(pkg) || !seen.add(pkg)) continue;
-                out.add(new Item(parts[0], pkg, parts.length > 2 ? parts[2] : pkg));
+                if (parts.length < 2) continue;
+                if ("proteger".equals(parts[0])) protect.add(parts[1]);
+                else lines.add(parts);
             }
+        }
+        synchronized (EXTRA_PROTECTED) {
+            EXTRA_PROTECTED.addAll(protect);
+        }
+
+        List<Item> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String[] parts : lines) {
+            if (levelRank(parts[0]) == 0) continue;
+            String pkg = parts[1];
+            if (isProtected(pkg) || !installed.contains(pkg) || !seen.add(pkg)) continue;
+            out.add(new Item(parts[0], pkg, parts.length > 2 ? parts[2] : pkg));
         }
         return out;
     }
@@ -219,7 +315,7 @@ public final class TvDebloater {
     /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. */
     public void remove(List<String> packages) throws IOException {
         for (String pkg : packages) {
-            if (PROTECTED.contains(pkg)) continue;
+            if (isProtected(pkg)) continue;
             if (adb.shell("pm uninstall -k --user 0 " + pkg).contains("Success")) {
                 record("uninstall", pkg);
                 log.line("✔ " + pkg);

@@ -64,4 +64,5 @@ Para usar Halo como inicio, activa «Botón Inicio → Halo». Para quitar apps,
         <item quantity="other">Quitar %1$d apps</item>
     </plurals>
     <string name="ltv_name" translatable="false">LTvLauncher</string>
+    <string name="device_detected">Equipo reconocido: %1$s.</string>
 </resources>

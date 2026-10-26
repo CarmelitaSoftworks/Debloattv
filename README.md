@@ -184,6 +184,27 @@ La app del teléfono se compila igual desde `phone/` (`./gradlew assembleRelease
 
 El APK release está firmado con la clave de depuración para que se pueda instalar directamente. Si compilas tu propia versión con otra clave, desinstala antes la de `dist/` (`adb uninstall com.carmelita.halo`), porque Android no deja actualizar una app firmada con una clave distinta.
 
+## Decodificadores de operadores (Chile)
+
+Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`), muestran qué equipo es con un aviso específico y **protegen las apps del operador** (`lists/operadores-chile.txt`): sin ellas no hay canales, así que nunca se quitan, ni siquiera con una lista propia.
+
+| Operador | Equipo | Fabricante · chip · Android TV | Notas |
+|---|---|---|---|
+| VTR | d-BOX Smart (SEI500L) | SEI Robotics · S905X2 · 9→10 | El inicio de VTR (TiVo) muestra la TV en vivo |
+| VTR | TV Stick (SEI700L) | SEI Robotics · S905Y4 · 11 | Ídem |
+| Claro | Claro TV+ (B866V2) | ZTE · S905X2 · 10→12 | No «liberar» ni cambiar firmware |
+| Entel | Deco Entel TV 4K (DIW585) | S905X · 9→10 | Launcher propio de Entel |
+| Entel | Deco Entel TV V2 (DIW586) | SDMC · S905X4 · 11→12 | |
+| Entel | Audio Box (VSB3930) | Sagemcom · BCM72180 · 11 | No tocar audio ni micrófono |
+| Mundo | Mundo GO! | Android TV | Se reconoce por la app MundoGo TV |
+| WOM | WOM TV Box (SEI500W) | SEI Robotics · 9 | Servicio cerrado en 2023: se propone quitar la app WOM TV |
+| Movistar | Decos IPTV (Technicolor, Kaon, Arris, Skyworth) | — | No son Android TV: ADB no puede conectarse. Su app sí se protege en TV/TV box Android |
+| DIRECTV | DGO | — | La app DGO se protege |
+
+Para quitar apps del propio operador no hay listas públicas comprobadas, así que no se proponen. Si tienes uno de estos equipos, ejecuta `./debloat.sh -i IP --scan` y comparte el resultado para añadir su lista.
+
+Fuentes: [androidtv-guide.com](https://www.androidtv-guide.com) (fichas de VTR, Claro y Entel), [Entel: Audio Box](https://ayuda.entel.cl/hc/es-419/articles/49564023770643--Qu%C3%A9-es-Audio-Box-y-c%C3%B3mo-obtenerlo-con-Entel-TV), [pisapapeles.net](https://pisapapeles.net/review-decodificador-4k-entel-con-android-tv/), [tavilatam.com](https://tavilatam.com/chile-vtr-esta-distribuyendo-un-nuevo-decodificador-stick-para-su-servicio-de-tv-paga/), [tumundo.cl](https://www.tumundo.cl/blog/mundo-telecomunicaciones-mejora-la-experiencia-de-sus-clientes-con-un-upgrade-a-su-dispositivo-mundo-go/), [Chócale: cierre de WOM TV](https://chocale.cl/2023/04/wom-cierre-servicio-wom-tv-traspaso-zapping/), [Movistar Chile: decodificador IPTV](https://ww2.movistar.cl/hogar/television/decodificador/).
+
 ## Estructura
 
 ```

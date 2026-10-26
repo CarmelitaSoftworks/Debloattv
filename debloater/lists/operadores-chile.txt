@@ -1,0 +1,18 @@
+# Apps de los operadores de TV en Chile: NUNCA se quitan (sin ellas no hay canales ni grabaciones).
+# Se aplica en todas las TV, aunque no sean un decodificador del operador.
+# Un "*" final protege todos los paquetes que empiezan así.
+# Formato: proteger <paquete> <descripción>
+
+proteger  cl.mundogo.atv         MundoGo TV (Mundo)
+proteger  com.directv.dtvlatam   DGO / DIRECTV GO (Latinoamérica)
+proteger  com.directv.*          Apps de DIRECTV
+proteger  com.tivo.*             TV Smart de VTR (interfaz de TiVo)
+proteger  cl.vtr.*               Apps de VTR
+proteger  com.vtr.*              Apps de VTR
+proteger  com.claro.*            Apps de Claro (Claro TV+)
+proteger  com.clarovideo.*       Claro video
+proteger  cl.entel.*             Apps de Entel (Entel TV)
+proteger  com.entel.*            Apps de Entel (Entel TV)
+proteger  cl.movistar.*          Apps de Movistar Chile (Movistar TV / Movistar Play)
+proteger  com.movistar.*         Apps de Movistar
+proteger  com.telefonica.*       Apps de Telefónica (Movistar)
