@@ -40,7 +40,7 @@
 
     <!-- Limpieza automática (TV y teléfono) -->
     <string name="clean_ready">Lista para limpiar</string>
-    <string name="clean_ready_desc">Se quitarán la publicidad del inicio, las recomendaciones, las apps de fábrica y las del operador, y Halo quedará como pantalla de inicio. La voz, Chromecast y tus apps no se tocan. Todo se puede deshacer.</string>
+    <string name="clean_ready_desc">Elige el nivel y pulsa «Limpiar ahora». Halo quedará como pantalla de inicio. Todo se puede deshacer.</string>
     <string name="clean_now">Limpiar ahora</string>
     <string name="clean_working">Limpiando…</string>
     <string name="clean_keep_open">No apagues la TV. Tarda menos de un minuto.</string>
@@ -50,13 +50,20 @@
     <string name="clean_manual_title">Falta activar la depuración</string>
     <string name="clean_manual_help">Para limpiar la TV sola, activa una vez la depuración:\n1. Ajustes → Sistema → Información → pulsa 7 veces «Compilación».\n2. Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» (y «Depuración por red» si existe).\n3. Vuelve aquí y pulsa «Reintentar».\n\nMientras tanto, «Botón Inicio → Halo» hace que el botón Inicio abra Halo.</string>
     <string name="cancel">Cancelar</string>
+    <string name="level_seguro">Seguro</string>
+    <string name="level_normal">Normal</string>
+    <string name="level_agresivo">Agresivo</string>
+    <string name="level_button">Nivel: %1$s</string>
+    <string name="level_seguro_desc">Solo telemetría, demos y apps que nadie usa. Sin ningún riesgo.</string>
+    <string name="level_normal_desc">Además, la publicidad y las recomendaciones del inicio, el modo ambiente, las promociones y las apps del operador. La voz y Chromecast siguen funcionando.</string>
+    <string name="level_agresivo_desc">Además, el Asistente de Google, Chromecast integrado y las apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.</string>
 
     <!-- Modo teléfono (control remoto por WiFi) -->
     <string name="phone_subtitle">Limpia tu TV y pon Halo como inicio. Todo automático, por WiFi.</string>
     <string name="phone_searching">Buscando tu TV…</string>
     <string name="phone_searching_desc">El teléfono tiene que estar en la misma WiFi que la TV.</string>
     <string name="phone_found">TV encontrada</string>
-    <string name="phone_found_desc">%1$s · Pulsa el botón y, si la TV lo pregunta, acepta «¿Permitir depuración?» marcando «Permitir siempre».</string>
+    <string name="phone_found_desc">%1$s · Elige el nivel y pulsa el botón. Si la TV lo pregunta, acepta «¿Permitir depuración?» marcando «Permitir siempre».</string>
     <string name="phone_clean">Limpiar mi TV</string>
     <string name="phone_choose_tv">Elige tu TV</string>
     <string name="phone_not_found">No encontré tu TV</string>

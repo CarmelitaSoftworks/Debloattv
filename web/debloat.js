@@ -167,12 +167,12 @@
     }
 
     /**
-     * Todo de una vez, como la app: quita lo del nivel recomendado del equipo y operador detectados
+     * Todo de una vez, como la app: quita lo del nivel elegido para el equipo y operador detectados
      * y deja Halo como inicio. getHalo() devuelve el APK de Halo si hace falta instalarlo (o null).
      */
-    async autoClean(getHalo, progress) {
+    async autoClean(level, getHalo, progress) {
       progress('Buscando publicidad y apps de fábrica…');
-      const pkgs = (await this.candidates()).filter((i) => levelRank(i.level) <= 2).map((i) => i.pkg);
+      const pkgs = (await this.candidates()).filter((i) => levelRank(i.level) <= levelRank(level)).map((i) => i.pkg);
       let removed = 0;
       if (pkgs.length) {
         progress('Quitando ' + pkgs.length + (pkgs.length === 1 ? ' app…' : ' apps…'));
@@ -460,11 +460,11 @@
 
   /**
    * Script automático para «adb shell»: reconoce en la propia TV la marca y el decodificador
-   * (como la app) y quita lo del nivel recomendado de Google, la marca y el operador.
+   * (como la app) y quita lo del nivel elegido de Google, la marca y el operador.
    */
-  function autoScript(lists) {
+  function autoScript(lists, level) {
     const stem = (f) => f.replace(/\.txt$/, '').replace(/[^A-Za-z0-9]/g, '_');
-    const out = ['# DebloatTV automático: pégalo en «adb shell». Reconoce la TV solo y quita la publicidad.'];
+    const out = ['# DebloatTV automático (nivel ' + (level || 'recomendado') + '): pégalo en «adb shell». Reconoce la TV solo.'];
     out.push(...quitarFunction());
     // Una función por lista con lo que se quita en el nivel recomendado
     const files = ['google.txt', ...VENDORS.filter((v) => v.file).map((v) => v.file), ...operators(lists).map((o) => o.file)];
@@ -472,7 +472,7 @@
       const pkgs = [];
       for (const line of lines(lists[file])) {
         const m = line.match(/^(\S+)\s+(\S+)/);
-        if (m && levelRank(m[1]) && levelRank(m[1]) <= 2 && !PROTECTED.has(m[2])) pkgs.push(m[2]);
+        if (m && levelRank(m[1]) && levelRank(m[1]) <= levelRank(level || 'recomendado') && !PROTECTED.has(m[2])) pkgs.push(m[2]);
       }
       out.push('lista_' + stem(file) + '() {', '  :', ...pkgs.map((p) => '  ' + quitarLine(p)), '}');
     }

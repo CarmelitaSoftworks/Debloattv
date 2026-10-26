@@ -52,6 +52,9 @@ public class CleanActivity extends Activity {
     private Button action;
     private Button homeButton;
     private Button restoreAll;
+    /** Nivel elegido: el botón «Nivel» lo cambia en cada pulsación (cómodo con el mando). */
+    private Button levelButton;
+    private int level;
 
     private AdbConnection adb;
     private TvDebloater tv;
@@ -78,6 +81,13 @@ public class CleanActivity extends Activity {
         action = findViewById(R.id.action);
         homeButton = findViewById(R.id.home_button);
         restoreAll = findViewById(R.id.restore_all);
+        levelButton = findViewById(R.id.level);
+        level = getSharedPreferences("debloattv", MODE_PRIVATE).getInt("level", TvDebloater.DEFAULT_LEVEL);
+        levelButton.setOnClickListener(v -> {
+            level = level % 3 + 1;
+            getSharedPreferences("debloattv", MODE_PRIVATE).edit().putInt("level", level).apply();
+            showLevel();
+        });
 
         action.setOnClickListener(v -> {
             if (onAction != null && !busy) onAction.run();
@@ -151,13 +161,14 @@ public class CleanActivity extends Activity {
                 String text = getString(R.string.clean_ready_desc);
                 if (found.device != null) text = getString(R.string.device_detected, found.device.toString()) + "\n\n" + text;
                 show(getString(R.string.clean_ready), text, getString(R.string.clean_now), this::clean);
+                showLevel();
             });
         });
     }
 
     private void clean() {
         runTask(getString(R.string.clean_working), () -> {
-            TvDebloater.AutoResult r = tv.autoClean(false, this::step);
+            TvDebloater.AutoResult r = tv.autoClean(level, false, this::step);
             String summary = r.removed == 0
                     ? getString(R.string.phone_done_clean)
                     : getResources().getQuantityString(R.plurals.phone_done_removed, r.removed, r.removed);
@@ -173,8 +184,11 @@ public class CleanActivity extends Activity {
         runTask(getString(R.string.phone_undoing), () -> {
             tv.restoreAll();
             tv.restoreStockLauncher();
-            runOnUiThread(() -> show(getString(R.string.phone_undone), getString(R.string.phone_undone_desc),
-                    getString(R.string.clean_now), this::clean));
+            runOnUiThread(() -> {
+                show(getString(R.string.phone_undone), getString(R.string.phone_undone_desc),
+                        getString(R.string.clean_now), this::clean);
+                showLevel();
+            });
         });
     }
 
@@ -222,12 +236,26 @@ public class CleanActivity extends Activity {
         });
     }
 
+    /** Muestra el botón de nivel con la explicación del nivel elegido (antes de limpiar). */
+    private void showLevel() {
+        String name = getString(level == 1 ? R.string.level_seguro : level == 3 ? R.string.level_agresivo : R.string.level_normal);
+        levelButton.setText(getString(R.string.level_button, name));
+        levelButton.setVisibility(View.VISIBLE);
+        String text = getString(level == 1 ? R.string.level_seguro_desc : level == 3 ? R.string.level_agresivo_desc
+                : R.string.level_normal_desc) + "\n\n" + getString(R.string.clean_ready_desc);
+        if (tv != null && tv.device != null) text = getString(R.string.device_detected, tv.device.toString()) + "\n\n" + text;
+        status.setText(text);
+        status.setTextColor(getColor(level == 3 ? R.color.status_warn : R.color.text_secondary));
+    }
+
     /** Estado en reposo: título, explicación y el único botón que toca ahora. */
     private void show(String head, String body, String button, Runnable onClick) {
         headline.setText(head);
         status.setText(body);
         progress.setVisibility(View.GONE);
         homeButton.setVisibility(View.GONE);
+        levelButton.setVisibility(View.GONE);
+        status.setTextColor(getColor(R.color.text_secondary));
         action.setVisibility(button == null ? View.GONE : View.VISIBLE);
         if (button != null) action.setText(button);
         onAction = onClick;
@@ -260,6 +288,7 @@ public class CleanActivity extends Activity {
         progress.setVisibility(View.VISIBLE);
         action.setVisibility(View.GONE);
         homeButton.setVisibility(View.GONE);
+        levelButton.setVisibility(View.GONE);
         restoreAll.setVisibility(View.GONE);
         worker.execute(() -> {
             try {

@@ -170,7 +170,11 @@ footer p { margin: 4px 0; }
       <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
       <h2 class="big" id="headline">Conecta la TV con un cable USB</h2>
       <div class="bar" id="bar" hidden></div>
-      <p id="detail">Pulsa el botón y elige tu TV. La página reconoce la marca y el decodificador, quita la publicidad, las recomendaciones y las apps de fábrica y del operador, y deja Halo como inicio. La voz, Chromecast y tus apps no se tocan.</p>
+      <p id="detail">Elige el nivel, pulsa el botón y elige tu TV. La página reconoce sola la marca y el decodificador, quita lo de ese nivel y deja Halo como inicio.</p>
+      <div id="level-box">
+        <div class="seg" id="usb-levels" role="group" aria-label="Nivel de limpieza"></div>
+        <p class="level-desc" id="usb-level-desc"></p>
+      </div>
       <label class="file" id="halo-pick" hidden>Elige el archivo halo.apk (está en la carpeta dist/ del repositorio): <input type="file" id="halo-file" accept=".apk"></label>
       <div class="row">
         <button class="btn primary" id="action">Conectar y limpiar</button>
@@ -194,6 +198,8 @@ footer p { margin: 4px 0; }
       <p class="eyebrow">Sin cable</p>
       <h2>Un comando que lo hace todo</h2>
       <p class="sub">Un navegador no puede conectarse a la TV por WiFi. Desde el teléfono, usa la app Halo, que busca la TV y la limpia sola. Desde un computador con <code>adb</code>: <code>adb connect IP:5555</code>, luego <code>adb shell</code>, y pega este script. Reconoce la TV y el decodificador solo y quita lo mismo que la app.</p>
+      <div class="seg" id="g-levels" role="group" aria-label="Nivel de limpieza"></div>
+      <p class="level-desc" id="g-level-desc"></p>
       <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
       <pre id="g-script"></pre>
     </div>
@@ -242,7 +248,41 @@ footer p { margin: 4px 0; }
   $('tab-usb').addEventListener('click', () => showMode('usb'));
   $('tab-gen').addEventListener('click', () => showMode('gen'));
 
-  $('g-script').textContent = D.autoScript(LISTS);
+  // ---- Nivel: lo único que se elige ----
+  const LEVELS = [['seguro', 'Seguro'], ['recomendado', 'Normal'], ['agresivo', 'Agresivo']];
+  const LEVEL_TEXT = {
+    seguro: 'Solo telemetría, demos y apps que nadie usa. Sin ningún riesgo.',
+    recomendado: 'Además, la publicidad y las recomendaciones del inicio, el modo ambiente, las promociones y las apps del operador. La voz y Chromecast siguen funcionando.',
+    agresivo: 'Además, el Asistente de Google, Chromecast integrado y las apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
+  };
+  let level = 'recomendado';
+  try { level = localStorage.getItem('debloattv:level') || level; } catch (e) { /* sin almacenamiento */ }
+  if (!LEVEL_TEXT[level]) level = 'recomendado';
+  const levelUis = [];
+  function levelControl(seg, desc) {
+    for (const [value, name] of LEVELS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = name;
+      b.dataset.level = value;
+      b.addEventListener('click', () => setLevel(value));
+      seg.appendChild(b);
+    }
+    levelUis.push([seg, desc]);
+  }
+  function setLevel(value) {
+    level = value;
+    try { localStorage.setItem('debloattv:level', value); } catch (e) { /* sin almacenamiento */ }
+    for (const [seg, desc] of levelUis) {
+      for (const b of seg.children) b.setAttribute('aria-pressed', String(b.dataset.level === value));
+      desc.textContent = LEVEL_TEXT[value];
+      desc.style.color = value === 'agresivo' ? 'var(--warn)' : '';
+    }
+    $('g-script').textContent = D.autoScript(LISTS, value);
+  }
+  levelControl($('usb-levels'), $('usb-level-desc'));
+  levelControl($('g-levels'), $('g-level-desc'));
+  setLevel(level);
   $('g-restore').textContent = D.restoreScript();
 
   // ---- Flujo automático por USB ----
@@ -263,6 +303,7 @@ footer p { margin: 4px 0; }
     if (opts.action) $('action').textContent = opts.action;
     $('undo').hidden = !!opts.working || !usb.tv || !usb.tv.hasBackup;
     $('halo-pick').hidden = !opts.pickHalo;
+    $('level-box').hidden = !!opts.working || !!opts.pickHalo;
   }
 
   function warn(text) {
@@ -337,7 +378,7 @@ footer p { margin: 4px 0; }
   function clean() {
     return run(async () => {
       const tv = usb.tv;
-      const r = await tv.autoClean(fetchHalo, (text) => show(text, 'No desconectes el cable. Tarda menos de un minuto.', { working: true }));
+      const r = await tv.autoClean(level, fetchHalo, (text) => show(text, 'No desconectes el cable. Tarda menos de un minuto.', { working: true }));
       let text = r.removed === 0 ? 'No quedaba publicidad que quitar.'
         : 'Se ' + (r.removed === 1 ? 'quitó 1 app' : 'quitaron ' + r.removed + ' apps') + ' de publicidad o de fábrica.';
       if (r.needsHalo) {

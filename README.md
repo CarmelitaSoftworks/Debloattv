@@ -10,7 +10,7 @@ El diseño está en Figma: [Halo – rediseño TV](https://www.figma.com/design/
 
 - **En la TV** es el launcher Halo y además **limpia la TV desde la propia TV** (tarjeta ⚙ → Limpiar TV): no hace falta teléfono ni PC.
 - **En el teléfono** es el control remoto: se conecta a la TV por WiFi, la limpia y **se instala a sí misma en la TV** como launcher.
-- **Todo automático:** al conectarse reconoce la marca y el decodificador del operador (VTR, Claro, Entel, Movistar, DIRECTV, Mundo, WOM, GTD) y con un solo botón quita la publicidad y deja Halo como inicio. Sin listas ni opciones que elegir.
+- **Todo automático:** al conectarse reconoce la marca y el decodificador del operador (VTR, Claro, Entel, Movistar, DIRECTV, Mundo, WOM, GTD) y con un solo botón quita lo del nivel elegido (Seguro, Normal o Agresivo) y deja Halo como inicio. Sin listas.
 - **Debloater** (`debloater/`): quita las apps preinstaladas por niveles de riesgo, detecta la marca del televisor y guarda un backup de todo lo que toca para poder deshacerlo.
 - **Halo Launcher** (`launcher/`): cuadrícula limpia de apps en 16:9, foco con elevación y brillo, nombre bajo la app enfocada, lavado de color de fondo que sigue a la app, reloj, reordenar con "tembleque" y ocultar apps. Sin anuncios, sin recomendaciones, sin conexión a internet.
 
@@ -28,7 +28,7 @@ Solo necesitas instalar **`dist/halo.apk`** en la TV. Formas de hacerlo sin PC:
 
 La primera vez Android pedirá permitir **instalar apps desconocidas** para la app con la que lo abras: acéptalo.
 
-Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**. Es automático: Halo se conecta solo al ADB de la propia TV, reconoce la marca y el decodificador del operador, y con **Limpiar ahora** quita la publicidad, las recomendaciones y las apps de fábrica y del operador, y deja Halo como pantalla de inicio. No hay listas que revisar ni niveles que elegir. **Deshacer todo** lo devuelve como estaba.
+Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**. Es automático: Halo se conecta solo al ADB de la propia TV, reconoce la marca y el decodificador del operador, y con **Limpiar ahora** quita lo del nivel elegido (**Seguro**, **Normal** o **Agresivo**; el botón *Nivel* cambia en cada pulsación) y deja Halo como pantalla de inicio. No hay listas que revisar. **Deshacer todo** lo devuelve como estaba.
 
 ![Limpiar TV](docs/halo-limpiar-tv.png)
 
@@ -39,7 +39,11 @@ Para que pueda conectarse basta con activar una vez **Depuración USB** (no hace
 
 > Si el interruptor de *Halo: botón Inicio* aparece bloqueado (Android 13+ lo hace con las apps instaladas desde un archivo), ve a Ajustes → Apps → Halo, pulsa ⋮ / Más opciones → **Permitir ajustes restringidos** y vuelve a intentarlo.
 
-**Qué se quita automáticamente:** el nivel *recomendado* de las listas de `debloater/lists` (Google, la marca de la TV y el operador reconocido). El Asistente de Google, Chromecast integrado y las apps de streaming no se tocan; para eso están los scripts con `-l agresivo`.
+**Niveles** (de las listas de `debloater/lists`: Google, la marca de la TV y el operador reconocido):
+
+- **Seguro:** telemetría, demos y apps que nadie usa.
+- **Normal** (por defecto): además, la publicidad y las recomendaciones del inicio, el modo ambiente, las promociones y las apps del operador. La voz y Chromecast siguen funcionando.
+- **Agresivo:** además, el Asistente de Google, Chromecast integrado y las apps de streaming preinstaladas.
 
 ## Opción B: desde el teléfono
 
@@ -47,7 +51,7 @@ Instala el mismo **`dist/halo.apk`** en tu teléfono Android: allí se abre en m
 
 1. Activa una vez **Depuración USB** en la TV (pasos de arriba) y conecta el teléfono a la misma WiFi.
 2. Abre Halo en el teléfono: **busca la TV solo**.
-3. Pulsa **Limpiar mi TV** y acepta *¿Permitir depuración?* en la TV. El teléfono reconoce el equipo y el operador, quita la publicidad, copia Halo a la TV y lo deja como inicio.
+3. Elige el nivel (Seguro, Normal o Agresivo), pulsa **Limpiar mi TV** y acepta *¿Permitir depuración?* en la TV. El teléfono reconoce el equipo y el operador, quita la publicidad, copia Halo a la TV y lo deja como inicio.
 
 <img src="docs/halo-telefono.png" alt="Halo en el teléfono" width="260">
 
@@ -59,8 +63,8 @@ Instala el mismo **`dist/halo.apk`** en tu teléfono Android: allí se abre en m
 
 Abre **`web/index.html`** en **Chrome o Edge** de un computador (basta con descargarlo y abrirlo).
 
-- **Por cable USB:** con un cable de datos al puerto USB de servicio u OTG del equipo, pulsa **Conectar y limpiar**. La página hace lo mismo que la app, sola: reconoce el equipo y el operador, quita la publicidad y deja Halo como inicio (si no lo encuentra junto a la página, te pide el archivo `halo.apk`). Si `adb` está abierto en el PC, ciérralo antes con `adb kill-server`.
-- **Sin cable:** copia un único script para pegar en `adb shell`. Reconoce la TV y el decodificador en la propia TV y quita lo mismo que la app; también hay un script para deshacerlo.
+- **Por cable USB:** con un cable de datos al puerto USB de servicio u OTG del equipo, elige el nivel y pulsa **Conectar y limpiar**. La página hace lo mismo que la app, sola: reconoce el equipo y el operador, quita la publicidad y deja Halo como inicio (si no lo encuentra junto a la página, te pide el archivo `halo.apk`). Si `adb` está abierto en el PC, ciérralo antes con `adb kill-server`.
+- **Sin cable:** elige el nivel y copia un único script para pegar en `adb shell`. Reconoce la TV y el decodificador en la propia TV y quita lo mismo que la app; también hay un script para deshacerlo.
 
 Un navegador no puede conectarse a la TV por WiFi; para eso está la app del teléfono (opción B).
 

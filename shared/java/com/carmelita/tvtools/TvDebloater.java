@@ -374,8 +374,8 @@ public final class TvDebloater {
         return removed;
     }
 
-    /** Nivel que aplica la limpieza automática: quita publicidad y apps del operador sin romper la voz ni el cast. */
-    public static final int AUTO_LEVEL = 2;
+    /** Nivel por defecto («normal»): quita publicidad y apps del operador sin romper la voz ni el cast. */
+    public static final int DEFAULT_LEVEL = 2;
 
     public interface Progress {
         void step(String text);
@@ -397,13 +397,13 @@ public final class TvDebloater {
     }
 
     /**
-     * Todo de una vez, sin preguntar: con el equipo y el operador ya detectados, quita lo del
-     * nivel recomendado y deja Halo como inicio. Es lo que hacen la app y la web al conectarse.
+     * Todo de una vez, sin listas: con el equipo y el operador ya detectados, quita lo del nivel
+     * elegido (1 seguro, 2 normal, 3 agresivo) y deja Halo como inicio.
      */
-    public AutoResult autoClean(boolean pressHome, Progress progress) throws IOException {
+    public AutoResult autoClean(int level, boolean pressHome, Progress progress) throws IOException {
         progress.step("Buscando publicidad y apps de fábrica…");
         List<String> pkgs = new ArrayList<>();
-        for (Item item : candidates()) if (item.rank() <= AUTO_LEVEL) pkgs.add(item.pkg);
+        for (Item item : candidates()) if (item.rank() <= level) pkgs.add(item.pkg);
         int removed = 0;
         if (!pkgs.isEmpty()) {
             progress.step("Quitando " + pkgs.size() + (pkgs.size() == 1 ? " app…" : " apps…"));

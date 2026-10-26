@@ -81,9 +81,14 @@
             android:textSize="13sp" />
 
         <Button
-            android:id="@+id/action"
+            android:id="@+id/level"
             style="@style/TvButton"
             android:layout_marginTop="20dp"
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/action"
+            style="@style/TvButton"
             android:visibility="gone" />
 
         <Button

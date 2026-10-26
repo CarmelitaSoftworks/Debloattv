@@ -43,6 +43,9 @@ public class PhoneActivity extends Activity {
     private View helpCard;
     private EditText ipInput;
     private Button undo;
+    private View levelBox;
+    private android.widget.RadioGroup levels;
+    private TextView levelDesc;
 
     /** IP de la TV encontrada (o escrita a mano); null mientras no se conoce. */
     private String host;
@@ -67,6 +70,16 @@ public class PhoneActivity extends Activity {
         helpCard = findViewById(R.id.help_card);
         ipInput = findViewById(R.id.ip);
         undo = findViewById(R.id.undo);
+        levelBox = findViewById(R.id.level_box);
+        levels = findViewById(R.id.levels);
+        levelDesc = findViewById(R.id.level_desc);
+        int saved = prefs.getInt("level", TvDebloater.DEFAULT_LEVEL);
+        levels.check(saved == 1 ? R.id.level_seguro : saved == 3 ? R.id.level_agresivo : R.id.level_normal);
+        showLevel();
+        levels.setOnCheckedChangeListener((g, id) -> {
+            prefs.edit().putInt("level", level()).apply();
+            showLevel();
+        });
 
         ipInput.setText(prefs.getString("ip", ""));
         action.setOnClickListener(v -> {
@@ -145,9 +158,10 @@ public class PhoneActivity extends Activity {
 
     /** Conecta y lo hace todo: equipo y operador se detectan solos, sin listas ni preguntas. */
     private void clean() {
+        final int chosen = level();
         helpCard.setVisibility(View.GONE);
         run(getString(R.string.phone_connecting), (adb, tv) -> {
-            TvDebloater.AutoResult r = tv.autoClean(true, text -> step(text));
+            TvDebloater.AutoResult r = tv.autoClean(chosen, true, text -> step(text));
             String summary = r.removed == 0
                     ? getString(R.string.phone_done_clean)
                     : getResources().getQuantityString(R.plurals.phone_done_removed, r.removed, r.removed);
@@ -208,6 +222,17 @@ public class PhoneActivity extends Activity {
         });
     }
 
+    private int level() {
+        int id = levels.getCheckedRadioButtonId();
+        return id == R.id.level_seguro ? 1 : id == R.id.level_agresivo ? 3 : 2;
+    }
+
+    private void showLevel() {
+        int l = level();
+        levelDesc.setText(l == 1 ? R.string.level_seguro_desc : l == 3 ? R.string.level_agresivo_desc : R.string.level_normal_desc);
+        levelDesc.setTextColor(getColor(l == 3 ? R.color.status_warn : R.color.text_secondary));
+    }
+
     private void step(final String text) {
         runOnUiThread(() -> show(true, text, getString(R.string.phone_keep_open), null, null));
     }
@@ -221,5 +246,7 @@ public class PhoneActivity extends Activity {
         if (button != null) action.setText(button);
         onAction = onClick;
         undo.setVisibility(working || host == null ? View.GONE : View.VISIBLE);
+        // El nivel se elige junto al botón de limpiar (no mientras trabaja ni para «Buscar otra vez»)
+        levelBox.setVisibility(!working && host != null && button != null ? View.VISIBLE : View.GONE);
     }
 }
