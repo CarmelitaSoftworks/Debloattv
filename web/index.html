@@ -1,0 +1,1493 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>DebloatTV Web</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Limpia tu Android TV o Google TV desde el navegador y pon Halo como pantalla de inicio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Una sola columna de «cristal» sobre el fondo oscuro de Halo: paso 1 conectar, paso 2 elegir, paso 3 aplicar. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0b10;
+  --bg-deep: #050507;
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-hi: rgba(255, 255, 255, 0.09);
+  --stroke: rgba(255, 255, 255, 0.11);
+  --fg: #f5f5f7;
+  --muted: rgba(235, 235, 245, 0.62);
+  --faint: rgba(235, 235, 245, 0.38);
+  --accent: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --ok: #30d158;
+  --warn: #ff9f0a;
+  --bad: #ff453a;
+  --code-bg: #0f1016;
+  --font-display: "Sora", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 18px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg-deep); }
+body {
+  background: radial-gradient(1200px 600px at 50% -120px, #1d1d27 0%, transparent 70%) no-repeat, var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+  min-height: 100%;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.halo-mark { width: 44px; height: 44px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 50% 50%, transparent 46%, var(--fg) 48%, var(--fg) 58%, transparent 60%),
+              radial-gradient(circle at 50% 50%, var(--accent-soft), transparent 70%);
+  box-shadow: 0 0 28px rgba(10, 132, 255, 0.35); }
+h1 { font: 700 clamp(26px, 4vw, 34px)/1.1 var(--font-display); margin: 0; letter-spacing: -0.02em; }
+.tag { color: var(--muted); margin: 4px 0 0; max-width: 60ch; text-wrap: balance; }
+
+.modes { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--surface); border: 1px solid var(--stroke); }
+.modes button, .seg button {
+  border: 0; background: none; padding: 7px 16px; border-radius: 999px; cursor: pointer; color: var(--muted); font-weight: 500;
+}
+.modes button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--fg); color: #111; }
+
+.card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 20px; min-width: 0;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.card h2 { font: 600 17px/1.3 var(--font-display); margin: 0 0 4px; letter-spacing: -0.01em; }
+.card .sub { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+.eyebrow { font: 500 11px/1 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 22px; align-items: start; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+@media (max-width: 820px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.steps { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--muted); }
+.steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface-hi); color: var(--fg); font: 600 12px var(--font-display); }
+.steps b { color: var(--fg); font-weight: 600; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; border: 1px solid var(--stroke);
+  background: var(--surface-hi); padding: 10px 16px; cursor: pointer; font-weight: 600; transition: transform .15s, background .15s; }
+.btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #2a95ff; }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.small { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: var(--surface-hi);
+  font-size: 13px; font-weight: 500; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.pill.ok .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.pill.wait .dot { background: var(--warn); }
+.pill.bad .dot { background: var(--bad); }
+
+.notice { border-radius: 12px; padding: 12px 14px; font-size: 14px; background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.3); color: var(--fg); }
+.notice.info { background: var(--accent-soft); border-color: rgba(10, 132, 255, 0.35); }
+
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+dl.facts dt { color: var(--faint); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+label.field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+select { background: var(--code-bg); border: 1px solid var(--stroke); border-radius: 10px; padding: 9px 12px; width: 100%; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--stroke); max-width: 100%; }
+@media (max-width: 420px) { .seg button { padding: 7px 11px; font-size: 14px; } }
+.level-desc { color: var(--muted); font-size: 13px; margin: 8px 0 0; min-height: 2.6em; }
+
+.list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.count { font: 600 13px var(--font-body); color: var(--muted); font-variant-numeric: tabular-nums; }
+.apps { display: grid; gap: 6px; max-height: 520px; overflow-y: auto; padding-right: 4px; }
+.app { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px;
+  border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid transparent; cursor: pointer; }
+.app:hover { background: rgba(255, 255, 255, 0.06); }
+.app:has(input:checked) { border-color: rgba(10, 132, 255, 0.4); background: rgba(10, 132, 255, 0.07); }
+.app input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.app .t { min-width: 0; }
+.app .d { display: block; font-weight: 500; }
+.app code { display: block; font: 12px/1.4 var(--font-mono); color: var(--faint); overflow-wrap: anywhere; }
+.lvl { font: 500 11px var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
+.lvl.seguro { color: var(--ok); background: rgba(48, 209, 88, 0.12); }
+.lvl.recomendado { color: var(--accent); background: var(--accent-soft); }
+.lvl.agresivo { color: var(--warn); background: rgba(255, 159, 10, 0.12); }
+.empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--stroke); border-radius: 12px; }
+
+.launchers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.choice { border: 1px solid var(--stroke); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: rgba(255, 255, 255, 0.03); }
+.choice h3 { margin: 0; font: 600 15px var(--font-display); }
+.choice p { margin: 0; color: var(--muted); font-size: 13px; }
+.file { font-size: 12px; color: var(--muted); }
+.file input { font-size: 12px; max-width: 100%; }
+
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--stroke); border-radius: 12px; padding: 14px; overflow: auto;
+  font: 12.5px/1.55 var(--font-mono); color: #d6d6e0; max-height: 360px; white-space: pre; }
+.log { min-height: 120px; max-height: 260px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 8px; }
+.code-head h3 { margin: 0; font: 600 14px var(--font-display); }
+footer { color: var(--faint); font-size: 13px; text-align: center; }
+footer p { margin: 4px 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="halo-mark" aria-hidden="true"></div>
+      <div>
+        <h1>DebloatTV</h1>
+        <p class="tag">Quita la publicidad y las apps de fábrica de tu Android TV o Google TV y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
+      </div>
+    </div>
+    <div class="modes" role="tablist" aria-label="Forma de conectarse">
+      <button id="tab-usb" role="tab" aria-selected="true" aria-controls="usb">Por cable USB</button>
+      <button id="tab-gen" role="tab" aria-selected="false" aria-controls="gen">Sin cable</button>
+    </div>
+  </header>
+
+  <!-- ===== Por USB (WebUSB) ===== -->
+  <section id="usb" role="tabpanel" aria-labelledby="tab-usb">
+    <div class="grid">
+      <div class="stack">
+        <div class="card" id="connect-card">
+          <p class="eyebrow">Paso 1 · Conectar</p>
+          <h2>Conecta la TV o el TV box a este computador</h2>
+          <p class="sub">Funciona en Chrome o Edge para Windows, macOS, Linux o ChromeOS, con un cable de datos al puerto USB de servicio o OTG del equipo.</p>
+          <ol class="steps">
+            <li><span>En la TV: <b>Ajustes → Preferencias del dispositivo → Información</b>, pulsa 7 veces <b>Compilación</b>.</span></li>
+            <li><span>En <b>Opciones para desarrolladores</b>, activa <b>Depuración USB</b>.</span></li>
+            <li><span>Conecta el cable y pulsa <b>Conectar</b>. En la TV, marca «Permitir siempre» y acepta.</span></li>
+          </ol>
+          <div class="row">
+            <button class="btn primary" id="connect">Conectar</button>
+            <button class="btn" id="disconnect" hidden>Desconectar</button>
+            <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
+          </div>
+          <p class="notice" id="usb-warning" hidden></p>
+        </div>
+
+        <div class="card" id="device-card" hidden>
+          <p class="eyebrow">Equipo</p>
+          <dl class="facts">
+            <dt>Modelo</dt><dd id="d-model"></dd>
+            <dt>Android</dt><dd id="d-android"></dd>
+            <dt>Reconocido</dt><dd id="d-known"></dd>
+          </dl>
+          <p class="notice info" id="d-note" hidden></p>
+          <label class="field" style="margin-top:14px">Perfil de operador
+            <select id="operator"></select>
+          </label>
+        </div>
+
+        <div class="card" id="launcher-card" hidden>
+          <p class="eyebrow">Paso 3 · Pantalla de inicio</p>
+          <h2>Cambia el launcher</h2>
+          <p class="sub">Si la TV no deja cambiarlo (algunas TCL), se deshace solo y Halo se abre con el botón Inicio mediante su servicio de accesibilidad.</p>
+          <div class="launchers">
+            <div class="choice">
+              <h3>Halo</h3>
+              <p>Inspirado en Apple TV, ligero y con «Limpiar TV» integrado.</p>
+              <label class="file">APK (opcional): <input type="file" id="halo-file" accept=".apk"></label>
+              <button class="btn primary small" id="set-halo">Poner Halo</button>
+            </div>
+            <div class="choice">
+              <h3>LTvLauncher</h3>
+              <p>Código abierto (GPL-3.0). <a id="ltv-link" href="https://github.com/leanbitlab-org/LtvLauncher/releases/latest" target="_blank" rel="noopener">Descarga el APK</a> y elígelo.</p>
+              <label class="file">APK: <input type="file" id="ltv-file" accept=".apk"></label>
+              <button class="btn small" id="set-ltv">Poner LTvLauncher</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn small" id="restore-launcher">Volver al launcher original</button>
+            <button class="btn small danger" id="restore-all">Restaurar todo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card" id="apps-card">
+          <p class="eyebrow">Paso 2 · Elegir qué quitar</p>
+          <div class="list-head">
+            <div class="seg" id="usb-levels" role="group" aria-label="Nivel"></div>
+            <span class="count" id="usb-count"></span>
+          </div>
+          <p class="level-desc" id="usb-level-desc"></p>
+          <div class="apps" id="usb-apps"><div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="remove" disabled>Quitar apps</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Registro</h3><button class="btn small" id="clear-log">Limpiar</button></div>
+          <pre class="log" id="log" aria-live="polite">Esperando conexión…</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Sin cable: generador ===== -->
+  <section id="gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
+    <div class="grid">
+      <div class="stack">
+        <div class="card">
+          <p class="eyebrow">Sin cable</p>
+          <h2>Comandos para tu TV</h2>
+          <p class="sub">Un navegador no puede abrir una conexión ADB por WiFi. Elige tu equipo y copia el script en «adb shell» desde un computador, o usa la app Halo del teléfono, que se conecta por WiFi sola.</p>
+          <div class="stack">
+            <label class="field">Marca de la TV
+              <select id="g-vendor"></select>
+            </label>
+            <label class="field">Operador del TV box
+              <select id="g-operator"></select>
+            </label>
+            <div>
+              <div class="seg" id="g-levels" role="group" aria-label="Nivel"></div>
+              <p class="level-desc" id="g-level-desc"></p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="eyebrow">Cómo usarlo</p>
+          <ol class="steps">
+            <li><span>Activa <b>Depuración USB</b> (o depuración inalámbrica) en la TV y anota su IP.</span></li>
+            <li><span>En el computador: <code>adb connect IP:5555</code> y luego <code>adb shell</code>.</span></li>
+            <li><span>Pega el script. Para deshacerlo, pega el de restaurar.</span></li>
+          </ol>
+          <p class="notice info">En Windows, macOS o Linux también puedes usar <code>debloat.bat</code> o <code>debloat.sh</code> del repositorio, que hacen todo esto y además cambian el launcher.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="list-head">
+            <h2>Apps que se quitarán</h2>
+            <span class="count" id="g-count"></span>
+          </div>
+          <div class="apps" id="g-apps"></div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
+          <pre id="g-script"></pre>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Restaurar todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
+          <pre id="g-restore"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Nunca se toca el asistente de configuración de Google TV (guarda la red WiFi) ni las apps del sistema necesarias.</p>
+    <p><a href="https://github.com/CarmelitaSoftworks/Debloattv" target="_blank" rel="noopener">DebloatTV en GitHub</a></p>
+  </footer>
+</div>
+
+<script>
+window.DEBLOAT_LISTS = {"claro.txt": "# Perfil de operador Claro. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Claro en él.\nrecomendado  br.com.claro.*     Claro tv+ (br.com.claro.now.smarttvclient)\nrecomendado  com.claro.*        Apps de Claro\nrecomendado  com.clarovideo.*   Claro video\n", "directv.txt": "# Perfil de operador DIRECTV. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de DIRECTV en él.\nrecomendado  com.directv.*   DGO / DIRECTV GO (com.directv.dtvlatam)\n", "dispositivos.txt": "# Decodificadores y TV box conocidos. Las herramientas los reconocen y muestran su nombre y avisos.\n# Formato: patrón | operador | equipo | aviso\n#   operador: nombre de lists/operadores.txt; su perfil se elige solo al reconocer el equipo.\n#   patrón: nombres separados por comas; basta con que uno aparezca (sin distinguir mayúsculas)\n#           en \"fabricante modelo dispositivo nombre\" (getprop ro.product.*), o\n#           \"sistema:paquete\" para reconocerlo por una app preinstalada de sistema.\n# Fuentes: androidtv-guide.com, tavilatam.com, pisapapeles.net, tumundo.cl (ver README).\n# Si tu equipo no aparece, ejecuta el script con --scan y abre un issue con el resultado.\n\n# --- Chile ---\nSEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher».\nSEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher».\nB866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | Se quitan las apps de Claro para dejarlo como Android TV stock. No cambies el firmware: Claro bloquea la vuelta atrás y el equipo puede quedar inservible.\nDIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | Se quitan las apps de Entel para dejarlo como Android TV stock. Cambia el inicio de Entel con «Elegir launcher».\nDIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | Se quitan las apps de Entel para dejarlo como Android TV stock.\nVSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | Se quitan las apps de Entel. Los servicios de audio y micrófono del equipo no se tocan: los usan sus parlantes y el control por voz.\nSEI500W | WOM | WOM TV Box (SEI Robotics, Android TV 9) | WOM cerró su servicio de TV en 2023 (pasó a Zapping). El equipo sigue sirviendo como Android TV: se propone quitar la app de WOM TV, que ya no funciona.\nSEI700GTD | GTD | GTD TV Box de Telsur (SEI Robotics, Amlogic S905Y4, Android TV 12, 2024) | Se quitan las apps de GTD/Telsur para dejarlo como Android TV stock (dejarás de ver los canales de GTD en él).\nsistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | Se quita la app MundoGo TV para dejarlo como Android TV stock (dejarás de ver los canales de Mundo en él).\n\n# Movistar Chile: sus decodificadores IPTV (Technicolor DSI810, Kaon NA1180/NA1710, Arris VIP,\n# Skyworth HP4500-CL) no usan Android TV, así que ADB no puede conectarse a ellos.\n", "entel.txt": "# Perfil de operador Entel. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Entel en él.\nrecomendado  cl.entel.*    Entel TV (cl.entel.enteltv) y app Entel\nrecomendado  com.entel.*   Apps de Entel\n", "google.txt": "# Google TV / Android TV (Chromecast con Google TV, Google TV Streamer y televisores con Google TV)\n# Formato: <nivel> <paquete> <descripción>\n# Niveles: seguro < recomendado < agresivo (cada nivel incluye los anteriores)\n# Todo se elimina con \"pm uninstall -k --user 0\", así que se puede restaurar sin reinstalar la ROM.\n\nseguro       com.google.android.feedback                   Envío de comentarios a Google\nseguro       com.google.android.tv.bugreportsender         Envío automático de informes de errores\nseguro       com.google.android.play.games                 Google Play Juegos\nseguro       com.google.android.youtube.tvmusic            YouTube Music para TV\nseguro       com.google.android.apps.youtube.kids          YouTube Kids (preinstalado en algunos modelos)\nseguro       com.android.printspooler                      Servicio de impresión (inútil en una TV)\nseguro       com.google.android.leanbacklauncher.recommendations  Recomendaciones del launcher antiguo\nseguro       com.google.android.marvin.talkback            TalkBack (quítalo solo si no usas accesibilidad)\n\nrecomendado  com.google.android.videos                     Google TV / Play Películas (tienda de películas)\nrecomendado  com.google.android.tvrecommendations          Servicio de recomendaciones y anuncios del home\nrecomendado  com.google.android.apps.tv.dreamx             Modo ambiente de Google TV (vuelve el salvapantallas simple)\nrecomendado  com.google.android.backdrop                   Modo ambiente de Android TV\nrecomendado  android.autoinstalls.config.google.gtvpai  Instalación automática de apps de socios\nrecomendado  com.google.android.partnersetup               Configuración de socios / promociones del fabricante\n\nagresivo     com.google.android.katniss                    Asistente de Google y búsqueda por voz (rompe el botón de micrófono)\nagresivo     com.google.android.speech.pumpkin             Reconocimiento de voz offline\nagresivo     com.google.android.apps.mediashell            Chromecast integrado (rompe la función de enviar/cast)\nagresivo     com.google.android.tts                        Texto a voz de Google\nagresivo     com.google.android.tv                         Canales en vivo (Live Channels)\nagresivo     com.google.android.youtube.tv                 YouTube para TV\nagresivo     com.netflix.ninja                             Netflix preinstalado\nagresivo     com.amazon.amazonvideo.livingroom             Prime Video preinstalado\nagresivo     com.disney.disneyplus                         Disney+ preinstalado\nagresivo     com.spotify.tv.android                        Spotify preinstalado\nagresivo     com.apple.atve.androidtv.appletv              Apple TV preinstalado\nagresivo     com.hbo.hbonow                                Max (HBO) preinstalado\nagresivo     com.wbd.stream                                Max preinstalado (versión nueva)\nagresivo     com.plexapp.android                           Plex preinstalado\nagresivo     tv.pluto.android                              Pluto TV preinstalado\n", "gtd.txt": "# Perfil de operador GTD / Telsur (GTD TV Box SEI700GTD). Se elige solo al reconocer el equipo, o a mano.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de GTD en él.\nrecomendado  cl.gtd.*         Apps de GTD\nrecomendado  com.gtd.*        Apps de GTD\nrecomendado  cl.telsur.*      Apps de Telsur\nrecomendado  com.telsur.*     Apps de Telsur\n", "hisense.txt": "# Hisense (Android TV / Google TV)\nseguro       com.hisense.hiphoto                           Visor de fotos Hisense\nrecomendado  com.hisense.store.tv                          Tienda/promociones Hisense\nrecomendado  com.hisense.weather                           Widget del tiempo\n", "movistar.txt": "# Perfil de operador Movistar. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Movistar en él.\nrecomendado  cl.movistarplay    Movistar TV / Movistar Play Chile\nrecomendado  cl.movistar.*      Apps de Movistar Chile\nrecomendado  com.movistar.*     Apps de Movistar\nrecomendado  com.telefonica.*   Apps de Telefónica\n", "mundo.txt": "# Perfil de operador Mundo. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Mundo en él.\nrecomendado  cl.mundogo.*   MundoGo TV (cl.mundogo.atv)\n", "operadores.txt": "# Perfiles de operador que se pueden elegir al conectarse. Formato: nombre | lista\n# Cuando el equipo se reconoce (dispositivos.txt), su perfil se elige solo.\nVTR | vtr.txt\nClaro | claro.txt\nEntel | entel.txt\nMovistar | movistar.txt\nDIRECTV | directv.txt\nMundo | mundo.txt\nWOM | wom.txt\nGTD | gtd.txt\n", "philips.txt": "# Philips (TP Vision, Android TV / Google TV)\nseguro       org.droidtv.demome                            Modo demostración de tienda\nseguro       org.droidtv.help                              Ayuda / manual\nrecomendado  org.droidtv.nettvrecommender                  Recomendaciones Smart TV\nrecomendado  org.droidtv.appgallery                        Galería de apps Philips\n", "sony.txt": "# Sony Bravia (Android TV / Google TV)\nseguro       com.sony.dtv.imanual                          Manual de ayuda (i-Manual)\nseguro       com.sony.dtv.promos                           Promociones de Sony\nseguro       com.sony.dtv.demomode                         Modo demostración de tienda\nseguro       com.sony.dtv.smarthelp                        Ayuda inteligente\nrecomendado  com.sony.dtv.sonyselect                       Sony Select (recomendaciones de apps)\nrecomendado  com.sony.dtv.photoshareplus                   Photo Sharing Plus\nrecomendado  com.sony.dtv.discovery                        Barra \"Discover\" de Sony\nagresivo     com.sony.dtv.bravialifehack                   Bravia Core / contenido promocional\n", "tcl.txt": "# TCL (Android TV / Google TV)\n# Basado en listas comprobadas en TCL reales, sobre todo github.com/amfakh/tcl-g09-debloat\n# (TCL Smart TV Pro, Google TV, Android 12). Los nombres cambian entre modelos: los que no\n# existan en tu TV simplemente se ignoran.\n# NUNCA quitar (protegidos en el código): com.tcl.tv, com.tcl.tvinput, com.tcl.suspension,\n# com.tcl.dashboard, com.tcl.autopair, com.tcl.systemserver, com.tcl.providers.config,\n# com.tcl.globalkeyoverlay, com.tcl.initsetup y com.google.android.tungsten.setupwraith\n# (desactivarlo borra la red WiFi guardada).\n\n# Telemetría\nseguro       com.tcl.ttvs                       Telemetría e identificadores de TCL (las actualizaciones llegan por Play Services)\nseguro       com.tcl.logkit                     Captura y envío de registros a TCL\nseguro       com.tcl.interactive                Servicio de telemetría TIAS de TCL\nseguro       com.tcl.guard                      TCL Guard: rastreo de uso y \"limpiador\"\n\n# Demos y extras de tienda\nseguro       com.tcl.exhibit                    Modo demostración de tienda\nseguro       com.tcl.esticker                   Pegatinas del modo tienda\nseguro       com.tcl.hotelmenu                  Modo hotel\nseguro       com.tcl.ocean.instructions         Manual electrónico\nseguro       com.tcl.repairguide                Guía de reparación\n\n# Anuncios y contenido promocional\nrecomendado  com.tcl.bootadservice              Anuncios al encender la TV\nrecomendado  com.tcl.channelplus                Canales FAST de TCL (con anuncios)\nrecomendado  com.tcl.waterfall.overseas         Recomendaciones \"waterfall\" de TCL\nrecomendado  com.tcl.tv.tclhome_passive         Empuja contenido de TCL al inicio al arrancar\nrecomendado  com.tcl.partnercustomizer          Pestaña y filas de TCL en el inicio de Google TV\nrecomendado  com.tcl.messagebox                 Mensajes y promociones de TCL\nrecomendado  com.tcl.appmarket2                 Tienda de apps de TCL\nrecomendado  com.tcl.browser                    Navegador de TCL\n\n# Servicios en segundo plano\nrecomendado  com.tcl.useragreement              Pantallas de EULA y privacidad de TCL\nrecomendado  com.tcl.usercenter                 Cuenta de TCL\nrecomendado  com.tcl.smartalexa                 Cliente de Alexa\nrecomendado  com.tcl.hearaid                    Prueba de audición y ajuste de volumen\n\n# Funciones que quizá uses\nagresivo     com.tcl.gamebar                    Barra de juego para consolas\nagresivo     com.tcl.UpdatePeripheral           Actualizador de barras de sonido TCL\nagresivo     com.tcl.miracast                   Duplicar pantalla desde móviles Android\nagresivo     com.tcl.magiconnectfree            MagiConnect (control desde el móvil)\nagresivo     com.tcl.MultiScreenInteraction_TV  Interacción multipantalla (T-Cast)\nagresivo     com.tcl.ui_mediaCenter             Reproductor de USB de TCL\nagresivo     com.tcl.gallery                    Galería de fotos de TCL\n", "vtr.txt": "# Perfil de operador VTR. Se elige solo al reconocer el equipo, o a mano al conectarse.\n# Un \"*\" final quita todos los paquetes activos que empiezan así.\n# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de VTR en él.\nrecomendado  com.tivo.*    VTR Play TV / TV Smart (TiVo), p. ej. com.tivo.androidtv.llacl\nrecomendado  cl.vtr.*      Apps de VTR\nrecomendado  com.vtr.*     Apps de VTR (p. ej. com.vtr.clientes)\nrecomendado  com.lgi.vtr   VTR Play antigua\n", "wom.txt": "# Perfil WOM (WOM TV Box SEI500W). WOM cerró su servicio de TV en 2023 y lo traspasó a Zapping.\n# Se elige solo al reconocer el equipo, o a mano al conectarse.\nrecomendado  cl.wom.*   WOM TV (cl.wom.mk.android.tv), servicio cerrado en 2023\n", "xiaomi.txt": "# Xiaomi (Mi Box, Mi TV Stick, Xiaomi TV con PatchWall)\nseguro       com.xiaomi.mitv.calendar                      Calendario\nseguro       com.mitv.care                                 Mi Care / soporte\nrecomendado  com.xiaomi.mitv.upgrade                       Promociones de actualización\nrecomendado  com.mitv.videoplayer                          Reproductor de vídeo Mi\nagresivo     com.xiaomi.mitv.tvmanager                     Gestor de TV (limpiador)\n"};
+</script>
+<script>
+/*
+ * Cliente mínimo del protocolo ADB, el mismo que AdbConnection.java pero en JavaScript.
+ * El transporte se elige aparte: WebUSB en el navegador (Chrome/Edge) o TCP en Node (pruebas).
+ * Un transporte tiene write(Uint8Array) y read(n) -> Uint8Array con exactamente n bytes.
+ */
+(function (root) {
+  'use strict';
+
+  const CNXN = 0x4e584e43, AUTH = 0x48545541, OPEN = 0x4e45504f;
+  const OKAY = 0x59414b4f, CLSE = 0x45534c43, WRTE = 0x45545257;
+  const AUTH_TOKEN = 1, AUTH_SIGNATURE = 2, AUTH_RSAPUBLICKEY = 3;
+  const VERSION = 0x01000000;
+  const MAX_PAYLOAD = 256 * 1024;
+  const SYNC_CHUNK = 64 * 1024;
+  const KEY_BITS = 2048;
+  // DigestInfo de SHA-1: adbd firma el token de 20 bytes como si fuera un hash SHA-1
+  const SHA1_PREFIX = [0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14];
+
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+
+  // ---- RSA con BigInt -------------------------------------------------------------------
+  // WebCrypto no deja firmar un hash ya calculado, así que la firma se hace a mano con la clave
+  // que genera WebCrypto (exportada como JWK).
+
+  function b64urlToBigInt(s) {
+    const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4));
+    let hex = '';
+    for (let i = 0; i < bin.length; i++) hex += bin.charCodeAt(i).toString(16).padStart(2, '0');
+    return BigInt('0x' + (hex || '0'));
+  }
+
+  function bigIntToBytes(x, len) {
+    const out = new Uint8Array(len);
+    for (let i = len - 1; i >= 0; i--) {
+      out[i] = Number(x & 0xffn);
+      x >>= 8n;
+    }
+    return out;
+  }
+
+  function bytesToBigInt(bytes) {
+    let x = 0n;
+    for (const b of bytes) x = (x << 8n) | BigInt(b);
+    return x;
+  }
+
+  function modPow(base, exp, mod) {
+    let result = 1n;
+    base %= mod;
+    while (exp > 0n) {
+      if (exp & 1n) result = (result * base) % mod;
+      base = (base * base) % mod;
+      exp >>= 1n;
+    }
+    return result;
+  }
+
+  function modInverse(a, m) {
+    let [r0, r1, s0, s1] = [((a % m) + m) % m, m, 1n, 0n];
+    while (r1 !== 0n) {
+      const q = r0 / r1;
+      [r0, r1] = [r1, r0 - q * r1];
+      [s0, s1] = [s1, s0 - q * s1];
+    }
+    return ((s0 % m) + m) % m;
+  }
+
+  function toBase64(bytes) {
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+
+  class AdbKey {
+    constructor(jwk) {
+      this.jwk = jwk;
+      this.n = b64urlToBigInt(jwk.n);
+      this.e = b64urlToBigInt(jwk.e);
+      this.p = b64urlToBigInt(jwk.p);
+      this.q = b64urlToBigInt(jwk.q);
+      this.dp = b64urlToBigInt(jwk.dp);
+      this.dq = b64urlToBigInt(jwk.dq);
+      this.qi = b64urlToBigInt(jwk.qi);
+    }
+
+    /** Carga la clave guardada o crea una nueva. store: {get(k), set(k, v)} (puede fallar). */
+    static async loadOrCreate(store) {
+      try {
+        const saved = store && store.get('adbkey');
+        if (saved) return new AdbKey(JSON.parse(saved));
+      } catch (e) { /* sin almacenamiento: clave nueva */ }
+      const pair = await crypto.subtle.generateKey(
+        { name: 'RSASSA-PKCS1-v1_5', modulusLength: KEY_BITS, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-1' },
+        true, ['sign', 'verify']);
+      const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+      try {
+        if (store) store.set('adbkey', JSON.stringify(jwk));
+      } catch (e) { /* se pedirá permiso en la TV cada vez */ }
+      return new AdbKey(jwk);
+    }
+
+    /** Firma PKCS#1 v1.5 del token (relleno y DigestInfo a mano, como AdbKey.java). */
+    sign(token) {
+      const k = KEY_BITS / 8;
+      const em = new Uint8Array(k);
+      em[0] = 0; em[1] = 1;
+      const tLen = SHA1_PREFIX.length + token.length;
+      em.fill(0xff, 2, k - tLen - 1);
+      em[k - tLen - 1] = 0;
+      em.set(SHA1_PREFIX, k - tLen);
+      em.set(token, k - token.length);
+      // Teorema chino del resto: unas 4 veces más rápido que m^d mod n
+      const m = bytesToBigInt(em);
+      const m1 = modPow(m, this.dp, this.p);
+      const m2 = modPow(m, this.dq, this.q);
+      const h = (this.qi * (((m1 - m2) % this.p) + this.p)) % this.p;
+      return bigIntToBytes(m2 + h * this.q, k);
+    }
+
+    /** Clave pública en el formato RSAPublicKey de mincrypt que espera adbd, en base64 y con \0. */
+    publicKeyPayload(name) {
+      const words = KEY_BITS / 32;
+      const r32 = 1n << 32n;
+      const n0inv = r32 - modInverse(this.n % r32, r32);
+      let rr = modPow(1n << BigInt(KEY_BITS), 2n, this.n);
+      let n = this.n;
+      const buf = new DataView(new ArrayBuffer(4 + 4 + words * 8 + 4));
+      let off = 0;
+      const put = (v) => { buf.setUint32(off, Number(v), true); off += 4; };
+      put(words);
+      put(n0inv % r32);
+      for (let i = 0; i < words; i++) { put(n % r32); n >>= 32n; }
+      for (let i = 0; i < words; i++) { put(rr % r32); rr >>= 32n; }
+      put(this.e);
+      const text = enc.encode(toBase64(new Uint8Array(buf.buffer)) + ' ' + (name || 'debloattv@web'));
+      const out = new Uint8Array(text.length + 1);
+      out.set(text);
+      return out;
+    }
+  }
+
+  // ---- Protocolo ------------------------------------------------------------------------
+
+  class AdbConnection {
+    constructor(transport) {
+      this.t = transport;
+      this.maxPayload = 4096;
+      this.nextLocalId = 1;
+      this.queue = Promise.resolve();
+      this.banner = '';
+    }
+
+    /** onWaiting se llama cuando la TV muestra «¿Permitir depuración?». */
+    static async connect(transport, key, onWaiting) {
+      const c = new AdbConnection(transport);
+      await c.send(CNXN, VERSION, MAX_PAYLOAD, enc.encode('host::\0'));
+      let signed = false, sentKey = false;
+      for (;;) {
+        const m = await c.read();
+        if (m.command === CNXN) {
+          c.maxPayload = Math.min(m.arg1, MAX_PAYLOAD);
+          c.banner = dec.decode(m.data);
+          return c;
+        }
+        if (m.command !== AUTH || m.arg0 !== AUTH_TOKEN) continue;
+        if (!signed) {
+          // Si la TV ya conoce nuestra clave, con la firma basta
+          await c.send(AUTH, AUTH_SIGNATURE, 0, key.sign(m.data));
+          signed = true;
+        } else if (!sentKey) {
+          await c.send(AUTH, AUTH_RSAPUBLICKEY, 0, key.publicKeyPayload());
+          sentKey = true;
+          if (onWaiting) onWaiting();
+        } else {
+          throw new Error('La TV no aceptó la clave de este navegador.');
+        }
+      }
+    }
+
+    /** Una operación a la vez, como el cliente Java. */
+    exclusive(fn) {
+      const run = this.queue.then(fn, fn);
+      this.queue = run.catch(() => {});
+      return run;
+    }
+
+    /** Ejecuta un comando en la TV y devuelve su salida (stdout y stderr juntos). */
+    shell(command) {
+      return this.exclusive(async () => {
+        const local = this.nextLocalId++;
+        await this.send(OPEN, local, 0, enc.encode('shell:' + command + '\0'));
+        const chunks = [];
+        for (;;) {
+          const m = await this.read();
+          if (m.arg1 !== local) continue;
+          if (m.command === WRTE) {
+            chunks.push(m.data);
+            await this.send(OKAY, local, m.arg0);
+          } else if (m.command === CLSE) {
+            if (m.arg0 !== 0) await this.send(CLSE, local, m.arg0);
+            return dec.decode(concat(chunks)).replace(/\r/g, '').trim();
+          }
+        }
+      });
+    }
+
+    /** Copia un archivo a la TV con el servicio «sync:» (como «adb push»). */
+    push(data, remotePath, mode) {
+      return this.exclusive(async () => {
+        const local = this.nextLocalId++;
+        await this.send(OPEN, local, 0, enc.encode('sync:\0'));
+        const remote = await this.awaitOkay(local);
+
+        let buf = new Uint8Array(this.maxPayload), len = 0;
+        const flush = async () => {
+          if (len === 0) return;
+          await this.send(WRTE, local, remote, buf.slice(0, len));
+          len = 0;
+          await this.awaitOkay(local);
+        };
+        const write = async (bytes) => {
+          let off = 0;
+          while (off < bytes.length) {
+            const k = Math.min(bytes.length - off, buf.length - len);
+            buf.set(bytes.subarray(off, off + k), len);
+            len += k; off += k;
+            if (len === buf.length) await flush();
+          }
+        };
+        const spec = enc.encode(remotePath + ',' + (mode || 0o100644));
+        await write(syncHeader('SEND', spec.length));
+        await write(spec);
+        for (let off = 0; off < data.length; off += SYNC_CHUNK) {
+          const piece = data.subarray(off, Math.min(off + SYNC_CHUNK, data.length));
+          await write(syncHeader('DATA', piece.length));
+          await write(piece);
+        }
+        await write(syncHeader('DONE', Math.floor(Date.now() / 1000)));
+        await flush();
+
+        const reply = [];
+        let got = 0;
+        while (got < 8) {
+          const m = await this.read();
+          if (m.arg1 !== local) continue;
+          if (m.command === WRTE) {
+            reply.push(m.data); got += m.data.length;
+            await this.send(OKAY, local, remote);
+          } else if (m.command === CLSE) {
+            throw new Error('La TV cerró la copia del archivo');
+          }
+        }
+        const r = concat(reply);
+        await this.send(CLSE, local, remote);
+        const status = dec.decode(r.subarray(0, 4));
+        if (status !== 'OKAY') throw new Error('No se pudo copiar el archivo: ' + (r.length > 8 ? dec.decode(r.subarray(8)) : status));
+      });
+    }
+
+    async awaitOkay(local) {
+      for (;;) {
+        const m = await this.read();
+        if (m.arg1 !== local) continue;
+        if (m.command === OKAY) return m.arg0;
+        if (m.command === CLSE) throw new Error('La TV rechazó la operación');
+      }
+    }
+
+    async send(command, arg0, arg1, data) {
+      data = data || new Uint8Array(0);
+      let checksum = 0;
+      for (let i = 0; i < data.length; i++) checksum = (checksum + data[i]) >>> 0;
+      const h = new DataView(new ArrayBuffer(24));
+      h.setUint32(0, command, true);
+      h.setUint32(4, arg0 >>> 0, true);
+      h.setUint32(8, arg1 >>> 0, true);
+      h.setUint32(12, data.length, true);
+      h.setUint32(16, checksum, true);
+      h.setUint32(20, (~command) >>> 0, true);
+      await this.t.write(new Uint8Array(h.buffer));
+      if (data.length) await this.t.write(data);
+    }
+
+    async read() {
+      const raw = await this.t.read(24);
+      const h = new DataView(raw.buffer, raw.byteOffset, 24);
+      const m = { command: h.getUint32(0, true), arg0: h.getUint32(4, true), arg1: h.getUint32(8, true) };
+      const length = h.getUint32(12, true);
+      if (length > 16 * 1024 * 1024) throw new Error('Respuesta ADB no válida');
+      m.data = length ? await this.t.read(length) : new Uint8Array(0);
+      return m;
+    }
+
+    async close() {
+      try { await this.t.close(); } catch (e) { /* ya cerrada */ }
+    }
+  }
+
+  function syncHeader(id, value) {
+    const v = new DataView(new ArrayBuffer(8));
+    for (let i = 0; i < 4; i++) v.setUint8(i, id.charCodeAt(i));
+    v.setUint32(4, value >>> 0, true);
+    return new Uint8Array(v.buffer);
+  }
+
+  function concat(chunks) {
+    let n = 0;
+    for (const c of chunks) n += c.length;
+    const out = new Uint8Array(n);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out;
+  }
+
+  // ---- Transporte WebUSB ----------------------------------------------------------------
+
+  /** La interfaz ADB de un dispositivo Android: clase 0xff, subclase 0x42, protocolo 1. */
+  const USB_FILTER = { classCode: 0xff, subclassCode: 0x42, protocolCode: 0x01 };
+
+  class WebUsbTransport {
+    static supported() {
+      return typeof navigator !== 'undefined' && !!navigator.usb;
+    }
+
+    /** Muestra el selector de dispositivos USB del navegador (requiere un clic del usuario). */
+    static async request() {
+      const device = await navigator.usb.requestDevice({ filters: [USB_FILTER] });
+      return WebUsbTransport.open(device);
+    }
+
+    static async open(device) {
+      await device.open();
+      if (device.configuration === null) await device.selectConfiguration(1);
+      for (const iface of device.configuration.interfaces) {
+        for (const alt of iface.alternates) {
+          if (alt.interfaceClass !== USB_FILTER.classCode || alt.interfaceSubclass !== USB_FILTER.subclassCode
+              || alt.interfaceProtocol !== USB_FILTER.protocolCode) continue;
+          try {
+            await device.claimInterface(iface.interfaceNumber);
+          } catch (e) {
+            throw new Error('Otro programa está usando la conexión USB (cierra «adb» con «adb kill-server» y vuelve a intentarlo).');
+          }
+          if (alt.alternateSetting !== 0) await device.selectAlternateInterface(iface.interfaceNumber, alt.alternateSetting);
+          const t = new WebUsbTransport(device, iface.interfaceNumber);
+          for (const ep of alt.endpoints) {
+            if (ep.type !== 'bulk') continue;
+            if (ep.direction === 'in') t.epIn = ep.endpointNumber;
+            else { t.epOut = ep.endpointNumber; t.packetSize = ep.packetSize; }
+          }
+          if (t.epIn == null || t.epOut == null) break;
+          return t;
+        }
+      }
+      await device.close();
+      throw new Error('Este dispositivo no tiene la depuración USB activa.');
+    }
+
+    constructor(device, iface) {
+      this.device = device;
+      this.iface = iface;
+      this.packetSize = 512;
+      this.pending = new Uint8Array(0);
+      this.name = (device.manufacturerName || '') + ' ' + (device.productName || '');
+    }
+
+    async write(data) {
+      await this.device.transferOut(this.epOut, data);
+      // Un bloque que llena justo los paquetes USB se cierra con uno vacío, como hace adb
+      if (data.length > 0 && data.length % this.packetSize === 0) await this.device.transferOut(this.epOut, new Uint8Array(0));
+    }
+
+    async read(n) {
+      const parts = [];
+      let got = 0;
+      while (got < n) {
+        const r = await this.device.transferIn(this.epIn, n - got);
+        if (r.status !== 'ok') throw new Error('Se cortó la conexión USB');
+        const b = new Uint8Array(r.data.buffer, r.data.byteOffset, r.data.byteLength);
+        parts.push(b); got += b.length;
+      }
+      return concat(parts);
+    }
+
+    async close() {
+      try { await this.device.releaseInterface(this.iface); } catch (e) { /* ya liberada */ }
+      await this.device.close();
+    }
+  }
+
+  const api = { AdbKey, AdbConnection, WebUsbTransport, concat };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.DebloatAdb = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+/*
+ * Las mismas reglas que TvDebloater.java y debloater/debloat.sh, para la versión web.
+ * Las listas (debloater/lists/*.txt) llegan como un objeto { "google.txt": "texto", ... }.
+ */
+(function (root) {
+  'use strict';
+
+  const HALO_PKG = 'com.carmelita.halo';
+  const HALO_HOME = HALO_PKG + '/.MainActivity';
+  const LTV_PKG = 'com.leanbitlab.ltvL';
+  const TMP_APK = '/data/local/tmp/debloattv.apk';
+  const STOCK_LAUNCHERS = [
+    'com.google.android.apps.tv.launcherx', // Google TV
+    'com.google.android.tvlauncher',        // Android TV 8+
+    'com.google.android.leanbacklauncher',  // Android TV antiguo
+    'com.mitv.tvhome',                      // Xiaomi PatchWall
+  ];
+  // Asistente de Google TV: responde a HOME pero NUNCA se desactiva (borra la red WiFi guardada)
+  const SETUPWRAITH = 'com.google.android.tungsten.setupwraith';
+  const NOT_LAUNCHERS = ['android', 'com.android.settings', 'com.android.tv.settings', SETUPWRAITH, HALO_PKG, LTV_PKG];
+  const HALO_HOME_SERVICE = HALO_PKG + '/' + HALO_PKG + '.HomeButtonService';
+  const TV_BACKUP = '/sdcard/DebloatTV/backup.txt';
+  const COMPONENT = /^\s*([A-Za-z0-9_.]+)\/[A-Za-z0-9_.$]+\s*$/;
+  const HOME_QUERY = '-a android.intent.action.MAIN -c android.intent.category.HOME';
+
+  const PROTECTED = new Set([
+    'android', 'com.android.systemui', 'com.android.settings', 'com.android.tv.settings',
+    'com.android.vending', 'com.google.android.gms', 'com.google.android.gsf',
+    'com.google.android.leanback.ime', 'com.google.android.inputmethod.latin',
+    'com.google.android.tv.remote.service', 'com.google.android.tvsetup',
+    'com.android.providers.settings', 'com.android.providers.tv', 'com.android.providers.media',
+    'com.android.packageinstaller', 'com.google.android.packageinstaller',
+    'com.android.shell', 'com.android.bluetooth', 'com.android.wifi.resources',
+    'com.android.webview', 'com.google.android.webview', 'com.android.permissioncontroller',
+    'com.google.android.permissioncontroller', SETUPWRAITH,
+    // TCL: imprescindibles para TV, entradas HDMI, mando y menús (ver lists/tcl.txt)
+    'com.tcl.tv', 'com.tcl.tvinput', 'com.tcl.suspension', 'com.tcl.dashboard', 'com.tcl.autopair',
+    'com.tcl.systemserver', 'com.tcl.providers.config', 'com.tcl.globalkeyoverlay', 'com.tcl.initsetup',
+    HALO_PKG, LTV_PKG,
+  ]);
+
+  const LEVELS = ['seguro', 'recomendado', 'agresivo'];
+  const levelRank = (level) => LEVELS.indexOf(level) + 1;
+
+  const VENDORS = [
+    { name: 'Google / Android TV', file: null, match: [] },
+    { name: 'TCL', file: 'tcl.txt', match: ['tcl'] },
+    { name: 'Sony', file: 'sony.txt', match: ['sony'] },
+    { name: 'Xiaomi', file: 'xiaomi.txt', match: ['xiaomi'] },
+    { name: 'Hisense', file: 'hisense.txt', match: ['hisense'] },
+    { name: 'Philips', file: 'philips.txt', match: ['philips', 'tpvision', 'tp vision'] },
+  ];
+
+  function vendorList(manufacturer) {
+    for (const v of VENDORS) if (v.match.some((m) => manufacturer.includes(m))) return v.file;
+    return null;
+  }
+
+  function lines(text) {
+    return (text || '').split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'));
+  }
+
+  /** Perfiles de lists/operadores.txt: [{ name, file }]. */
+  function operators(lists) {
+    return lines(lists['operadores.txt']).map((l) => l.split(/\s*\|\s*/)).filter((f) => f.length >= 2)
+      .map((f) => ({ name: f[0], file: f[1] }));
+  }
+
+  /** Equipo de lists/dispositivos.txt que coincide con las propiedades o con una app de sistema. */
+  function detectDevice(lists, identity, systemPackages) {
+    const id = identity.toLowerCase();
+    for (const line of lines(lists['dispositivos.txt'])) {
+      const f = line.split(/\s*\|\s*/);
+      if (f.length < 3) continue;
+      const match = f[0].startsWith('sistema:')
+        ? systemPackages.has(f[0].slice('sistema:'.length))
+        : f[0].split(',').some((n) => n.trim() && id.includes(n.trim().toLowerCase()));
+      if (match) return { operator: f[1], name: f[2], note: f.slice(3).join(' | ') };
+    }
+    return null;
+  }
+
+  /** Líneas «nivel paquete descripción» de Google + marca + operador, y las «proteger». */
+  function listEntries(lists, vendorFile, operator) {
+    const files = ['google.txt'];
+    if (vendorFile) files.push(vendorFile);
+    if (operator) for (const o of operators(lists)) if (o.name.toLowerCase() === operator.toLowerCase()) files.push(o.file);
+    const entries = [], protect = [];
+    for (const file of files) {
+      for (const line of lines(lists[file])) {
+        const m = line.match(/^(\S+)\s+(\S+)\s*(.*)$/);
+        if (!m) continue;
+        if (m[1] === 'proteger') protect.push(m[2]);
+        else if (levelRank(m[1])) entries.push({ level: m[1], pkg: m[2], description: m[3] || m[2], source: file });
+      }
+    }
+    return { entries, protect };
+  }
+
+  function makeProtected(extra) {
+    return (pkg) => PROTECTED.has(pkg)
+      || extra.some((p) => (p.endsWith('*') ? pkg.startsWith(p.slice(0, -1)) : p === pkg));
+  }
+
+  // ---- Con la TV conectada ---------------------------------------------------------------
+
+  class TvDebloater {
+    /** store: {get(k), set(k, v)} para la copia local del registro (puede fallar o ser null). */
+    constructor(adb, lists, log, store) {
+      this.adb = adb;
+      this.lists = lists;
+      this.log = log || (() => {});
+      this.store = store;
+    }
+
+    async init() {
+      const sh = (c) => this.adb.shell(c);
+      this.manufacturer = (await sh('getprop ro.product.manufacturer')).toLowerCase();
+      this.model = await sh('getprop ro.product.model');
+      const identity = [this.manufacturer, this.model, await sh('getprop ro.product.device'), await sh('getprop ro.product.name')].join(' ');
+      this.system = await this.packages('pm list packages -s');
+      this.device = detectDevice(this.lists, identity, this.system);
+      const serial = await sh('getprop ro.serialno');
+      this.backupKey = 'backup-' + (serial || this.model).replace(/[^A-Za-z0-9]+/g, '-');
+      this.operator = this.device ? this.device.operator : null;
+      this.android = await sh('getprop ro.build.version.release');
+      await this.refreshInstalled();
+      this.hasBackup = (await this.backupEntries()).length > 0;
+      return this;
+    }
+
+    get vendorFile() {
+      return vendorList(this.manufacturer);
+    }
+
+    async refreshInstalled() {
+      this.installed = await this.packages('pm list packages');
+      this.enabled = await this.packages('pm list packages -e');
+    }
+
+    async packages(command) {
+      const out = new Set();
+      for (const line of (await this.adb.shell(command)).split('\n')) {
+        if (line.startsWith('package:')) out.add(line.slice(8).trim());
+      }
+      return out;
+    }
+
+    /** Lo que se puede quitar en esta TV: activo, en las listas, sin proteger y que no sea el inicio. */
+    async candidates() {
+      const homes = new Set(await this.stockLaunchers());
+      const { entries, protect } = listEntries(this.lists, this.vendorFile, this.operator);
+      this.isProtected = makeProtected(protect);
+      const available = [...this.enabled].filter((p) => !homes.has(p)).sort();
+      const out = [], seen = new Set();
+      for (const e of entries) {
+        const pkgs = e.pkg.endsWith('*')
+          ? available.filter((p) => p.startsWith(e.pkg.slice(0, -1)))
+          : available.includes(e.pkg) ? [e.pkg] : [];
+        for (const pkg of pkgs) {
+          if (this.isProtected(pkg) || seen.has(pkg)) continue;
+          seen.add(pkg);
+          out.push({ level: e.level, pkg, description: e.description });
+        }
+      }
+      return out;
+    }
+
+    /** pm uninstall --user 0 es lo más limpio; si el sistema no lo permite, se desactiva. */
+    async remove(pkgs) {
+      const isProtected = this.isProtected || makeProtected([]);
+      for (const pkg of pkgs) {
+        if (isProtected(pkg)) continue;
+        if ((await this.adb.shell('pm uninstall -k --user 0 ' + pkg)).includes('Success')) {
+          await this.record('uninstall', pkg);
+          this.log('✔ ' + pkg);
+        } else if ((await this.adb.shell('pm disable-user --user 0 ' + pkg)).includes('disabled')) {
+          await this.record('disable', pkg);
+          this.log('✔ ' + pkg + ' (desactivado)');
+        } else {
+          this.log('! no se pudo quitar ' + pkg);
+        }
+      }
+      await this.refreshInstalled();
+    }
+
+    /** Launchers conocidos más cualquier app de sistema que responda a HOME. */
+    async stockLaunchers() {
+      const out = [...STOCK_LAUNCHERS];
+      const system = await this.packages('pm list packages -s');
+      for (const line of (await this.adb.shell('cmd package query-activities --brief ' + HOME_QUERY)).split('\n')) {
+        const m = line.match(COMPONENT);
+        if (m && system.has(m[1]) && !NOT_LAUNCHERS.includes(m[1]) && !out.includes(m[1])) out.push(m[1]);
+      }
+      return out;
+    }
+
+    /** Instala un APK (Uint8Array) con «pm install». */
+    async installApk(apk, label) {
+      this.log('Copiando ' + label + ' a la TV (' + (apk.length / 1048576).toFixed(1) + ' MB)…');
+      await this.adb.push(apk, TMP_APK, 0o100644);
+      const result = await this.adb.shell('pm install -r ' + TMP_APK);
+      await this.adb.shell('rm -f ' + TMP_APK);
+      if (!result.includes('Success')) throw new Error('No se pudo instalar ' + label + ': ' + result);
+      this.log('✔ ' + label + ' instalado');
+      await this.refreshInstalled();
+    }
+
+    async abiFlavor() {
+      const abi = await this.adb.shell('getprop ro.product.cpu.abi');
+      return abi.startsWith('arm64') ? 'arm64-v8a' : abi.startsWith('armeabi') ? 'armeabi-v7a' : 'universal';
+    }
+
+    /**
+     * Deja pkg como pantalla de inicio desactivando los launchers de stock. Si la TV no lo acepta
+     * (TCL con Google TV), se deshace todo y, para Halo, se activa su servicio de accesibilidad.
+     */
+    async setHome(pkg, label, pressHome) {
+      const component = await this.homeComponentOf(pkg);
+      if (!component) throw new Error(label + ' no declara una pantalla de inicio');
+      await this.adb.shell('cmd package set-home-activity ' + component);
+      const changed = [];
+      for (const stock of await this.stockLaunchers()) {
+        if (!this.installed.has(stock)) continue;
+        const out = await this.adb.shell('pm disable-user --user 0 ' + stock);
+        if (out.includes('disabled')) {
+          changed.push(['home', stock]);
+          this.log('✔ desactivado ' + stock);
+          continue;
+        }
+        const out2 = await this.adb.shell('pm uninstall -k --user 0 ' + stock);
+        if (out2.includes('Success')) {
+          changed.push(['home-uninstall', stock]);
+          this.log('✔ quitado ' + stock);
+        } else {
+          this.log('! no se pudo desactivar ' + stock + ': ' + out.split('\n')[0] + ' / ' + out2.split('\n')[0]);
+        }
+      }
+      await this.adb.shell('cmd package set-home-activity ' + component);
+      await this.refreshInstalled();
+
+      const home = await this.currentHome();
+      let ok = home.startsWith(pkg + '/');
+      if (!home) {
+        for (const [op, p] of changed) await this.record(op, p);
+        this.log('? No se pudo comprobar qué abre Inicio: pulsa Inicio en el mando para verlo.');
+        ok = true;
+      } else if (ok) {
+        for (const [op, p] of changed) await this.record(op, p);
+        this.log('✔ El botón Inicio abre ' + label + '.');
+      } else {
+        this.log('! Esta TV no deja cambiar la app de inicio (Inicio abre: ' + home + ').');
+        for (const [op, p] of changed) await this.undo(op, p);
+        await this.refreshInstalled();
+        if (pkg === HALO_PKG) {
+          await this.enableHaloHomeService();
+          this.log('✔ Activado «Botón Inicio → Halo»: al pulsar Inicio se abrirá Halo.');
+        } else {
+          this.log('  Activa en Ajustes → Accesibilidad el servicio de inicio de ' + label + '.');
+        }
+      }
+      if (pressHome) await this.adb.shell('am start ' + HOME_QUERY);
+      return ok;
+    }
+
+    async undo(op, pkg) {
+      const out = op.endsWith('uninstall')
+        ? await this.adb.shell('cmd package install-existing ' + pkg)
+        : await this.adb.shell('pm enable ' + pkg);
+      this.log((out.includes('installed') || out.includes('enabled') ? '↺ recuperado ' : '! no se pudo recuperar ') + pkg);
+    }
+
+    async enableHaloHomeService() {
+      let current = await this.adb.shell('settings get secure enabled_accessibility_services');
+      if (current === 'null') current = '';
+      if (!current.includes(HALO_HOME_SERVICE)) {
+        await this.adb.shell('settings put secure enabled_accessibility_services '
+          + (current ? current + ':' + HALO_HOME_SERVICE : HALO_HOME_SERVICE));
+      }
+      await this.adb.shell('settings put secure accessibility_enabled 1');
+      await this.record('a11y', HALO_HOME_SERVICE);
+    }
+
+    async disableHaloHomeService() {
+      const current = await this.adb.shell('settings get secure enabled_accessibility_services');
+      if (!current.includes(HALO_HOME_SERVICE)) return;
+      const keep = current.split(':').filter((s) => s && s !== HALO_HOME_SERVICE);
+      await this.adb.shell(keep.length ? 'settings put secure enabled_accessibility_services ' + keep.join(':')
+        : 'settings delete secure enabled_accessibility_services');
+      this.log('✔ desactivado «Botón Inicio → Halo»');
+    }
+
+    async homeComponentOf(pkg) {
+      for (const line of (await this.adb.shell('cmd package query-activities --brief ' + HOME_QUERY)).split('\n')) {
+        const m = line.match(COMPONENT);
+        if (m && m[1] === pkg) return line.trim();
+      }
+      return pkg === HALO_PKG ? HALO_HOME : null; // Android antiguo sin query-activities
+    }
+
+    async currentHome() {
+      let last = '';
+      for (const line of (await this.adb.shell('cmd package resolve-activity --brief ' + HOME_QUERY)).split('\n')) {
+        if (COMPONENT.test(line)) last = line.trim();
+      }
+      return last;
+    }
+
+    async restoreStockLauncher() {
+      await this.disableHaloHomeService();
+      const launchers = new Set([...STOCK_LAUNCHERS, SETUPWRAITH]);
+      for (const [op, pkg] of await this.backupEntries()) {
+        if (op === 'home') launchers.add(pkg);
+        if (op === 'home-uninstall') await this.reinstall(pkg);
+      }
+      await this.refreshInstalled();
+      for (const pkg of launchers) {
+        if (!this.installed.has(pkg) || this.enabled.has(pkg)) continue;
+        this.log((await this.adb.shell('pm enable ' + pkg)).includes('enabled') ? '✔ activado ' + pkg : '! no se pudo activar ' + pkg);
+      }
+      await this.refreshInstalled();
+      await this.adb.shell('am start ' + HOME_QUERY);
+      this.log('Launcher original reactivado.');
+    }
+
+    async reinstall(pkg) {
+      let out = await this.adb.shell('cmd package install-existing ' + pkg);
+      if (!out.includes('installed')) out = await this.adb.shell('pm install-existing ' + pkg);
+      this.log(out.includes('installed') ? '✔ reinstalado ' + pkg : '! ' + pkg + ': ' + out);
+    }
+
+    /** Reinstala o reactiva todo lo que se quitó en esta TV (desde la web, la app o los scripts). */
+    async restoreAll() {
+      const entries = await this.backupEntries();
+      if (!entries.length) {
+        this.log('No hay nada que restaurar en esta TV.');
+        return;
+      }
+      for (const [op, pkg] of entries) {
+        if (op === 'uninstall' || op === 'home-uninstall') await this.reinstall(pkg);
+        else if (op === 'disable' || op === 'home') {
+          this.log((await this.adb.shell('pm enable ' + pkg)).includes('enabled') ? '✔ activado ' + pkg : '! no se pudo activar ' + pkg);
+        } else if (op === 'a11y') await this.disableHaloHomeService();
+      }
+      this.storeSet(this.backupKey, '');
+      await this.adb.shell('mv ' + TV_BACKUP + ' ' + TV_BACKUP + '.restaurado');
+      this.hasBackup = false;
+      await this.refreshInstalled();
+      this.log('Restauración terminada.');
+    }
+
+    /** Registro de esta TV: la copia del navegador más la guardada en la propia TV, sin repetir. */
+    async backupEntries() {
+      const text = (this.storeGet(this.backupKey) || '') + '\n' + await this.adb.shell('cat ' + TV_BACKUP + ' 2>/dev/null');
+      const out = [], seen = new Set();
+      for (const l of text.split('\n')) {
+        const parts = l.trim().split(/\s+/);
+        if (parts.length === 2 && !parts[0].startsWith('#') && !seen.has(parts.join(' '))) {
+          seen.add(parts.join(' '));
+          out.push(parts);
+        }
+      }
+      return out;
+    }
+
+    async record(op, pkg) {
+      this.storeSet(this.backupKey, (this.storeGet(this.backupKey) || '') + op + ' ' + pkg + '\n');
+      await this.adb.shell("mkdir -p /sdcard/DebloatTV && echo '" + op + ' ' + pkg + "' >> " + TV_BACKUP);
+      this.hasBackup = true;
+    }
+
+    storeGet(k) {
+      try { return this.store ? this.store.get(k) : null; } catch (e) { return null; }
+    }
+
+    storeSet(k, v) {
+      try { if (this.store) this.store.set(k, v); } catch (e) { /* solo queda la copia de la TV */ }
+    }
+  }
+
+  // ---- Sin cable: generador de comandos ---------------------------------------------------
+
+  /** Entradas de las listas para una marca/operador y nivel (sin TV no se pueden expandir los «*»). */
+  function plannedEntries(lists, vendorFile, operator, level) {
+    const { entries, protect } = listEntries(lists, vendorFile, operator);
+    const isProtected = makeProtected(protect);
+    const seen = new Set();
+    return entries.filter((e) => levelRank(e.level) <= levelRank(level) && !isProtected(e.pkg)
+      && !seen.has(e.pkg) && seen.add(e.pkg));
+  }
+
+  function shQuote(s) {
+    return "'" + s.replace(/'/g, "'\\''") + "'";
+  }
+
+  /**
+   * Script para pegar en «adb shell». Hace lo mismo que la app: nunca quita la app de inicio ni
+   * nada protegido, desinstala para el usuario 0 (o desactiva) y anota todo en la TV para poder
+   * restaurarlo luego desde la app, los scripts o esta web.
+   */
+  function removalScript(pkgs) {
+    const protectedList = [...PROTECTED].join(' ');
+    return [
+      '# DebloatTV: pégalo en «adb shell» (o guárdalo y ejecútalo con «adb shell sh archivo.sh»)',
+      'mkdir -p /sdcard/DebloatTV',
+      'HOMES=$(cmd package query-activities --brief ' + HOME_QUERY + ' 2>/dev/null | sed -n "s#^ *\\([A-Za-z0-9_.]*\\)/.*#\\1#p" | tr "\\n" " ")',
+      'HOMES="$HOMES ' + STOCK_LAUNCHERS.join(' ') + '"',
+      'PROTEGIDOS=' + shQuote(protectedList),
+      'quitar() {',
+      '  for p in $(pm list packages -e | sed "s/^package://" | grep -x "$1"); do',
+      '    case " $HOMES $PROTEGIDOS " in *" $p "*) echo "= $p (se deja)"; continue;; esac',
+      '    if pm uninstall -k --user 0 "$p" | grep -q Success; then echo "uninstall $p" >> ' + TV_BACKUP + '; echo "✔ $p"',
+      '    elif pm disable-user --user 0 "$p" | grep -q disabled; then echo "disable $p" >> ' + TV_BACKUP + '; echo "✔ $p (desactivado)"',
+      '    else echo "! no se pudo quitar $p"; fi',
+      '  done',
+      '}',
+      ...pkgs.map((p) => 'quitar ' + shQuote(p.endsWith('*') ? p.slice(0, -1).replace(/\./g, '\\.') + '.*' : p.replace(/\./g, '\\.'))),
+      'echo "Listo. Para deshacerlo, usa «Restaurar todo» en la app o en la web."',
+    ].join('\n');
+  }
+
+  /** Script para «adb shell» que deshace lo anotado en /sdcard/DebloatTV/backup.txt. */
+  function restoreScript() {
+    return [
+      '# DebloatTV: restaurar todo lo anotado en la TV. Pégalo en «adb shell».',
+      'while read op p; do',
+      '  case "$op" in',
+      '    uninstall|home-uninstall) cmd package install-existing "$p" >/dev/null 2>&1 || pm install-existing "$p"; echo "✔ reinstalado $p";;',
+      '    disable|home) pm enable "$p" >/dev/null && echo "✔ activado $p";;',
+      '    a11y) v=$(settings get secure enabled_accessibility_services | tr : "\\n" | grep -vx -e "$p" -e null | paste -sd: -)',
+      '          if [ -n "$v" ]; then settings put secure enabled_accessibility_services "$v"; else settings delete secure enabled_accessibility_services; fi;;',
+      '  esac',
+      'done < ' + TV_BACKUP,
+      'pm enable ' + SETUPWRAITH + ' >/dev/null 2>&1',
+      'mv ' + TV_BACKUP + ' ' + TV_BACKUP + '.restaurado',
+      'am start ' + HOME_QUERY,
+    ].join('\n');
+  }
+
+  const api = {
+    TvDebloater, LEVELS, VENDORS, HALO_PKG, LTV_PKG, STOCK_LAUNCHERS, SETUPWRAITH,
+    levelRank, operators, detectDevice, vendorList, plannedEntries, removalScript, restoreScript,
+    LTV_URL: 'https://github.com/leanbitlab-org/LtvLauncher/releases/latest/download/LTvLauncher-%s-release.apk',
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  else root.Debloat = api;
+})(typeof globalThis !== 'undefined' ? globalThis : this);
+
+</script>
+<script>
+(function () {
+  'use strict';
+  const { AdbKey, AdbConnection, WebUsbTransport } = window.DebloatAdb;
+  const D = window.Debloat;
+  const LISTS = window.DEBLOAT_LISTS;
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get: (k) => localStorage.getItem('debloattv:' + k),
+    set: (k, v) => localStorage.setItem('debloattv:' + k, v),
+  };
+  const LEVEL_TEXT = {
+    seguro: 'Telemetría, demos y apps que nadie usa. Sin riesgo.',
+    recomendado: 'Además, anuncios del inicio, recomendaciones, modo ambiente, promociones y las apps del operador.',
+    agresivo: 'Además, Asistente de Google, Chromecast integrado y apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
+  };
+  const LEVEL_NAME = { seguro: 'Seguro', recomendado: 'Recomendado', agresivo: 'Agresivo' };
+
+  // ---- Utilidades de interfaz ----
+  function segmented(container, value, onChange) {
+    container.textContent = '';
+    for (const level of D.LEVELS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = LEVEL_NAME[level];
+      b.setAttribute('aria-pressed', String(level === value));
+      b.addEventListener('click', () => {
+        for (const x of container.children) x.setAttribute('aria-pressed', String(x === b));
+        onChange(level);
+      });
+      container.appendChild(b);
+    }
+  }
+
+  function appRows(container, items, selected, onToggle) {
+    container.textContent = '';
+    if (!items.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No queda nada que quitar en este nivel.';
+      container.appendChild(e);
+      return;
+    }
+    for (const it of items) {
+      const row = document.createElement('label');
+      row.className = 'app';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(it.pkg);
+      cb.addEventListener('change', () => { cb.checked ? selected.add(it.pkg) : selected.delete(it.pkg); onToggle(); });
+      const t = document.createElement('span');
+      t.className = 't';
+      const d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = it.description;
+      const c = document.createElement('code');
+      c.textContent = it.pkg;
+      t.append(d, c);
+      const l = document.createElement('span');
+      l.className = 'lvl ' + it.level;
+      l.textContent = LEVEL_NAME[it.level];
+      row.append(cb, t, l);
+      container.appendChild(row);
+    }
+  }
+
+  function fillOperators(select, autoLabel) {
+    select.textContent = '';
+    const opts = [['', 'Ninguno (TV normal)']].concat(D.operators(LISTS).map((o) => [o.name, o.name]));
+    if (autoLabel) opts[0][1] = autoLabel;
+    for (const [v, t] of opts) select.add(new Option(t, v));
+  }
+
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
+    const pre = $(b.dataset.copy);
+    const done = () => { b.textContent = 'Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1600); };
+    const select = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+    try {
+      navigator.clipboard.writeText(pre.textContent).then(done, select);
+    } catch (e) { select(); }
+  }));
+
+  // ---- Pestañas ----
+  function showMode(mode) {
+    $('usb').hidden = mode !== 'usb';
+    $('gen').hidden = mode !== 'gen';
+    $('tab-usb').setAttribute('aria-selected', String(mode === 'usb'));
+    $('tab-gen').setAttribute('aria-selected', String(mode === 'gen'));
+  }
+  $('tab-usb').addEventListener('click', () => showMode('usb'));
+  $('tab-gen').addEventListener('click', () => showMode('gen'));
+
+  // ---- Generador sin cable ----
+  const gen = { vendor: 'tcl.txt', operator: '', level: 'recomendado', selected: new Set(), items: [] };
+  for (const v of D.VENDORS) $('g-vendor').add(new Option(v.name, v.file || ''));
+  $('g-vendor').value = gen.vendor;
+  fillOperators($('g-operator'));
+  function genRefresh(resetSelection) {
+    gen.items = D.plannedEntries(LISTS, gen.vendor || null, gen.operator || null, gen.level);
+    if (resetSelection) gen.selected = new Set(gen.items.map((i) => i.pkg));
+    $('g-level-desc').textContent = LEVEL_TEXT[gen.level];
+    appRows($('g-apps'), gen.items.map((i) => ({ ...i, pkg: i.pkg, description: i.description + (i.pkg.endsWith('*') ? ' (todas las que empiezan así)' : '') })), gen.selected, genScripts);
+    genScripts();
+  }
+  function genScripts() {
+    const pkgs = gen.items.map((i) => i.pkg).filter((p) => gen.selected.has(p));
+    $('g-count').textContent = pkgs.length + ' de ' + gen.items.length;
+    $('g-script').textContent = D.removalScript(pkgs);
+    $('g-restore').textContent = D.restoreScript();
+  }
+  segmented($('g-levels'), gen.level, (l) => { gen.level = l; genRefresh(true); });
+  $('g-vendor').addEventListener('change', (e) => { gen.vendor = e.target.value; genRefresh(true); });
+  $('g-operator').addEventListener('change', (e) => { gen.operator = e.target.value; genRefresh(true); });
+  genRefresh(true);
+
+  // ---- Conexión USB ----
+  const usb = { adb: null, tv: null, items: [], selected: new Set(), level: 'recomendado', busy: false };
+  const logEl = $('log');
+  function log(line) {
+    if (logEl.dataset.fresh !== '1') { logEl.textContent = ''; logEl.dataset.fresh = '1'; }
+    logEl.textContent += line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  $('clear-log').addEventListener('click', () => { logEl.textContent = ''; });
+
+  function setStatus(kind, text) {
+    $('status').className = 'pill ' + kind;
+    $('status-text').textContent = text;
+  }
+
+  function setBusy(b) {
+    usb.busy = b;
+    for (const id of ['remove', 'set-halo', 'set-ltv', 'restore-launcher', 'restore-all', 'operator', 'disconnect']) $(id).disabled = b;
+    if (!b) updateCount();
+  }
+
+  function usbWarning(text) {
+    $('usb-warning').hidden = !text;
+    $('usb-warning').textContent = text || '';
+  }
+
+  if (!WebUsbTransport.supported()) {
+    usbWarning('Este navegador no permite conectar por USB. Abre esta página en Chrome o Edge en un computador, o usa la pestaña «Sin cable».');
+    $('connect').disabled = true;
+    showMode('gen');
+  }
+  segmented($('usb-levels'), usb.level, (l) => { usb.level = l; renderUsbApps(true); });
+  $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+
+  function renderUsbApps(resetSelection) {
+    $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+    if (!usb.tv) return;
+    const visible = usb.items.filter((i) => D.levelRank(i.level) <= D.levelRank(usb.level));
+    if (resetSelection) usb.selected = new Set(visible.map((i) => i.pkg));
+    for (const p of [...usb.selected]) if (!visible.some((i) => i.pkg === p)) usb.selected.delete(p);
+    usb.visible = visible;
+    appRows($('usb-apps'), visible, usb.selected, updateCount);
+    updateCount();
+  }
+
+  function updateCount() {
+    const n = usb.selected.size;
+    $('usb-count').textContent = usb.tv ? n + ' de ' + (usb.visible || []).length : '';
+    $('remove').textContent = n === 1 ? 'Quitar 1 app' : 'Quitar ' + n + ' apps';
+    $('remove').disabled = usb.busy || !usb.tv || n === 0;
+  }
+
+  async function loadCandidates() {
+    usb.items = await usb.tv.candidates();
+    renderUsbApps(true);
+  }
+
+  async function run(task) {
+    if (usb.busy) return;
+    setBusy(true);
+    try {
+      await task();
+    } catch (e) {
+      log('! ' + (e && e.message ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  $('connect').addEventListener('click', () => run(async () => {
+    usbWarning('');
+    let transport;
+    try {
+      transport = await WebUsbTransport.request();
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') { log('No se eligió ningún equipo.'); return; }
+      if (e && e.name === 'SecurityError') {
+        usbWarning('Esta página no tiene permiso para usar USB aquí. Ábrela directamente en Chrome o Edge (por ejemplo desde GitHub) o usa la pestaña «Sin cable».');
+        return;
+      }
+      throw e;
+    }
+    setStatus('wait', 'Esperando permiso en la TV…');
+    log('Conectando con ' + transport.name.trim() + '…');
+    const key = await AdbKey.loadOrCreate(store);
+    try {
+      usb.adb = await AdbConnection.connect(transport, key, () => log('En la TV, marca «Permitir siempre desde este computador» y pulsa Aceptar.'));
+    } catch (e) {
+      await transport.close();
+      setStatus('bad', 'Sin conectar');
+      throw e;
+    }
+    usb.tv = await new D.TvDebloater(usb.adb, LISTS, log, store).init();
+    const tv = usb.tv;
+    setStatus('ok', 'Conectada');
+    $('connect').hidden = true;
+    $('disconnect').hidden = false;
+    $('device-card').hidden = false;
+    $('launcher-card').hidden = false;
+    $('d-model').textContent = (tv.manufacturer ? tv.manufacturer.toUpperCase() + ' ' : '') + tv.model;
+    $('d-android').textContent = tv.android || '—';
+    $('d-known').textContent = tv.device ? tv.device.operator + ' · ' + tv.device.name : 'No es un decodificador conocido';
+    $('d-note').hidden = !(tv.device && tv.device.note);
+    $('d-note').textContent = tv.device ? tv.device.note : '';
+    fillOperators($('operator'));
+    $('operator').value = tv.operator || '';
+    log('✔ Conectada: ' + $('d-model').textContent + (tv.operator ? ' · perfil ' + tv.operator : ''));
+    if (tv.hasBackup) log('Hay cambios anteriores guardados en la TV: «Restaurar todo» los deshace.');
+    await loadCandidates();
+  }));
+
+  async function disconnect(reason) {
+    if (usb.adb) await usb.adb.close();
+    usb.adb = null;
+    usb.tv = null;
+    setStatus('', 'Sin conectar');
+    $('connect').hidden = false;
+    $('disconnect').hidden = true;
+    $('device-card').hidden = true;
+    $('launcher-card').hidden = true;
+    $('usb-apps').innerHTML = '<div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div>';
+    updateCount();
+    if (reason) log(reason);
+  }
+  $('disconnect').addEventListener('click', () => disconnect('Desconectada.'));
+  if (WebUsbTransport.supported()) {
+    navigator.usb.addEventListener('disconnect', (e) => {
+      if (usb.adb && usb.adb.t.device === e.device) disconnect('Se desconectó el cable.');
+    });
+  }
+
+  $('operator').addEventListener('change', (e) => run(async () => {
+    usb.tv.operator = e.target.value || null;
+    log('Perfil de operador: ' + (usb.tv.operator || 'ninguno'));
+    await loadCandidates();
+  }));
+
+  $('remove').addEventListener('click', () => run(async () => {
+    const pkgs = usb.visible.map((i) => i.pkg).filter((p) => usb.selected.has(p));
+    log('Quitando ' + pkgs.length + ' apps…');
+    await usb.tv.remove(pkgs);
+    log('Listo. «Restaurar todo» lo deshace.');
+    await loadCandidates();
+  }));
+
+  async function readFile(input) {
+    const f = input.files && input.files[0];
+    return f ? new Uint8Array(await f.arrayBuffer()) : null;
+  }
+
+  async function fetchHalo() {
+    for (const url of ['../dist/halo.apk', 'halo.apk']) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) {
+          const b = new Uint8Array(await r.arrayBuffer());
+          if (b[0] === 0x50 && b[1] === 0x4b) return b; // «PK»: es un APK
+        }
+      } catch (e) { /* sin acceso: se pide el archivo */ }
+    }
+    return null;
+  }
+
+  $('set-halo').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.HALO_PKG)) {
+      const apk = (await readFile($('halo-file'))) || (await fetchHalo());
+      if (!apk) {
+        log('Elige el archivo halo.apk (está en la carpeta dist/ del repositorio) y vuelve a pulsar «Poner Halo».');
+        $('halo-file').focus();
+        return;
+      }
+      await tv.installApk(apk, 'Halo');
+    } else {
+      log('✔ Halo ya estaba instalado');
+    }
+    await tv.setHome(D.HALO_PKG, 'Halo', true);
+    await loadCandidates();
+  }));
+
+  $('set-ltv').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.LTV_PKG)) {
+      const apk = await readFile($('ltv-file'));
+      if (!apk) {
+        const flavor = await tv.abiFlavor();
+        log('Descarga LTvLauncher-' + flavor + '-release.apk desde GitHub, elígelo y vuelve a pulsar el botón.');
+        $('ltv-link').href = D.LTV_URL.replace('%s', flavor);
+        $('ltv-file').focus();
+        return;
+      }
+      await tv.installApk(apk, 'LTvLauncher');
+    } else {
+      log('✔ LTvLauncher ya estaba instalado');
+    }
+    await tv.setHome(D.LTV_PKG, 'LTvLauncher', true);
+    await loadCandidates();
+  }));
+
+  $('restore-launcher').addEventListener('click', () => run(async () => {
+    await usb.tv.restoreStockLauncher();
+    await loadCandidates();
+  }));
+
+  let confirmTimer = null;
+  $('restore-all').addEventListener('click', () => {
+    const b = $('restore-all');
+    if (b.dataset.armed !== '1') {
+      // Confirmación en el propio botón: los diálogos del navegador no siempre se muestran
+      b.dataset.armed = '1';
+      b.textContent = '¿Seguro? Pulsa otra vez';
+      clearTimeout(confirmTimer);
+      confirmTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Restaurar todo'; }, 4000);
+      return;
+    }
+    clearTimeout(confirmTimer);
+    b.dataset.armed = '';
+    b.textContent = 'Restaurar todo';
+    run(async () => {
+      await usb.tv.restoreAll();
+      await loadCandidates();
+    });
+  });
+
+  setBusy(false);
+})();
+</script>
+</body>
+</html>

@@ -65,7 +65,18 @@ Para deshacer, en la misma app: **Restaurar todo** y **Volver al original**.
 
 > **Si "Buscar TV" no la encuentra:** tu TV no abre el puerto 5555 solo con *Depuración USB*. Prueba a activar *Depuración por red* si tu modelo la tiene. Si no, conecta la TV una vez a un PC por USB y ejecuta `adb tcpip 5555`; desde ese momento la app funciona por WiFi hasta que reinicies la TV.
 
-## Opción C: desde un PC con los scripts
+## Opción C: desde el navegador (versión web)
+
+Abre **`web/index.html`** en **Chrome o Edge** de un computador (basta con descargarlo y abrirlo; no necesita instalar nada ni conexión a internet). Tiene dos modos:
+
+- **Por cable USB:** conecta la TV o el TV box con un cable de datos (puerto USB de servicio u OTG, con *Depuración USB* activada) y pulsa **Conectar**. La página habla ADB directamente por WebUSB y hace lo mismo que la app: reconoce el equipo y el operador, propone qué quitar por niveles, pone Halo o LTvLauncher como inicio (con la misma vuelta atrás y el servicio de accesibilidad en las TCL) y restaura lo que se quitó, también lo hecho desde la app o los scripts. Si `adb` está abierto en el PC, ciérralo antes con `adb kill-server`.
+- **Sin cable:** eliges marca, operador y nivel, y la página genera el script para pegar en `adb shell` y el de restaurar. El script nunca quita la app de inicio ni nada protegido y anota los cambios en la TV para poder deshacerlos.
+
+Un navegador no puede abrir conexiones ADB por WiFi, así que sin cable USB usa la app del teléfono (opción B) o el script generado.
+
+La página se arma con `python3 web/build.py` a partir de `web/index.src.html`, `web/adb.js`, `web/debloat.js` y las listas de `debloater/lists`.
+
+## Opción D: desde un PC con los scripts
 
 ## 1. Preparar la TV
 
@@ -224,6 +235,7 @@ debloater/
 launcher/          App universal Halo (Java, sin dependencias): launcher + Limpiar TV en la TV,
                    control remoto por WiFi en el teléfono
 shared/            Cliente ADB y reglas de limpieza
+web/               Versión web (WebUSB + generador de scripts); index.html es la página lista
 dist/halo.apk      APK universal listo para instalar
 ```
 

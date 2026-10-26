@@ -1,0 +1,638 @@
+<title>DebloatTV Web</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Limpia tu Android TV o Google TV desde el navegador y pon Halo como pantalla de inicio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Una sola columna de «cristal» sobre el fondo oscuro de Halo: paso 1 conectar, paso 2 elegir, paso 3 aplicar. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0b10;
+  --bg-deep: #050507;
+  --surface: rgba(255, 255, 255, 0.055);
+  --surface-hi: rgba(255, 255, 255, 0.09);
+  --stroke: rgba(255, 255, 255, 0.11);
+  --fg: #f5f5f7;
+  --muted: rgba(235, 235, 245, 0.62);
+  --faint: rgba(235, 235, 245, 0.38);
+  --accent: #0a84ff;
+  --accent-soft: rgba(10, 132, 255, 0.16);
+  --ok: #30d158;
+  --warn: #ff9f0a;
+  --bad: #ff453a;
+  --code-bg: #0f1016;
+  --font-display: "Sora", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 18px;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--bg-deep); }
+body {
+  background: radial-gradient(1200px 600px at 50% -120px, #1d1d27 0%, transparent 70%) no-repeat, var(--bg);
+  color: var(--fg);
+  font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 64px;
+  min-height: 100%;
+}
+.wrap { max-width: 1040px; margin: 0 auto; display: grid; gap: 22px; }
+a { color: var(--accent); }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+header { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 14px; }
+.halo-mark { width: 44px; height: 44px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 50% 50%, transparent 46%, var(--fg) 48%, var(--fg) 58%, transparent 60%),
+              radial-gradient(circle at 50% 50%, var(--accent-soft), transparent 70%);
+  box-shadow: 0 0 28px rgba(10, 132, 255, 0.35); }
+h1 { font: 700 clamp(26px, 4vw, 34px)/1.1 var(--font-display); margin: 0; letter-spacing: -0.02em; }
+.tag { color: var(--muted); margin: 4px 0 0; max-width: 60ch; text-wrap: balance; }
+
+.modes { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--surface); border: 1px solid var(--stroke); }
+.modes button, .seg button {
+  border: 0; background: none; padding: 7px 16px; border-radius: 999px; cursor: pointer; color: var(--muted); font-weight: 500;
+}
+.modes button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--fg); color: #111; }
+
+.card { background: var(--surface); border: 1px solid var(--stroke); border-radius: var(--radius); padding: 20px; min-width: 0;
+  backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); }
+.card h2 { font: 600 17px/1.3 var(--font-display); margin: 0 0 4px; letter-spacing: -0.01em; }
+.card .sub { color: var(--muted); margin: 0 0 14px; font-size: 14px; }
+.eyebrow { font: 500 11px/1 var(--font-body); letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint); margin: 0 0 10px; }
+
+.grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 22px; align-items: start; }
+.stack { display: grid; gap: 16px; min-width: 0; }
+@media (max-width: 820px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+.steps { list-style: none; padding: 0; margin: 0 0 16px; display: grid; gap: 10px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; grid-template-columns: 26px 1fr; gap: 10px; color: var(--muted); }
+.steps li::before { content: counter(s); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center;
+  background: var(--surface-hi); color: var(--fg); font: 600 12px var(--font-display); }
+.steps b { color: var(--fg); font-weight: 600; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; border-radius: 12px; border: 1px solid var(--stroke);
+  background: var(--surface-hi); padding: 10px 16px; cursor: pointer; font-weight: 600; transition: transform .15s, background .15s; }
+.btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); }
+.btn:active:not(:disabled) { transform: scale(0.98); }
+.btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.btn.primary:hover:not(:disabled) { background: #2a95ff; }
+.btn.danger { color: var(--bad); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.small { padding: 6px 12px; font-size: 13px; border-radius: 10px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+.pill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 999px; background: var(--surface-hi);
+  font-size: 13px; font-weight: 500; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); }
+.pill.ok .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+.pill.wait .dot { background: var(--warn); }
+.pill.bad .dot { background: var(--bad); }
+
+.notice { border-radius: 12px; padding: 12px 14px; font-size: 14px; background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.3); color: var(--fg); }
+.notice.info { background: var(--accent-soft); border-color: rgba(10, 132, 255, 0.35); }
+
+dl.facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; margin: 0; font-size: 14px; }
+dl.facts dt { color: var(--faint); }
+dl.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+
+label.field { display: grid; gap: 6px; font-size: 13px; color: var(--muted); }
+select { background: var(--code-bg); border: 1px solid var(--stroke); border-radius: 10px; padding: 9px 12px; width: 100%; }
+.seg { display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--code-bg); border: 1px solid var(--stroke); max-width: 100%; }
+@media (max-width: 420px) { .seg button { padding: 7px 11px; font-size: 14px; } }
+.level-desc { color: var(--muted); font-size: 13px; margin: 8px 0 0; min-height: 2.6em; }
+
+.list-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.count { font: 600 13px var(--font-body); color: var(--muted); font-variant-numeric: tabular-nums; }
+.apps { display: grid; gap: 6px; max-height: 520px; overflow-y: auto; padding-right: 4px; }
+.app { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px;
+  border-radius: 12px; background: rgba(255, 255, 255, 0.03); border: 1px solid transparent; cursor: pointer; }
+.app:hover { background: rgba(255, 255, 255, 0.06); }
+.app:has(input:checked) { border-color: rgba(10, 132, 255, 0.4); background: rgba(10, 132, 255, 0.07); }
+.app input { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+.app .t { min-width: 0; }
+.app .d { display: block; font-weight: 500; }
+.app code { display: block; font: 12px/1.4 var(--font-mono); color: var(--faint); overflow-wrap: anywhere; }
+.lvl { font: 500 11px var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; }
+.lvl.seguro { color: var(--ok); background: rgba(48, 209, 88, 0.12); }
+.lvl.recomendado { color: var(--accent); background: var(--accent-soft); }
+.lvl.agresivo { color: var(--warn); background: rgba(255, 159, 10, 0.12); }
+.empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--stroke); border-radius: 12px; }
+
+.launchers { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.choice { border: 1px solid var(--stroke); border-radius: 14px; padding: 14px; display: grid; gap: 10px; background: rgba(255, 255, 255, 0.03); }
+.choice h3 { margin: 0; font: 600 15px var(--font-display); }
+.choice p { margin: 0; color: var(--muted); font-size: 13px; }
+.file { font-size: 12px; color: var(--muted); }
+.file input { font-size: 12px; max-width: 100%; }
+
+pre { margin: 0; background: var(--code-bg); border: 1px solid var(--stroke); border-radius: 12px; padding: 14px; overflow: auto;
+  font: 12.5px/1.55 var(--font-mono); color: #d6d6e0; max-height: 360px; white-space: pre; }
+.log { min-height: 120px; max-height: 260px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.code-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 8px; }
+.code-head h3 { margin: 0; font: 600 14px var(--font-display); }
+footer { color: var(--faint); font-size: 13px; text-align: center; }
+footer p { margin: 4px 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="halo-mark" aria-hidden="true"></div>
+      <div>
+        <h1>DebloatTV</h1>
+        <p class="tag">Quita la publicidad y las apps de fábrica de tu Android TV o Google TV y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
+      </div>
+    </div>
+    <div class="modes" role="tablist" aria-label="Forma de conectarse">
+      <button id="tab-usb" role="tab" aria-selected="true" aria-controls="usb">Por cable USB</button>
+      <button id="tab-gen" role="tab" aria-selected="false" aria-controls="gen">Sin cable</button>
+    </div>
+  </header>
+
+  <!-- ===== Por USB (WebUSB) ===== -->
+  <section id="usb" role="tabpanel" aria-labelledby="tab-usb">
+    <div class="grid">
+      <div class="stack">
+        <div class="card" id="connect-card">
+          <p class="eyebrow">Paso 1 · Conectar</p>
+          <h2>Conecta la TV o el TV box a este computador</h2>
+          <p class="sub">Funciona en Chrome o Edge para Windows, macOS, Linux o ChromeOS, con un cable de datos al puerto USB de servicio o OTG del equipo.</p>
+          <ol class="steps">
+            <li><span>En la TV: <b>Ajustes → Preferencias del dispositivo → Información</b>, pulsa 7 veces <b>Compilación</b>.</span></li>
+            <li><span>En <b>Opciones para desarrolladores</b>, activa <b>Depuración USB</b>.</span></li>
+            <li><span>Conecta el cable y pulsa <b>Conectar</b>. En la TV, marca «Permitir siempre» y acepta.</span></li>
+          </ol>
+          <div class="row">
+            <button class="btn primary" id="connect">Conectar</button>
+            <button class="btn" id="disconnect" hidden>Desconectar</button>
+            <span class="pill" id="status"><span class="dot"></span><span id="status-text">Sin conectar</span></span>
+          </div>
+          <p class="notice" id="usb-warning" hidden></p>
+        </div>
+
+        <div class="card" id="device-card" hidden>
+          <p class="eyebrow">Equipo</p>
+          <dl class="facts">
+            <dt>Modelo</dt><dd id="d-model"></dd>
+            <dt>Android</dt><dd id="d-android"></dd>
+            <dt>Reconocido</dt><dd id="d-known"></dd>
+          </dl>
+          <p class="notice info" id="d-note" hidden></p>
+          <label class="field" style="margin-top:14px">Perfil de operador
+            <select id="operator"></select>
+          </label>
+        </div>
+
+        <div class="card" id="launcher-card" hidden>
+          <p class="eyebrow">Paso 3 · Pantalla de inicio</p>
+          <h2>Cambia el launcher</h2>
+          <p class="sub">Si la TV no deja cambiarlo (algunas TCL), se deshace solo y Halo se abre con el botón Inicio mediante su servicio de accesibilidad.</p>
+          <div class="launchers">
+            <div class="choice">
+              <h3>Halo</h3>
+              <p>Inspirado en Apple TV, ligero y con «Limpiar TV» integrado.</p>
+              <label class="file">APK (opcional): <input type="file" id="halo-file" accept=".apk"></label>
+              <button class="btn primary small" id="set-halo">Poner Halo</button>
+            </div>
+            <div class="choice">
+              <h3>LTvLauncher</h3>
+              <p>Código abierto (GPL-3.0). <a id="ltv-link" href="https://github.com/leanbitlab-org/LtvLauncher/releases/latest" target="_blank" rel="noopener">Descarga el APK</a> y elígelo.</p>
+              <label class="file">APK: <input type="file" id="ltv-file" accept=".apk"></label>
+              <button class="btn small" id="set-ltv">Poner LTvLauncher</button>
+            </div>
+          </div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn small" id="restore-launcher">Volver al launcher original</button>
+            <button class="btn small danger" id="restore-all">Restaurar todo</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+        <div class="card" id="apps-card">
+          <p class="eyebrow">Paso 2 · Elegir qué quitar</p>
+          <div class="list-head">
+            <div class="seg" id="usb-levels" role="group" aria-label="Nivel"></div>
+            <span class="count" id="usb-count"></span>
+          </div>
+          <p class="level-desc" id="usb-level-desc"></p>
+          <div class="apps" id="usb-apps"><div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div></div>
+          <div class="row" style="margin-top:14px">
+            <button class="btn primary" id="remove" disabled>Quitar apps</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Registro</h3><button class="btn small" id="clear-log">Limpiar</button></div>
+          <pre class="log" id="log" aria-live="polite">Esperando conexión…</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Sin cable: generador ===== -->
+  <section id="gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
+    <div class="grid">
+      <div class="stack">
+        <div class="card">
+          <p class="eyebrow">Sin cable</p>
+          <h2>Comandos para tu TV</h2>
+          <p class="sub">Un navegador no puede abrir una conexión ADB por WiFi. Elige tu equipo y copia el script en «adb shell» desde un computador, o usa la app Halo del teléfono, que se conecta por WiFi sola.</p>
+          <div class="stack">
+            <label class="field">Marca de la TV
+              <select id="g-vendor"></select>
+            </label>
+            <label class="field">Operador del TV box
+              <select id="g-operator"></select>
+            </label>
+            <div>
+              <div class="seg" id="g-levels" role="group" aria-label="Nivel"></div>
+              <p class="level-desc" id="g-level-desc"></p>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <p class="eyebrow">Cómo usarlo</p>
+          <ol class="steps">
+            <li><span>Activa <b>Depuración USB</b> (o depuración inalámbrica) en la TV y anota su IP.</span></li>
+            <li><span>En el computador: <code>adb connect IP:5555</code> y luego <code>adb shell</code>.</span></li>
+            <li><span>Pega el script. Para deshacerlo, pega el de restaurar.</span></li>
+          </ol>
+          <p class="notice info">En Windows, macOS o Linux también puedes usar <code>debloat.bat</code> o <code>debloat.sh</code> del repositorio, que hacen todo esto y además cambian el launcher.</p>
+        </div>
+      </div>
+      <div class="stack">
+        <div class="card">
+          <div class="list-head">
+            <h2>Apps que se quitarán</h2>
+            <span class="count" id="g-count"></span>
+          </div>
+          <div class="apps" id="g-apps"></div>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
+          <pre id="g-script"></pre>
+        </div>
+        <div class="card">
+          <div class="code-head"><h3>Restaurar todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
+          <pre id="g-restore"></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Nunca se toca el asistente de configuración de Google TV (guarda la red WiFi) ni las apps del sistema necesarias.</p>
+    <p><a href="https://github.com/CarmelitaSoftworks/Debloattv" target="_blank" rel="noopener">DebloatTV en GitHub</a></p>
+  </footer>
+</div>
+
+<!-- LISTS -->
+<!-- ADB -->
+<!-- DEBLOAT -->
+<script>
+(function () {
+  'use strict';
+  const { AdbKey, AdbConnection, WebUsbTransport } = window.DebloatAdb;
+  const D = window.Debloat;
+  const LISTS = window.DEBLOAT_LISTS;
+  const $ = (id) => document.getElementById(id);
+  const store = {
+    get: (k) => localStorage.getItem('debloattv:' + k),
+    set: (k, v) => localStorage.setItem('debloattv:' + k, v),
+  };
+  const LEVEL_TEXT = {
+    seguro: 'Telemetría, demos y apps que nadie usa. Sin riesgo.',
+    recomendado: 'Además, anuncios del inicio, recomendaciones, modo ambiente, promociones y las apps del operador.',
+    agresivo: 'Además, Asistente de Google, Chromecast integrado y apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.',
+  };
+  const LEVEL_NAME = { seguro: 'Seguro', recomendado: 'Recomendado', agresivo: 'Agresivo' };
+
+  // ---- Utilidades de interfaz ----
+  function segmented(container, value, onChange) {
+    container.textContent = '';
+    for (const level of D.LEVELS) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = LEVEL_NAME[level];
+      b.setAttribute('aria-pressed', String(level === value));
+      b.addEventListener('click', () => {
+        for (const x of container.children) x.setAttribute('aria-pressed', String(x === b));
+        onChange(level);
+      });
+      container.appendChild(b);
+    }
+  }
+
+  function appRows(container, items, selected, onToggle) {
+    container.textContent = '';
+    if (!items.length) {
+      const e = document.createElement('div');
+      e.className = 'empty';
+      e.textContent = 'No queda nada que quitar en este nivel.';
+      container.appendChild(e);
+      return;
+    }
+    for (const it of items) {
+      const row = document.createElement('label');
+      row.className = 'app';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = selected.has(it.pkg);
+      cb.addEventListener('change', () => { cb.checked ? selected.add(it.pkg) : selected.delete(it.pkg); onToggle(); });
+      const t = document.createElement('span');
+      t.className = 't';
+      const d = document.createElement('span');
+      d.className = 'd';
+      d.textContent = it.description;
+      const c = document.createElement('code');
+      c.textContent = it.pkg;
+      t.append(d, c);
+      const l = document.createElement('span');
+      l.className = 'lvl ' + it.level;
+      l.textContent = LEVEL_NAME[it.level];
+      row.append(cb, t, l);
+      container.appendChild(row);
+    }
+  }
+
+  function fillOperators(select, autoLabel) {
+    select.textContent = '';
+    const opts = [['', 'Ninguno (TV normal)']].concat(D.operators(LISTS).map((o) => [o.name, o.name]));
+    if (autoLabel) opts[0][1] = autoLabel;
+    for (const [v, t] of opts) select.add(new Option(t, v));
+  }
+
+  document.querySelectorAll('[data-copy]').forEach((b) => b.addEventListener('click', () => {
+    const pre = $(b.dataset.copy);
+    const done = () => { b.textContent = 'Copiado'; setTimeout(() => { b.textContent = 'Copiar'; }, 1600); };
+    const select = () => { const r = document.createRange(); r.selectNodeContents(pre); const s = getSelection(); s.removeAllRanges(); s.addRange(r); };
+    try {
+      navigator.clipboard.writeText(pre.textContent).then(done, select);
+    } catch (e) { select(); }
+  }));
+
+  // ---- Pestañas ----
+  function showMode(mode) {
+    $('usb').hidden = mode !== 'usb';
+    $('gen').hidden = mode !== 'gen';
+    $('tab-usb').setAttribute('aria-selected', String(mode === 'usb'));
+    $('tab-gen').setAttribute('aria-selected', String(mode === 'gen'));
+  }
+  $('tab-usb').addEventListener('click', () => showMode('usb'));
+  $('tab-gen').addEventListener('click', () => showMode('gen'));
+
+  // ---- Generador sin cable ----
+  const gen = { vendor: 'tcl.txt', operator: '', level: 'recomendado', selected: new Set(), items: [] };
+  for (const v of D.VENDORS) $('g-vendor').add(new Option(v.name, v.file || ''));
+  $('g-vendor').value = gen.vendor;
+  fillOperators($('g-operator'));
+  function genRefresh(resetSelection) {
+    gen.items = D.plannedEntries(LISTS, gen.vendor || null, gen.operator || null, gen.level);
+    if (resetSelection) gen.selected = new Set(gen.items.map((i) => i.pkg));
+    $('g-level-desc').textContent = LEVEL_TEXT[gen.level];
+    appRows($('g-apps'), gen.items.map((i) => ({ ...i, pkg: i.pkg, description: i.description + (i.pkg.endsWith('*') ? ' (todas las que empiezan así)' : '') })), gen.selected, genScripts);
+    genScripts();
+  }
+  function genScripts() {
+    const pkgs = gen.items.map((i) => i.pkg).filter((p) => gen.selected.has(p));
+    $('g-count').textContent = pkgs.length + ' de ' + gen.items.length;
+    $('g-script').textContent = D.removalScript(pkgs);
+    $('g-restore').textContent = D.restoreScript();
+  }
+  segmented($('g-levels'), gen.level, (l) => { gen.level = l; genRefresh(true); });
+  $('g-vendor').addEventListener('change', (e) => { gen.vendor = e.target.value; genRefresh(true); });
+  $('g-operator').addEventListener('change', (e) => { gen.operator = e.target.value; genRefresh(true); });
+  genRefresh(true);
+
+  // ---- Conexión USB ----
+  const usb = { adb: null, tv: null, items: [], selected: new Set(), level: 'recomendado', busy: false };
+  const logEl = $('log');
+  function log(line) {
+    if (logEl.dataset.fresh !== '1') { logEl.textContent = ''; logEl.dataset.fresh = '1'; }
+    logEl.textContent += line + '\n';
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  $('clear-log').addEventListener('click', () => { logEl.textContent = ''; });
+
+  function setStatus(kind, text) {
+    $('status').className = 'pill ' + kind;
+    $('status-text').textContent = text;
+  }
+
+  function setBusy(b) {
+    usb.busy = b;
+    for (const id of ['remove', 'set-halo', 'set-ltv', 'restore-launcher', 'restore-all', 'operator', 'disconnect']) $(id).disabled = b;
+    if (!b) updateCount();
+  }
+
+  function usbWarning(text) {
+    $('usb-warning').hidden = !text;
+    $('usb-warning').textContent = text || '';
+  }
+
+  if (!WebUsbTransport.supported()) {
+    usbWarning('Este navegador no permite conectar por USB. Abre esta página en Chrome o Edge en un computador, o usa la pestaña «Sin cable».');
+    $('connect').disabled = true;
+    showMode('gen');
+  }
+  segmented($('usb-levels'), usb.level, (l) => { usb.level = l; renderUsbApps(true); });
+  $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+
+  function renderUsbApps(resetSelection) {
+    $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
+    if (!usb.tv) return;
+    const visible = usb.items.filter((i) => D.levelRank(i.level) <= D.levelRank(usb.level));
+    if (resetSelection) usb.selected = new Set(visible.map((i) => i.pkg));
+    for (const p of [...usb.selected]) if (!visible.some((i) => i.pkg === p)) usb.selected.delete(p);
+    usb.visible = visible;
+    appRows($('usb-apps'), visible, usb.selected, updateCount);
+    updateCount();
+  }
+
+  function updateCount() {
+    const n = usb.selected.size;
+    $('usb-count').textContent = usb.tv ? n + ' de ' + (usb.visible || []).length : '';
+    $('remove').textContent = n === 1 ? 'Quitar 1 app' : 'Quitar ' + n + ' apps';
+    $('remove').disabled = usb.busy || !usb.tv || n === 0;
+  }
+
+  async function loadCandidates() {
+    usb.items = await usb.tv.candidates();
+    renderUsbApps(true);
+  }
+
+  async function run(task) {
+    if (usb.busy) return;
+    setBusy(true);
+    try {
+      await task();
+    } catch (e) {
+      log('! ' + (e && e.message ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  $('connect').addEventListener('click', () => run(async () => {
+    usbWarning('');
+    let transport;
+    try {
+      transport = await WebUsbTransport.request();
+    } catch (e) {
+      if (e && e.name === 'NotFoundError') { log('No se eligió ningún equipo.'); return; }
+      if (e && e.name === 'SecurityError') {
+        usbWarning('Esta página no tiene permiso para usar USB aquí. Ábrela directamente en Chrome o Edge (por ejemplo desde GitHub) o usa la pestaña «Sin cable».');
+        return;
+      }
+      throw e;
+    }
+    setStatus('wait', 'Esperando permiso en la TV…');
+    log('Conectando con ' + transport.name.trim() + '…');
+    const key = await AdbKey.loadOrCreate(store);
+    try {
+      usb.adb = await AdbConnection.connect(transport, key, () => log('En la TV, marca «Permitir siempre desde este computador» y pulsa Aceptar.'));
+    } catch (e) {
+      await transport.close();
+      setStatus('bad', 'Sin conectar');
+      throw e;
+    }
+    usb.tv = await new D.TvDebloater(usb.adb, LISTS, log, store).init();
+    const tv = usb.tv;
+    setStatus('ok', 'Conectada');
+    $('connect').hidden = true;
+    $('disconnect').hidden = false;
+    $('device-card').hidden = false;
+    $('launcher-card').hidden = false;
+    $('d-model').textContent = (tv.manufacturer ? tv.manufacturer.toUpperCase() + ' ' : '') + tv.model;
+    $('d-android').textContent = tv.android || '—';
+    $('d-known').textContent = tv.device ? tv.device.operator + ' · ' + tv.device.name : 'No es un decodificador conocido';
+    $('d-note').hidden = !(tv.device && tv.device.note);
+    $('d-note').textContent = tv.device ? tv.device.note : '';
+    fillOperators($('operator'));
+    $('operator').value = tv.operator || '';
+    log('✔ Conectada: ' + $('d-model').textContent + (tv.operator ? ' · perfil ' + tv.operator : ''));
+    if (tv.hasBackup) log('Hay cambios anteriores guardados en la TV: «Restaurar todo» los deshace.');
+    await loadCandidates();
+  }));
+
+  async function disconnect(reason) {
+    if (usb.adb) await usb.adb.close();
+    usb.adb = null;
+    usb.tv = null;
+    setStatus('', 'Sin conectar');
+    $('connect').hidden = false;
+    $('disconnect').hidden = true;
+    $('device-card').hidden = true;
+    $('launcher-card').hidden = true;
+    $('usb-apps').innerHTML = '<div class="empty">Conecta la TV para ver las apps que se pueden quitar en ella.</div>';
+    updateCount();
+    if (reason) log(reason);
+  }
+  $('disconnect').addEventListener('click', () => disconnect('Desconectada.'));
+  if (WebUsbTransport.supported()) {
+    navigator.usb.addEventListener('disconnect', (e) => {
+      if (usb.adb && usb.adb.t.device === e.device) disconnect('Se desconectó el cable.');
+    });
+  }
+
+  $('operator').addEventListener('change', (e) => run(async () => {
+    usb.tv.operator = e.target.value || null;
+    log('Perfil de operador: ' + (usb.tv.operator || 'ninguno'));
+    await loadCandidates();
+  }));
+
+  $('remove').addEventListener('click', () => run(async () => {
+    const pkgs = usb.visible.map((i) => i.pkg).filter((p) => usb.selected.has(p));
+    log('Quitando ' + pkgs.length + ' apps…');
+    await usb.tv.remove(pkgs);
+    log('Listo. «Restaurar todo» lo deshace.');
+    await loadCandidates();
+  }));
+
+  async function readFile(input) {
+    const f = input.files && input.files[0];
+    return f ? new Uint8Array(await f.arrayBuffer()) : null;
+  }
+
+  async function fetchHalo() {
+    for (const url of ['../dist/halo.apk', 'halo.apk']) {
+      try {
+        const r = await fetch(url);
+        if (r.ok) {
+          const b = new Uint8Array(await r.arrayBuffer());
+          if (b[0] === 0x50 && b[1] === 0x4b) return b; // «PK»: es un APK
+        }
+      } catch (e) { /* sin acceso: se pide el archivo */ }
+    }
+    return null;
+  }
+
+  $('set-halo').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.HALO_PKG)) {
+      const apk = (await readFile($('halo-file'))) || (await fetchHalo());
+      if (!apk) {
+        log('Elige el archivo halo.apk (está en la carpeta dist/ del repositorio) y vuelve a pulsar «Poner Halo».');
+        $('halo-file').focus();
+        return;
+      }
+      await tv.installApk(apk, 'Halo');
+    } else {
+      log('✔ Halo ya estaba instalado');
+    }
+    await tv.setHome(D.HALO_PKG, 'Halo', true);
+    await loadCandidates();
+  }));
+
+  $('set-ltv').addEventListener('click', () => run(async () => {
+    const tv = usb.tv;
+    if (!tv.installed.has(D.LTV_PKG)) {
+      const apk = await readFile($('ltv-file'));
+      if (!apk) {
+        const flavor = await tv.abiFlavor();
+        log('Descarga LTvLauncher-' + flavor + '-release.apk desde GitHub, elígelo y vuelve a pulsar el botón.');
+        $('ltv-link').href = D.LTV_URL.replace('%s', flavor);
+        $('ltv-file').focus();
+        return;
+      }
+      await tv.installApk(apk, 'LTvLauncher');
+    } else {
+      log('✔ LTvLauncher ya estaba instalado');
+    }
+    await tv.setHome(D.LTV_PKG, 'LTvLauncher', true);
+    await loadCandidates();
+  }));
+
+  $('restore-launcher').addEventListener('click', () => run(async () => {
+    await usb.tv.restoreStockLauncher();
+    await loadCandidates();
+  }));
+
+  let confirmTimer = null;
+  $('restore-all').addEventListener('click', () => {
+    const b = $('restore-all');
+    if (b.dataset.armed !== '1') {
+      // Confirmación en el propio botón: los diálogos del navegador no siempre se muestran
+      b.dataset.armed = '1';
+      b.textContent = '¿Seguro? Pulsa otra vez';
+      clearTimeout(confirmTimer);
+      confirmTimer = setTimeout(() => { b.dataset.armed = ''; b.textContent = 'Restaurar todo'; }, 4000);
+      return;
+    }
+    clearTimeout(confirmTimer);
+    b.dataset.armed = '';
+    b.textContent = 'Restaurar todo';
+    run(async () => {
+      await usb.tv.restoreAll();
+      await loadCandidates();
+    });
+  });
+
+  setBusy(false);
+})();
+</script>
