@@ -1,5 +1,5 @@
 # Decodificadores y TV box conocidos. Las herramientas los reconocen y muestran su nombre y avisos.
-# Formato: patrón | operador | equipo | aviso | lista extra (opcional, en lists/)
+# Formato: patrón | operador | equipo | aviso | lista del operador (en lists/)
 #   patrón: nombres separados por comas; basta con que uno aparezca (sin distinguir mayúsculas)
 #           en "fabricante modelo dispositivo nombre" (getprop ro.product.*), o
 #           "sistema:paquete" para reconocerlo por una app preinstalada de sistema.
@@ -7,15 +7,14 @@
 # Si tu equipo no aparece, ejecuta el script con --scan y abre un issue con el resultado.
 
 # --- Chile ---
-SEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | El inicio de VTR (TV Smart, de TiVo) es el que muestra la TV en vivo: si lo cambias por Halo, abre la app de VTR desde Halo para ver los canales.
-SEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | El inicio de VTR (TV Smart, de TiVo) es el que muestra la TV en vivo: si lo cambias por Halo, abre la app de VTR desde Halo para ver los canales.
-B866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | No uses programas para «liberar» o cambiar el firmware: Claro bloquea la vuelta atrás de versión y el equipo puede quedar inservible.
-DIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | El inicio de Entel muestra la TV en vivo; la app de Entel TV está protegida y no se quita.
-DIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | La app de Entel TV está protegida y no se quita.
-VSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | La app de Entel TV está protegida. No quites los servicios de audio ni del micrófono: el Audio Box los usa para sus parlantes y el control por voz.
+SEI500L,IPA1114HDW | VTR | d-BOX Smart (SEI Robotics, Amlogic S905X2, Android TV 9→10, 2020) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher». | vtr.txt
+SEI700L | VTR | TV Stick (SEI Robotics, Amlogic S905Y4, Android TV 11, 2023) | Se quitan las apps de VTR y TiVo para dejarlo como Android TV stock (dejarás de ver los canales de VTR en él). Cambia el inicio con «Elegir launcher». | vtr.txt
+B866V2 | Claro | Claro TV+ (ZTE B866V2, Amlogic S905X2, Android TV 10→12) | Se quitan las apps de Claro para dejarlo como Android TV stock. No cambies el firmware: Claro bloquea la vuelta atrás y el equipo puede quedar inservible. | claro.txt
+DIW585 | Entel | Deco Entel TV 4K (Amlogic S905X, Android TV 9→10, 2020) | Se quitan las apps de Entel para dejarlo como Android TV stock. Cambia el inicio de Entel con «Elegir launcher». | entel.txt
+DIW586,DV8957 | Entel | Deco Entel TV V2 (SDMC, Amlogic S905X4, Android TV 11→12, 2022) | Se quitan las apps de Entel para dejarlo como Android TV stock. | entel.txt
+VSB3930,m393vsb | Entel | Audio Box (Sagemcom, Broadcom BCM72180, Android TV 11, Dolby Atmos) | Se quitan las apps de Entel. Los servicios de audio y micrófono del equipo no se tocan: los usan sus parlantes y el control por voz. | entel.txt
 SEI500W | WOM | WOM TV Box (SEI Robotics, Android TV 9) | WOM cerró su servicio de TV en 2023 (pasó a Zapping). El equipo sigue sirviendo como Android TV: se propone quitar la app de WOM TV, que ya no funciona. | wom.txt
-sistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | La app MundoGo TV está protegida: sin ella no hay canales.
+sistema:cl.mundogo.atv | Mundo | Mundo GO! (Android TV) | Se quita la app MundoGo TV para dejarlo como Android TV stock (dejarás de ver los canales de Mundo en él). | mundo.txt
 
 # Movistar Chile: sus decodificadores IPTV (Technicolor DSI810, Kaon NA1180/NA1710, Arris VIP,
-# Skyworth HP4500-CL) no usan Android TV, así que ADB no puede conectarse a ellos. Su app sí está
-# protegida en cualquier TV o TV box Android (ver operadores-chile.txt).
+# Skyworth HP4500-CL) no usan Android TV, así que ADB no puede conectarse a ellos.

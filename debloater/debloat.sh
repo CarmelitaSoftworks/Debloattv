@@ -270,16 +270,21 @@ do_debloat() {
   # La app que hace de inicio nunca se quita: la TV se quedaría sin pantalla de inicio
   homes="$(home_launchers; home_components | cut -d/ -f1)"
 
-  local targets=() descs=() f lvl pkg desc
+  local targets=() descs=() f lvl entry pkg desc
   for f in "${files[@]}"; do
     [[ -f "$f" ]] || die "no existe la lista $f"
-    while read -r lvl pkg desc; do
+    while read -r lvl entry desc; do
       [[ -z "$lvl" || "$lvl" == \#* ]] && continue
       [[ "$(level_rank "$lvl")" -ge 1 && "$(level_rank "$lvl")" -le "$MAX_RANK" ]] || continue
-      is_enabled "$pkg" || continue
-      in_list "$pkg" "${targets[@]+"${targets[@]}"}" && continue
-      if is_protected "$pkg" || grep -qxF "$pkg" <<<"$homes"; then warn "se ignora $pkg (protegido)"; continue; fi
-      targets+=("$pkg"); descs+=("$lvl: $desc")
+      # Un "*" final abarca todos los paquetes activos que empiezan así
+      while read -r pkg; do
+        [[ -z "$pkg" ]] && continue
+        in_list "$pkg" "${targets[@]+"${targets[@]}"}" && continue
+        if is_protected "$pkg"; then warn "se ignora $pkg (protegido)"; continue; fi
+        if grep -qxF "$pkg" <<<"$homes"; then warn "$pkg es la pantalla de inicio: cámbiala con --launcher"; continue; fi
+        targets+=("$pkg"); descs+=("$lvl: $desc")
+      done < <(if [[ "$entry" == *'*' ]]; then grep -F "${entry%\*}" <<<"$ENABLED" | grep "^${entry%\*}" || true
+               else is_enabled "$entry" && echo "$entry"; fi)
     done <"$f"
   done
 

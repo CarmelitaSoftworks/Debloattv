@@ -6,7 +6,7 @@ plugins {
 // así no hay que mantener copias: se usan los mismos archivos que los scripts.
 def generatedAssets = layout.buildDirectory.dir('generated/debloatAssets').get().asFile
 
-tasks.register('copyDebloatAssets', Copy) {
+tasks.register('copyDebloatAssets', Sync) {
     from(rootProject.file('../debloater/lists')) { into 'lists' }
     from(rootProject.file('../dist/halo-launcher.apk'))
     into generatedAssets
@@ -21,8 +21,8 @@ android {
         applicationId 'com.carmelita.debloattv'
         minSdk 23
         targetSdk 34
-        versionCode 3
-        versionName '1.2.0'
+        versionCode 4
+        versionName '1.3.0'
     }
 
     sourceSets {

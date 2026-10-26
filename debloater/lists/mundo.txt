@@ -1,0 +1,3 @@
+# Mundo GO!. Solo se usa cuando se reconoce el equipo.
+# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Mundo en él.
+recomendado  cl.mundogo.*   App MundoGo TV

@@ -1,0 +1,4 @@
+# Claro TV+ (ZTE B866V2). Solo se usa cuando se reconoce el equipo.
+# Quitarlas deja el equipo como un Android TV normal: dejarás de ver los canales de Claro en él.
+recomendado  com.claro.*        Apps de Claro (Claro TV+)
+recomendado  com.clarovideo.*   Claro video

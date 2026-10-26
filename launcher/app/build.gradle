@@ -5,7 +5,7 @@ plugins {
 // Listas de paquetes compartidas con los scripts y la app del teléfono
 def generatedAssets = layout.buildDirectory.dir('generated/debloatAssets').get().asFile
 
-tasks.register('copyDebloatAssets', Copy) {
+tasks.register('copyDebloatAssets', Sync) {
     from(rootProject.file('../debloater/lists')) { into 'lists' }
     into generatedAssets
 }
@@ -19,8 +19,8 @@ android {
         applicationId 'com.carmelita.halo'
         minSdk 23
         targetSdk 34
-        versionCode 6
-        versionName '1.5.0'
+        versionCode 7
+        versionName '1.6.0'
     }
 
     sourceSets {

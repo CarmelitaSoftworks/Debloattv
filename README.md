@@ -186,22 +186,23 @@ El APK release está firmado con la clave de depuración para que se pueda insta
 
 ## Decodificadores de operadores (Chile)
 
-Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`), muestran qué equipo es con un aviso específico y **protegen las apps del operador** (`lists/operadores-chile.txt`): sin ellas no hay canales, así que nunca se quitan, ni siquiera con una lista propia.
+Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/vtr.txt`, `claro.txt`, `entel.txt`, `mundo.txt`, `wom.txt`). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware. El launcher del operador se cambia con **Elegir launcher de inicio**.
+
+> Al quitar las apps del operador **dejarás de ver sus canales en ese equipo**. Es reversible: «Restaurar todo lo quitado» (o `--restore tv`) las devuelve, y un restablecimiento de fábrica también. Las listas solo se aplican en decodificadores reconocidos: en una TV normal, la app de Movistar o DGO que instalaste tú no se toca.
 
 | Operador | Equipo | Fabricante · chip · Android TV | Notas |
 |---|---|---|---|
-| VTR | d-BOX Smart (SEI500L) | SEI Robotics · S905X2 · 9→10 | El inicio de VTR (TiVo) muestra la TV en vivo |
+| VTR | d-BOX Smart (SEI500L) | SEI Robotics · S905X2 · 9→10 | Quita TiVo/TV Smart y apps de VTR |
 | VTR | TV Stick (SEI700L) | SEI Robotics · S905Y4 · 11 | Ídem |
-| Claro | Claro TV+ (B866V2) | ZTE · S905X2 · 10→12 | No «liberar» ni cambiar firmware |
-| Entel | Deco Entel TV 4K (DIW585) | S905X · 9→10 | Launcher propio de Entel |
-| Entel | Deco Entel TV V2 (DIW586) | SDMC · S905X4 · 11→12 | |
-| Entel | Audio Box (VSB3930) | Sagemcom · BCM72180 · 11 | No tocar audio ni micrófono |
-| Mundo | Mundo GO! | Android TV | Se reconoce por la app MundoGo TV |
-| WOM | WOM TV Box (SEI500W) | SEI Robotics · 9 | Servicio cerrado en 2023: se propone quitar la app WOM TV |
-| Movistar | Decos IPTV (Technicolor, Kaon, Arris, Skyworth) | — | No son Android TV: ADB no puede conectarse. Su app sí se protege en TV/TV box Android |
-| DIRECTV | DGO | — | La app DGO se protege |
+| Claro | Claro TV+ (B866V2) | ZTE · S905X2 · 10→12 | Quita apps de Claro. No cambies el firmware |
+| Entel | Deco Entel TV 4K (DIW585) | S905X · 9→10 | Quita apps de Entel |
+| Entel | Deco Entel TV V2 (DIW586) | SDMC · S905X4 · 11→12 | Quita apps de Entel |
+| Entel | Audio Box (VSB3930) | Sagemcom · BCM72180 · 11 | Quita apps de Entel; no toca audio ni micrófono |
+| Mundo | Mundo GO! | Android TV | Quita MundoGo TV |
+| WOM | WOM TV Box (SEI500W) | SEI Robotics · 9 | Quita WOM TV (servicio cerrado en 2023) |
+| Movistar | Decos IPTV (Technicolor, Kaon, Arris, Skyworth) | — | No son Android TV: ADB no puede conectarse |
 
-Para quitar apps del propio operador no hay listas públicas comprobadas, así que no se proponen. Si tienes uno de estos equipos, ejecuta `./debloat.sh -i IP --scan` y comparte el resultado para añadir su lista.
+Para apps del fabricante (SEI Robotics, ZTE, SDMC, Sagemcom) no hay listas comprobadas y quitarlas a ciegas puede romper el mando, el HDMI-CEC o las actualizaciones, así que no se tocan. Si tienes uno de estos equipos, ejecuta `./debloat.sh -i IP --scan` y comparte el resultado para afinar su lista.
 
 Fuentes: [androidtv-guide.com](https://www.androidtv-guide.com) (fichas de VTR, Claro y Entel), [Entel: Audio Box](https://ayuda.entel.cl/hc/es-419/articles/49564023770643--Qu%C3%A9-es-Audio-Box-y-c%C3%B3mo-obtenerlo-con-Entel-TV), [pisapapeles.net](https://pisapapeles.net/review-decodificador-4k-entel-con-android-tv/), [tavilatam.com](https://tavilatam.com/chile-vtr-esta-distribuyendo-un-nuevo-decodificador-stick-para-su-servicio-de-tv-paga/), [tumundo.cl](https://www.tumundo.cl/blog/mundo-telecomunicaciones-mejora-la-experiencia-de-sus-clientes-con-un-upgrade-a-su-dispositivo-mundo-go/), [Chócale: cierre de WOM TV](https://chocale.cl/2023/04/wom-cierre-servicio-wom-tv-traspaso-zapping/), [Movistar Chile: decodificador IPTV](https://ww2.movistar.cl/hogar/television/decodificador/).
 

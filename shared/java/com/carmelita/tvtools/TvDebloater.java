@@ -100,9 +100,6 @@ public final class TvDebloater {
         void line(String text);
     }
 
-    private interface Installed {
-        boolean contains(String pkg);
-    }
 
     public static final class Item {
         public final String level;
@@ -147,7 +144,7 @@ public final class TvDebloater {
         String id = (serial.isEmpty() ? model : serial).replaceAll("[^A-Za-z0-9]+", "-");
         backupFile = new File(context.getFilesDir(), "backup-" + id + ".txt");
         refreshInstalled();
-        parseLists(context, manufacturer, device, pkg -> false); // carga las líneas "proteger"
+        parseLists(context, manufacturer, device, Collections.<String>emptySet()); // carga las líneas "proteger"
         hasBackup = !backupEntries().isEmpty();
     }
 
@@ -175,7 +172,9 @@ public final class TvDebloater {
      */
     public List<Item> candidates() throws IOException {
         final Set<String> homes = new HashSet<>(stockLaunchers());
-        return parseLists(context, manufacturer, device, pkg -> enabled.contains(pkg) && !homes.contains(pkg));
+        Set<String> available = new HashSet<>(enabled);
+        available.removeAll(homes);
+        return parseLists(context, manufacturer, device, available);
     }
 
     /** Equipo reconocido y su aviso, para mostrarlo en la interfaz. */
@@ -256,24 +255,24 @@ public final class TvDebloater {
         for (android.content.pm.ResolveInfo ri : pm.queryIntentActivities(home, 0)) {
             homes.add(ri.activityInfo.packageName);
         }
-        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), detectThisDevice(context), pkg -> {
-            if (homes.contains(pkg)) return false;
-            try {
-                return pm.getApplicationInfo(pkg, 0).enabled;
-            } catch (PackageManager.NameNotFoundException e) {
-                return false;
-            }
-        });
+        Set<String> available = new HashSet<>();
+        for (android.content.pm.ApplicationInfo ai : pm.getInstalledApplications(0)) {
+            if (ai.enabled && !homes.contains(ai.packageName)) available.add(ai.packageName);
+        }
+        return parseLists(context, Build.MANUFACTURER.toLowerCase(Locale.ROOT), detectThisDevice(context), available);
     }
 
-    private static List<Item> parseLists(Context context, String manufacturer, Device device, Installed installed)
+    /**
+     * Lee las listas que tocan a esta TV y devuelve lo que se puede quitar de entre "available"
+     * (paquetes activos que no hacen de inicio). Un "*" final abarca todos los que empiezan así.
+     */
+    private static List<Item> parseLists(Context context, String manufacturer, Device device, Set<String> available)
             throws IOException {
         List<String> files = new ArrayList<>();
         files.add("google.txt");
         String vendor = vendorList(manufacturer);
         if (vendor != null) files.add(vendor);
         if (device != null && device.list != null) files.add(device.list);
-        files.add("operadores-chile.txt");
 
         List<String[]> lines = new ArrayList<>();
         Set<String> protect = new HashSet<>();
@@ -293,11 +292,22 @@ public final class TvDebloater {
 
         List<Item> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
+        List<String> sorted = new ArrayList<>(available);
+        Collections.sort(sorted);
         for (String[] parts : lines) {
             if (levelRank(parts[0]) == 0) continue;
-            String pkg = parts[1];
-            if (isProtected(pkg) || !installed.contains(pkg) || !seen.add(pkg)) continue;
-            out.add(new Item(parts[0], pkg, parts.length > 2 ? parts[2] : pkg));
+            String desc = parts.length > 2 ? parts[2] : parts[1];
+            List<String> pkgs = new ArrayList<>();
+            if (parts[1].endsWith("*")) {
+                String prefix = parts[1].substring(0, parts[1].length() - 1);
+                for (String pkg : sorted) if (pkg.startsWith(prefix)) pkgs.add(pkg);
+            } else if (available.contains(parts[1])) {
+                pkgs.add(parts[1]);
+            }
+            for (String pkg : pkgs) {
+                if (isProtected(pkg) || !seen.add(pkg)) continue;
+                out.add(new Item(parts[0], pkg, desc)); // la interfaz ya muestra el paquete debajo
+            }
         }
         return out;
     }

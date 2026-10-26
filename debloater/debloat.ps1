@@ -221,12 +221,17 @@ function Invoke-Debloat {
     if (-not (Test-Path $f)) { Die "no existe la lista $f" }
     foreach ($line in Get-Content -Encoding UTF8 $f) {
       if ($line -match '^\s*(#|$)') { continue }
-      $lvl, $pkg, $desc = ($line.Trim() -split '\s+', 3)
+      $lvl, $entry, $desc = ($line.Trim() -split '\s+', 3)
       if (-not $Ranks.ContainsKey($lvl) -or $Ranks[$lvl] -gt $max) { continue }
-      if (-not $Enabled.ContainsKey($pkg)) { continue }
-      if ($targets.Pkg -contains $pkg) { continue }
-      if ((Test-Protected $pkg) -or $homes -contains $pkg) { Warn "se ignora $pkg (protegido)"; continue }
-      $targets += [pscustomobject]@{ Pkg = $pkg; Desc = "${lvl}: $desc" }
+      # Un "*" final abarca todos los paquetes activos que empiezan así
+      $pkgs = if ($entry.EndsWith('*')) { $Enabled.Keys | Where-Object { $_.StartsWith($entry.TrimEnd('*')) } | Sort-Object }
+              elseif ($Enabled.ContainsKey($entry)) { @($entry) } else { @() }
+      foreach ($pkg in $pkgs) {
+        if ($targets.Pkg -contains $pkg) { continue }
+        if (Test-Protected $pkg) { Warn "se ignora $pkg (protegido)"; continue }
+        if ($homes -contains $pkg) { Warn "$pkg es la pantalla de inicio: cámbiala con -Launcher"; continue }
+        $targets += [pscustomobject]@{ Pkg = $pkg; Desc = "${lvl}: $desc" }
+      }
     }
   }
 
