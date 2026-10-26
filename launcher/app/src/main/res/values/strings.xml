@@ -26,14 +26,8 @@
         <string name="clean_manual">Modo manual: esta TV no permite ADB desde las apps. Sin ADB, Android no deja que ninguna app desinstale ni desactive el launcher de Google.\n\nPara usar Halo como inicio, activa «Botón Inicio → Halo». Para quitar apps, pulsa cada una de la lista y elige «Desactivar».</string>
     <string name="clean_manual_help">Para quitar el launcher de Google de verdad hace falta el modo automático: Ajustes → Sistema → Opciones para desarrolladores → activa «Depuración USB» (y «Depuración por red» si existe) y pulsa «Reintentar conexión». Si no aparece ninguna de las dos, la única vía es conectar la TV una vez a un PC por USB y usar los scripts.</string>
     <string name="clean_nothing">Nada que quitar en este nivel.</string>
-    <string name="clean_remove">Quitar apps</string>
-    <string name="clean_restore_launcher">Volver al launcher original</string>
-    <string name="clean_restore_all">Restaurar todo lo quitado</string>
     <string name="clean_retry">Reintentar conexión</string>
     <string name="clean_open_settings">Abrir ajustes de la app</string>
-    <string name="level_seguro">Seguro</string>
-    <string name="level_recomendado">Recomendado</string>
-    <string name="level_agresivo">Agresivo</string>
     <string name="home_service_on">Botón Inicio → Halo (activado)</string>
     <string name="hero_overline">APP DESTACADA</string>
     <string name="key_ok">OK</string>
@@ -46,22 +40,14 @@
     <string name="level_seguro_desc">Telemetría, demos y apps que nadie usa. Sin riesgo. Todo se puede deshacer.</string>
     <string name="level_recomendado_desc">Quita anuncios del inicio, recomendaciones, modo ambiente y promociones. Todo se puede deshacer.</string>
     <string name="level_agresivo_desc">Además, Asistente de Google, Chromecast integrado y apps de streaming preinstaladas. Dejarán de funcionar la voz y enviar contenido desde el móvil.</string>
-    <string name="clean_choose_home">Elegir launcher de inicio</string>
     <string name="clean_found">%1$d APPS ENCONTRADAS · %2$s</string>
     <string name="conn_wifi">Conectado por WiFi · %1$s</string>
     <string name="conn_local">Conectado · ADB de la propia TV</string>
     <string name="conn_none">Sin ADB · modo manual</string>
-    <string name="picker_title">¿Qué inicio quieres usar?</string>
-    <string name="picker_desc">El launcher de Google se desactiva (no se borra) y puedes volver a él cuando quieras.</string>
-    <string name="picker_halo_meta">Recomendado · ligero</string>
-    <string name="picker_halo_desc">Hecho para esta app. Estilo Apple TV, sin anuncios, sin internet, con limpieza integrada.</string>
-    <string name="picker_ltv_meta">Código abierto · GPL-3.0 · ~10 MB</string>
-    <string name="picker_ltv_desc">Launcher minimalista de la comunidad (fork de FLauncher): fondos, categorías y widgets. Se descarga de GitHub.</string>
     <plurals name="clean_remove_n">
         <item quantity="one">Quitar %1$d app</item>
         <item quantity="other">Quitar %1$d apps</item>
     </plurals>
-    <string name="ltv_name" translatable="false">LTvLauncher</string>
     <string name="device_detected">Equipo reconocido: %1$s.</string>
 
     <string name="operator_button">Operador: %1$s</string>
@@ -97,4 +83,18 @@
     <string name="phone_restore_all">Restaurar todo</string>
     <string name="phone_log_title">Registro</string>
     <string name="phone_nothing_found">Esta TV ya está limpia en este nivel.</string>
+
+    <!-- Limpiar TV con el aspecto del teléfono -->
+    <string name="clean_state_title">Estado</string>
+    <string name="clean_connected_desc">Conectado al ADB de esta TV. Elige el nivel, revisa la lista y pulsa «Quitar seleccionadas».</string>
+    <string name="clean_set_halo">Poner Halo</string>
+    <string name="clean_restore_desc">Reinstala o reactiva todo lo que se quitó en esta TV, desde aquí, el teléfono o los scripts.</string>
+    <string name="clean_halo_confirm_title">¿Poner Halo como inicio?</string>
+    <string name="clean_halo_confirm">Se desactivará el launcher de stock. Puedes volver atrás con «Volver al original».</string>
+    <string name="clean_ltv_confirm_title">¿Instalar LTvLauncher?</string>
+    <string name="clean_ltv_confirm">Se descargará la última versión de GitHub (unos 10 MB), se instalará y se desactivará el launcher de stock.</string>
+    <plurals name="removed_summary">
+        <item quantity="one">Listo: se quitó %1$d app.</item>
+        <item quantity="other">Listo: se quitaron %1$d apps.</item>
+    </plurals>
 </resources>

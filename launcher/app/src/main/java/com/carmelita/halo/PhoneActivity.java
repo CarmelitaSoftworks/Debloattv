@@ -281,7 +281,8 @@ public class PhoneActivity extends Activity {
         confirm("¿Quitar " + selected.size() + " apps?",
                 "Se pueden recuperar en cualquier momento con «Restaurar todo».",
                 () -> runTask(() -> {
-                    tv.remove(selected);
+                    int n = tv.remove(selected);
+                    appendLog(getResources().getQuantityString(R.plurals.removed_summary, n, n));
                     candidates = tv.candidates();
                 }));
     }

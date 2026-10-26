@@ -2,7 +2,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="description" content="Limpia tu Android TV o Google TV desde el navegador y pon Halo como pantalla de inicio.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=Figtree:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@400;500&display=swap">
 <style>
 /* Una sola columna de «cristal» sobre el fondo oscuro de Halo: paso 1 conectar, paso 2 elegir, paso 3 aplicar. */
 :root {
@@ -137,6 +137,63 @@ pre { margin: 0; background: var(--code-bg); border: 1px solid var(--stroke); bo
 footer { color: var(--faint); font-size: 13px; text-align: center; }
 footer p { margin: 4px 0; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* ===== Mismo aspecto que la app del teléfono (Halo): una columna de tarjetas ===== */
+:root {
+  --bg: #0b0b0f; --bg-deep: #0b0b0f; --surface: #1c1c22; --surface-hi: #2c2c34; --stroke: transparent;
+  --fg: #f5f5f7; --muted: rgba(235, 235, 245, 0.6); --faint: rgba(235, 235, 245, 0.4);
+  --accent: #0a84ff; --code-bg: #2c2c34; --radius: 18px;
+  --font-display: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Roboto", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "Roboto Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+body { background: var(--bg); }
+.wrap { max-width: 640px; gap: 16px; }
+header { flex-direction: column; align-items: stretch; gap: 14px; }
+.halo-mark { display: none; }
+h1 { font: 500 32px/1.15 var(--font-display); letter-spacing: 0; }
+.tag { font-size: 15px; }
+.modes { align-self: flex-start; background: var(--surface); }
+.grid, .stack { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+.grid > *, .stack > * { width: 100%; min-width: 0; }
+.wrap > *, section { min-width: 0; }
+.seg { row-gap: 2px; align-items: center; }
+.list-head { align-items: center; }
+pre { max-width: 100%; }
+.stack { display: contents; }
+.card { background: var(--surface); border: 0; border-radius: 18px; padding: 20px; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.card h2, .code-head h3, .list-head h2 { font: 500 20px/1.3 var(--font-display); letter-spacing: 0; }
+.eyebrow { display: none; }
+.card .sub, .steps li, .level-desc { font-size: 14px; line-height: 1.6; }
+/* Orden del teléfono: conexión, equipo y operador, quitar apps, launcher, registro */
+#connect-card { order: 1; } #device-card { order: 2; } #apps-card { order: 3; } #launcher-card { order: 4; } #log-card { order: 5; }
+#g-card-1 { order: 1; } #g-card-3 { order: 2; } #g-card-4 { order: 3; } #g-card-5 { order: 4; } #g-card-2 { order: 5; }
+.btn { min-height: 48px; border: 0; border-radius: 12px; background: var(--surface-hi); font-weight: 500; font-size: 15px; padding: 0 18px; }
+.btn.primary { background: var(--accent); }
+.btn.small { min-height: 40px; font-size: 14px; }
+.row > .btn { flex: 1 1 0; }
+.row > .pill { flex-basis: 100%; }
+.btn:focus-visible, .app:focus-within { outline: 3px solid var(--fg); outline-offset: 0; }
+select { background: var(--surface-hi); border: 0; border-radius: 12px; min-height: 48px; font-size: 15px; }
+/* Niveles como los botones de radio del teléfono */
+.seg { background: none; border: 0; padding: 0; gap: 18px; border-radius: 0; flex-wrap: wrap; }
+.seg button { display: inline-flex; align-items: center; gap: 10px; padding: 8px 0; border-radius: 0; color: var(--fg); font-size: 15px; font-weight: 400; }
+.seg button::before { content: ""; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--muted); box-sizing: border-box; flex: none; }
+.seg button[aria-pressed="true"] { background: none; color: var(--fg); }
+.seg button[aria-pressed="true"]::before { border-color: var(--accent); background: radial-gradient(circle, var(--accent) 0 4px, transparent 5px); }
+/* Lista como las casillas del teléfono */
+.apps { gap: 0; max-height: none; }
+.app { background: none; border: 0; border-radius: 10px; padding: 12px 4px; }
+.app:hover { background: rgba(255, 255, 255, 0.04); }
+.app:has(input:checked) { background: none; border: 0; }
+.lvl { background: none; padding: 0; color: var(--faint); text-transform: none; letter-spacing: 0; font-size: 12px; }
+.lvl.seguro, .lvl.recomendado { color: var(--faint); background: none; }
+.lvl.agresivo { color: var(--warn); background: none; }
+.choice { border: 0; background: var(--surface-hi); }
+.launchers { grid-template-columns: 1fr; }
+pre { background: #141418; border: 0; }
+.notice { border: 0; }
+footer { text-align: left; }
 </style>
 
 <div class="wrap">
@@ -144,8 +201,8 @@ footer p { margin: 4px 0; }
     <div class="brand">
       <div class="halo-mark" aria-hidden="true"></div>
       <div>
-        <h1>DebloatTV</h1>
-        <p class="tag">Quita la publicidad y las apps de fábrica de tu Android TV o Google TV y deja Halo como pantalla de inicio. Todo se puede deshacer.</p>
+        <h1>Halo</h1>
+        <p class="tag">Limpia tu Google TV desde el navegador</p>
       </div>
     </div>
     <div class="modes" role="tablist" aria-label="Forma de conectarse">
@@ -215,6 +272,7 @@ footer p { margin: 4px 0; }
 
       <div class="stack">
         <div class="card" id="apps-card">
+          <h2>Quitar apps</h2>
           <p class="eyebrow">Paso 2 · Elegir qué quitar</p>
           <div class="list-head">
             <div class="seg" id="usb-levels" role="group" aria-label="Nivel"></div>
@@ -226,7 +284,7 @@ footer p { margin: 4px 0; }
             <button class="btn primary" id="remove" disabled>Quitar apps</button>
           </div>
         </div>
-        <div class="card">
+        <div class="card" id="log-card">
           <div class="code-head"><h3>Registro</h3><button class="btn small" id="clear-log">Limpiar</button></div>
           <pre class="log" id="log" aria-live="polite">Esperando conexión…</pre>
         </div>
@@ -238,7 +296,7 @@ footer p { margin: 4px 0; }
   <section id="gen" role="tabpanel" aria-labelledby="tab-gen" hidden>
     <div class="grid">
       <div class="stack">
-        <div class="card">
+        <div class="card" id="g-card-1">
           <p class="eyebrow">Sin cable</p>
           <h2>Comandos para tu TV</h2>
           <p class="sub">Un navegador no puede abrir una conexión ADB por WiFi. Elige tu equipo y copia el script en «adb shell» desde un computador, o usa la app Halo del teléfono, que se conecta por WiFi sola.</p>
@@ -255,7 +313,7 @@ footer p { margin: 4px 0; }
             </div>
           </div>
         </div>
-        <div class="card">
+        <div class="card" id="g-card-2">
           <p class="eyebrow">Cómo usarlo</p>
           <ol class="steps">
             <li><span>Activa <b>Depuración USB</b> (o depuración inalámbrica) en la TV y anota su IP.</span></li>
@@ -266,18 +324,18 @@ footer p { margin: 4px 0; }
         </div>
       </div>
       <div class="stack">
-        <div class="card">
+        <div class="card" id="g-card-3">
           <div class="list-head">
             <h2>Apps que se quitarán</h2>
             <span class="count" id="g-count"></span>
           </div>
           <div class="apps" id="g-apps"></div>
         </div>
-        <div class="card">
+        <div class="card" id="g-card-4">
           <div class="code-head"><h3>Script para «adb shell»</h3><button class="btn small" data-copy="g-script">Copiar</button></div>
           <pre id="g-script"></pre>
         </div>
-        <div class="card">
+        <div class="card" id="g-card-5">
           <div class="code-head"><h3>Restaurar todo</h3><button class="btn small" data-copy="g-restore">Copiar</button></div>
           <pre id="g-restore"></pre>
         </div>
@@ -387,30 +445,46 @@ footer p { margin: 4px 0; }
   $('tab-gen').addEventListener('click', () => showMode('gen'));
 
   // ---- Generador sin cable ----
-  const gen = { vendor: 'tcl.txt', operator: '', level: 'recomendado', selected: new Set(), items: [] };
+  // El nivel elegido se recuerda entre visitas (como en la app)
+  function savedLevel() {
+    try { const l = localStorage.getItem('debloattv:level'); if (D.levelRank(l)) return l; } catch (e) { /* sin almacenamiento */ }
+    return 'recomendado';
+  }
+  function saveLevel(l) {
+    try { localStorage.setItem('debloattv:level', l); } catch (e) { /* sin almacenamiento */ }
+  }
+  const AUTO = 'auto';
+  const gen = { vendor: AUTO, operator: '', level: savedLevel(), selected: new Set(), items: [] };
+  // Primera opción: el script reconoce la marca y el decodificador en la propia TV
+  $('g-vendor').add(new Option('Detectar en la TV (automático)', AUTO));
   for (const v of D.VENDORS) $('g-vendor').add(new Option(v.name, v.file || ''));
   $('g-vendor').value = gen.vendor;
   fillOperators($('g-operator'));
   function genRefresh(resetSelection) {
-    gen.items = D.plannedEntries(LISTS, gen.vendor || null, gen.operator || null, gen.level);
+    const auto = gen.vendor === AUTO;
+    $('g-operator').disabled = auto;
+    gen.items = D.plannedEntries(LISTS, auto ? null : gen.vendor || null, auto ? null : gen.operator || null, gen.level);
     if (resetSelection) gen.selected = new Set(gen.items.map((i) => i.pkg));
-    $('g-level-desc').textContent = LEVEL_TEXT[gen.level];
+    $('g-level-desc').textContent = LEVEL_TEXT[gen.level]
+      + (auto ? ' Además, las de la marca y del operador que el script reconozca en la TV.' : '');
     appRows($('g-apps'), gen.items.map((i) => ({ ...i, pkg: i.pkg, description: i.description + (i.pkg.endsWith('*') ? ' (todas las que empiezan así)' : '') })), gen.selected, genScripts);
     genScripts();
   }
   function genScripts() {
     const pkgs = gen.items.map((i) => i.pkg).filter((p) => gen.selected.has(p));
     $('g-count').textContent = pkgs.length + ' de ' + gen.items.length;
-    $('g-script').textContent = D.removalScript(pkgs);
+    // En automático, con todo marcado, el script detecta la TV; si se desmarca algo, se usa la lista exacta
+    $('g-script').textContent = gen.vendor === AUTO && pkgs.length === gen.items.length
+      ? D.autoScript(LISTS, gen.level) : D.removalScript(pkgs);
     $('g-restore').textContent = D.restoreScript();
   }
-  segmented($('g-levels'), gen.level, (l) => { gen.level = l; genRefresh(true); });
+  segmented($('g-levels'), gen.level, (l) => { gen.level = l; saveLevel(l); genRefresh(true); });
   $('g-vendor').addEventListener('change', (e) => { gen.vendor = e.target.value; genRefresh(true); });
   $('g-operator').addEventListener('change', (e) => { gen.operator = e.target.value; genRefresh(true); });
   genRefresh(true);
 
   // ---- Conexión USB ----
-  const usb = { adb: null, tv: null, items: [], selected: new Set(), level: 'recomendado', busy: false };
+  const usb = { adb: null, tv: null, items: [], selected: new Set(), level: savedLevel(), busy: false };
   const logEl = $('log');
   function log(line) {
     if (logEl.dataset.fresh !== '1') { logEl.textContent = ''; logEl.dataset.fresh = '1'; }
@@ -440,7 +514,7 @@ footer p { margin: 4px 0; }
     $('connect').disabled = true;
     showMode('gen');
   }
-  segmented($('usb-levels'), usb.level, (l) => { usb.level = l; renderUsbApps(true); });
+  segmented($('usb-levels'), usb.level, (l) => { usb.level = l; saveLevel(l); renderUsbApps(true); });
   $('usb-level-desc').textContent = LEVEL_TEXT[usb.level];
 
   function renderUsbApps(resetSelection) {
@@ -549,8 +623,8 @@ footer p { margin: 4px 0; }
   $('remove').addEventListener('click', () => run(async () => {
     const pkgs = usb.visible.map((i) => i.pkg).filter((p) => usb.selected.has(p));
     log('Quitando ' + pkgs.length + ' apps…');
-    await usb.tv.remove(pkgs);
-    log('Listo. «Restaurar todo» lo deshace.');
+    const n = await usb.tv.remove(pkgs);
+    log('Listo: se ' + (n === 1 ? 'quitó 1 app' : 'quitaron ' + n + ' apps') + '. «Restaurar todo» lo deshace.');
     await loadCandidates();
   }));
 

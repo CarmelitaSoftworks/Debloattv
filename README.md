@@ -36,7 +36,7 @@ Después, en Halo: ve a la última tarjeta (**⚙ Ajustes**) → **Limpiar TV**.
 
 Halo se conecta al ADB de la propia TV. Basta con activar **Depuración USB** (no hace falta cable ni *Depuración inalámbrica*): Halo prueba `127.0.0.1:5555` y, si no responde, la IP WiFi/Ethernet de la propia TV, igual que haría un móvil.
 
-- **Si funciona (modo automático):** la TV mostrará *¿Permitir depuración?*; marca **Permitir siempre** y acepta con el mando. Luego eliges el nivel, pulsas **Quitar N apps** y **Elegir launcher de inicio** (Halo o LTvLauncher). Todo se deshace con **Restaurar todo lo quitado** y **Volver al launcher original**.
+- **Si funciona (modo automático):** la TV mostrará *¿Permitir depuración?*; marca **Permitir siempre** y acepta con el mando. La pantalla tiene el mismo aspecto que la app del teléfono: eliges el nivel (se recuerda), revisas la lista, pulsas **Quitar seleccionadas** y luego **Poner Halo** o **Instalar LTvLauncher**. Todo se deshace con **Restaurar todo** y **Volver al original**.
   Para que funcione: Ajustes → Sistema → Información → pulsa 7 veces *Compilación*, y en *Opciones para desarrolladores* activa **Depuración USB** (y **Depuración por red** si aparece).
 - **Si tu TV no lo permite (modo manual):** Halo te muestra las apps basura que tiene tu TV; pulsa cada una para abrir sus ajustes y elige **Desactivar**. Y activa **Botón Inicio → Halo**: un servicio de accesibilidad que, cuando el botón HOME abre el launcher de TCL/Google, abre Halo encima. Así Halo queda como inicio sin ADB.
 
@@ -44,7 +44,7 @@ Halo se conecta al ADB de la propia TV. Basta con activar **Depuración USB** (n
 >
 > Si usas *Botón Inicio → Halo* y luego quieres volver al launcher original, desactiva el servicio en Ajustes → Accesibilidad.
 
-![Elegir launcher](docs/halo-elegir-launcher.png)
+
 
 ### Launcher alternativo: LTvLauncher
 
@@ -70,7 +70,7 @@ Para deshacer, en la misma app: **Restaurar todo** y **Volver al original**.
 Abre **`web/index.html`** en **Chrome o Edge** de un computador (basta con descargarlo y abrirlo; no necesita instalar nada ni conexión a internet). Tiene dos modos:
 
 - **Por cable USB:** conecta la TV o el TV box con un cable de datos (puerto USB de servicio u OTG, con *Depuración USB* activada) y pulsa **Conectar**. La página habla ADB directamente por WebUSB y hace lo mismo que la app: reconoce el equipo y el operador, propone qué quitar por niveles, pone Halo o LTvLauncher como inicio (con la misma vuelta atrás y el servicio de accesibilidad en las TCL) y restaura lo que se quitó, también lo hecho desde la app o los scripts. Si `adb` está abierto en el PC, ciérralo antes con `adb kill-server`.
-- **Sin cable:** eliges marca, operador y nivel, y la página genera el script para pegar en `adb shell` y el de restaurar. El script nunca quita la app de inicio ni nada protegido y anota los cambios en la TV para poder deshacerlos.
+- **Sin cable:** con *Detectar en la TV (automático)* el script reconoce la marca y el decodificador en la propia TV; también puedes elegir marca y operador a mano. La página genera el script para pegar en `adb shell` y el de restaurar. El script nunca quita la app de inicio ni nada protegido y anota los cambios en la TV para poder deshacerlos.
 
 Un navegador no puede abrir conexiones ADB por WiFi, así que sin cable USB usa la app del teléfono (opción B) o el script generado.
 
@@ -200,7 +200,7 @@ El APK release está firmado con la clave de depuración para que se pueda insta
 
 ## Decodificadores de operadores (Chile)
 
-Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/operadores.txt` y una lista por operador). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware, e incluyen los paquetes reales comprobados de cada app (p. ej. `com.tivo.androidtv.llacl` de VTR Play TV, `cl.entel.enteltv`, `cl.movistarplay`, `br.com.claro.now.smarttvclient`). El launcher del operador se cambia con **Elegir launcher de inicio**.
+Las herramientas reconocen los decodificadores Android TV de los operadores chilenos (`debloater/lists/dispositivos.txt`) y, en el nivel **recomendado**, **quitan las apps del operador** para dejarlos lo más cerca posible de Android TV stock (`lists/operadores.txt` y una lista por operador). Las listas usan comodines (`com.tivo.*`) porque los nombres exactos varían por firmware, e incluyen los paquetes reales comprobados de cada app (p. ej. `com.tivo.androidtv.llacl` de VTR Play TV, `cl.entel.enteltv`, `cl.movistarplay`, `br.com.claro.now.smarttvclient`). El launcher del operador se cambia con **Poner Halo** o **Instalar LTvLauncher**.
 
 El perfil se elige solo cuando se reconoce el decodificador. Para operadores sin decodificador Android propio (Movistar, DIRECTV) o si usas su app en otro TV box, elígelo a mano: botón **Operador** en la app, o `--operador movistar` / `-Operador Movistar` en los scripts.
 

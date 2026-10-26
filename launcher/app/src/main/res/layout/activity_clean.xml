@@ -1,207 +1,249 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<!-- Mismo aspecto que la app del teléfono: una columna de tarjetas, centrada en la pantalla de la TV -->
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
-
-    <View
-        android:id="@+id/glow"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+    android:layout_height="match_parent"
+    android:fillViewport="true"
+    android:scrollbars="none">
 
     <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:baselineAligned="false"
-        android:orientation="horizontal"
-        android:paddingStart="@dimen/side_padding"
-        android:paddingTop="40dp"
-        android:paddingEnd="@dimen/side_padding"
-        android:paddingBottom="24dp">
+        android:layout_width="640dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:orientation="vertical"
+        android:paddingTop="32dp"
+        android:paddingBottom="48dp">
 
-        <!-- Columna izquierda: estado, nivel y acciones -->
-        <ScrollView
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="0.4"
-            android:clipToPadding="false"
-            android:scrollbars="none">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="sans-serif-medium"
+            android:text="@string/clean_title"
+            android:textColor="@color/text_primary"
+            android:textSize="32sp" />
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <View
+                android:id="@+id/conn_dot"
+                android:layout_width="8dp"
+                android:layout_height="8dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/dot" />
+
+            <TextView
+                android:id="@+id/conn"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/clean_connecting"
+                android:textColor="@color/text_secondary"
+                android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Estado de la conexión -->
+        <LinearLayout style="@style/PhoneCard">
+
+            <TextView
+                style="@style/PhoneCardTitle"
+                android:text="@string/clean_state_title" />
+
+            <TextView
+                android:id="@+id/status"
+                style="@style/PhoneBody" />
+
+            <TextView
+                android:id="@+id/help"
+                style="@style/PhoneBody"
+                android:layout_marginTop="12dp"
+                android:text="@string/clean_manual_help"
+                android:visibility="gone" />
 
             <LinearLayout
-                android:id="@+id/actions"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingEnd="32dp"
-                android:paddingBottom="16dp">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/clean_title"
-                    android:textColor="@color/text_primary"
-                    android:textSize="32sp"
-                    android:textStyle="bold" />
-
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:background="@drawable/pill"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal"
-                    android:paddingStart="10dp"
-                    android:paddingTop="5dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="5dp">
-
-                    <View
-                        android:id="@+id/conn_dot"
-                        android:layout_width="6dp"
-                        android:layout_height="6dp"
-                        android:layout_marginEnd="7dp"
-                        android:background="@drawable/dot" />
-
-                    <TextView
-                        android:id="@+id/conn"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="sans-serif-medium"
-                        android:text="@string/clean_connecting"
-                        android:textColor="@color/text_primary"
-                        android:textSize="11sp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/levels"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:background="@drawable/glass"
-                    android:orientation="horizontal"
-                    android:padding="3dp"
-                    android:visibility="gone">
-
-                    <TextView
-                        android:id="@+id/level_seguro"
-                        style="@style/SegPill"
-                        android:text="@string/level_seguro" />
-
-                    <TextView
-                        android:id="@+id/level_recomendado"
-                        style="@style/SegPill"
-                        android:text="@string/level_recomendado" />
-
-                    <TextView
-                        android:id="@+id/level_agresivo"
-                        style="@style/SegPill"
-                        android:text="@string/level_agresivo" />
-                </LinearLayout>
-
-                <Button
-                    android:id="@+id/operator"
-                    style="@style/TvButton"
-                    android:layout_marginTop="10dp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/status"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="14dp"
-                    android:layout_marginBottom="6dp"
-                    android:lineSpacingMultiplier="1.2"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/remove"
-                    style="@style/TvButton"
-                    android:text="@string/clean_remove"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/choose_home"
-                    style="@style/TvButton"
-                    android:text="@string/clean_choose_home"
-                    android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/home_button"
-                    style="@style/TvButton"
-                    android:text="@string/opt_home_button"
-                    android:visibility="gone" />
+                android:layout_marginTop="12dp">
 
                 <Button
                     android:id="@+id/retry"
-                    style="@style/TvButton"
+                    style="@style/PhoneSecondaryButton"
+                    android:layout_marginEnd="8dp"
                     android:text="@string/clean_retry"
                     android:visibility="gone" />
 
                 <Button
-                    android:id="@+id/restore_all"
-                    style="@style/TvButton"
-                    android:text="@string/clean_restore_all"
+                    android:id="@+id/home_button"
+                    style="@style/PhoneSecondaryButton"
+                    android:text="@string/opt_home_button"
                     android:visibility="gone" />
-
-                <Button
-                    android:id="@+id/restore_launcher"
-                    style="@style/TvButton"
-                    android:text="@string/clean_restore_launcher"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/help"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:lineSpacingMultiplier="1.2"
-                    android:text="@string/clean_manual_help"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="11sp"
-                    android:visibility="gone" />
-
-                <TextView
-                    android:id="@+id/log"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:fontFamily="monospace"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
             </LinearLayout>
-        </ScrollView>
+        </LinearLayout>
 
-        <!-- Columna derecha: apps encontradas -->
-        <ScrollView
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="0.6"
-            android:clipToPadding="false"
-            android:padding="4dp"
-            android:scrollbars="none">
+        <!-- Quitar apps: nivel, operador y lista -->
+        <LinearLayout
+            android:id="@+id/levels"
+            style="@style/PhoneCard"
+            android:visibility="gone">
+
+            <TextView
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_debloat_title" />
+
+            <RadioGroup
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <RadioButton
+                    android:id="@+id/level_seguro"
+                    style="@style/TvLevel"
+                    android:text="@string/phone_level_seguro" />
+
+                <RadioButton
+                    android:id="@+id/level_recomendado"
+                    style="@style/TvLevel"
+                    android:text="@string/phone_level_recomendado" />
+
+                <RadioButton
+                    android:id="@+id/level_agresivo"
+                    style="@style/TvLevel"
+                    android:text="@string/phone_level_agresivo" />
+            </RadioGroup>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_marginTop="12dp">
 
-                <TextView
-                    android:id="@+id/list_header"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:layout_marginBottom="8dp"
-                    android:fontFamily="sans-serif-medium"
-                    android:letterSpacing="0.1"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="10sp" />
-
-                <LinearLayout
-                    android:id="@+id/packages"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                <Button
+                    android:id="@+id/operator"
+                    style="@style/PhoneSecondaryButton" />
             </LinearLayout>
-        </ScrollView>
+
+            <TextView
+                android:id="@+id/level_desc"
+                style="@style/PhoneBody" />
+
+            <TextView
+                android:id="@+id/list_header"
+                style="@style/PhoneBody"
+                android:layout_marginTop="12dp"
+                android:fontFamily="sans-serif-medium"
+                android:letterSpacing="0.08"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/packages"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="vertical" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <Button
+                    android:id="@+id/remove"
+                    style="@style/PhonePrimaryButton"
+                    android:text="@string/phone_remove_selected" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Launcher -->
+        <LinearLayout
+            android:id="@+id/launcher_card"
+            style="@style/PhoneCard"
+            android:visibility="gone">
+
+            <TextView
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_launcher_title" />
+
+            <TextView
+                style="@style/PhoneBody"
+                android:text="@string/phone_launcher_desc" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <Button
+                    android:id="@+id/restore_launcher"
+                    style="@style/PhoneSecondaryButton"
+                    android:layout_marginEnd="8dp"
+                    android:text="@string/phone_restore_launcher" />
+
+                <Button
+                    android:id="@+id/choose_home"
+                    style="@style/PhonePrimaryButton"
+                    android:text="@string/clean_set_halo" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/PhoneBody"
+                android:layout_marginTop="16dp"
+                android:text="@string/phone_ltv_desc" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp">
+
+                <Button
+                    android:id="@+id/install_ltv"
+                    style="@style/PhoneSecondaryButton"
+                    android:text="@string/phone_install_ltv" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Deshacer -->
+        <LinearLayout
+            android:id="@+id/restore_card"
+            style="@style/PhoneCard"
+            android:visibility="gone">
+
+            <TextView
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_restore_title" />
+
+            <TextView
+                style="@style/PhoneBody"
+                android:text="@string/clean_restore_desc" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp">
+
+                <Button
+                    android:id="@+id/restore_all"
+                    style="@style/PhoneSecondaryButton"
+                    android:text="@string/phone_restore_all" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/log_card"
+            style="@style/PhoneCard"
+            android:visibility="gone">
+
+            <TextView
+                style="@style/PhoneCardTitle"
+                android:text="@string/phone_log_title" />
+
+            <TextView
+                android:id="@+id/log"
+                style="@style/PhoneBody"
+                android:fontFamily="monospace"
+                android:textSize="12sp" />
+        </LinearLayout>
     </LinearLayout>
-</FrameLayout>
+</ScrollView>

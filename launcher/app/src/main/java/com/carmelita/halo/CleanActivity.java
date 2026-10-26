@@ -2,13 +2,10 @@ package com.carmelita.halo;
 
 import android.app.Activity;
 import android.app.AlertDialog;
-import android.app.Dialog;
 import android.content.ActivityNotFoundException;
 import android.content.ComponentName;
 import android.content.Intent;
 import android.graphics.Typeface;
-import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -74,6 +71,11 @@ public class CleanActivity extends Activity {
     private Button retry;
     private Button restoreLauncher;
     private Button restoreAll;
+    private Button installLtv;
+    private TextView levelDesc;
+    private View launcherCard;
+    private View restoreCard;
+    private View logCard;
 
     private AdbConnection adb;
     private TvDebloater tv;
@@ -89,13 +91,6 @@ public class CleanActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_clean);
-
-        GradientDrawable glow = new GradientDrawable();
-        glow.setGradientType(GradientDrawable.RADIAL_GRADIENT);
-        glow.setGradientCenter(0.1f, 0f);
-        glow.setGradientRadius(getResources().getDisplayMetrics().widthPixels * 0.5f);
-        glow.setColors(new int[]{0x380A84FF, 0x000A84FF});
-        findViewById(R.id.glow).setBackground(glow);
 
         conn = findViewById(R.id.conn);
         connDot = findViewById(R.id.conn_dot);
@@ -116,6 +111,11 @@ public class CleanActivity extends Activity {
         retry = findViewById(R.id.retry);
         restoreLauncher = findViewById(R.id.restore_launcher);
         restoreAll = findViewById(R.id.restore_all);
+        installLtv = findViewById(R.id.install_ltv);
+        levelDesc = findViewById(R.id.level_desc);
+        launcherCard = findViewById(R.id.launcher_card);
+        restoreCard = findViewById(R.id.restore_card);
+        logCard = findViewById(R.id.log_card);
         level = getSharedPreferences("debloattv", MODE_PRIVATE).getInt("level", TvDebloater.DEFAULT_LEVEL);
 
         for (int i = 0; i < levelPills.length; i++) {
@@ -127,7 +127,11 @@ public class CleanActivity extends Activity {
             });
         }
         remove.setOnClickListener(v -> removeSelected());
-        chooseHome.setOnClickListener(v -> showLauncherPicker());
+        // Como en el teléfono: un botón por launcher, con confirmación
+        chooseHome.setOnClickListener(v -> confirm(getString(R.string.clean_halo_confirm_title),
+                getString(R.string.clean_halo_confirm), () -> runTask(() -> tv.installHaloAndSetHome(false))));
+        installLtv.setOnClickListener(v -> confirm(getString(R.string.clean_ltv_confirm_title),
+                getString(R.string.clean_ltv_confirm), () -> runTask(() -> tv.installLtvAndSetHome(false))));
         restoreLauncher.setOnClickListener(v -> runTask(() -> tv.restoreStockLauncher()));
         restoreAll.setOnClickListener(v -> runTask(() -> {
             tv.restoreAll();
@@ -232,20 +236,23 @@ public class CleanActivity extends Activity {
         if (auto) {
             setConn("127.0.0.1".equals(connectedHost) ? getString(R.string.conn_local)
                     : getString(R.string.conn_wifi, connectedHost + ":" + AdbConnection.DEFAULT_PORT), R.color.status_ok);
-            status.setText(withDeviceNote(getString(level == 1 ? R.string.level_seguro_desc
-                    : level == 3 ? R.string.level_agresivo_desc : R.string.level_recomendado_desc)));
-            status.setTextColor(getColor(level == 3 ? R.color.status_warn : R.color.text_secondary));
+            status.setText(withDeviceNote(getString(R.string.clean_connected_desc)));
         } else if (manual) {
             setConn(getString(R.string.conn_none), R.color.status_warn);
             status.setText(withDeviceNote(getString(R.string.clean_manual)));
-            status.setTextColor(getColor(R.color.text_secondary));
         }
+        levelDesc.setText(level == 1 ? R.string.level_seguro_desc
+                : level == 3 ? R.string.level_agresivo_desc : R.string.level_recomendado_desc);
+        levelDesc.setTextColor(getColor(level == 3 ? R.color.status_warn : R.color.text_secondary));
         levels.setVisibility(ready ? View.VISIBLE : View.GONE);
+        launcherCard.setVisibility(auto ? View.VISIBLE : View.GONE);
+        restoreCard.setVisibility(auto && tv.hasBackup() ? View.VISIBLE : View.GONE);
         if (ready) operatorButton.setText(getString(R.string.operator_button, operatorLabel()));
         show(operatorButton, ready);
-        for (int i = 0; i < levelPills.length; i++) levelPills[i].setSelected(level == i + 1);
+        for (int i = 0; i < levelPills.length; i++) ((android.widget.RadioButton) levelPills[i]).setChecked(level == i + 1);
         show(remove, auto);
         show(chooseHome, auto);
+        show(installLtv, auto);
         show(restoreAll, auto && tv.hasBackup());
         show(restoreLauncher, auto);
         show(homeButton, manual);
@@ -298,7 +305,7 @@ public class CleanActivity extends Activity {
         int selected = selectedPackages().size();
         remove.setText(selected > 0
                 ? getResources().getQuantityString(R.plurals.clean_remove_n, selected, selected)
-                : getString(R.string.clean_remove));
+                : getString(R.string.phone_remove_selected));
         remove.setEnabled(!busy && selected > 0);
     }
 
@@ -308,7 +315,7 @@ public class CleanActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setBackgroundResource(R.drawable.row_card);
+        row.setBackgroundResource(R.drawable.phone_row);
         row.setFocusable(true);
         row.setClickable(true);
         row.setEnabled(!busy);
@@ -384,7 +391,8 @@ public class CleanActivity extends Activity {
                 .setMessage("Se pueden recuperar en cualquier momento con «Restaurar todo lo quitado».")
                 .setNegativeButton("Cancelar", null)
                 .setPositiveButton("Quitar", (dlg, w) -> runTask(() -> {
-                    tv.remove(selected);
+                    int n = tv.remove(selected);
+                    appendLog(getResources().getQuantityString(R.plurals.removed_summary, n, n));
                     candidates = tv.candidates();
                 }))
                 .show();
@@ -430,21 +438,13 @@ public class CleanActivity extends Activity {
                 .show();
     }
 
-    /** Selector del diseño de Figma: Halo o LTvLauncher (código abierto). */
-    private void showLauncherPicker() {
-        final Dialog dialog = new Dialog(this);
-        dialog.setContentView(R.layout.dialog_picker);
-        if (dialog.getWindow() != null) dialog.getWindow().setBackgroundDrawable(new ColorDrawable(0));
-        dialog.findViewById(R.id.choice_halo).setOnClickListener(v -> {
-            dialog.dismiss();
-            runTask(() -> tv.installHaloAndSetHome(false));
-        });
-        dialog.findViewById(R.id.choice_ltv).setOnClickListener(v -> {
-            dialog.dismiss();
-            runTask(() -> tv.installLtvAndSetHome(false));
-        });
-        dialog.show();
-        dialog.findViewById(R.id.choice_halo).requestFocus();
+    private void confirm(String title, String message, Runnable onYes) {
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
+                .setTitle(title)
+                .setMessage(message)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Continuar", (d, w) -> onYes.run())
+                .show();
     }
 
     private void openAppSettings(String pkg) {
@@ -496,6 +496,9 @@ public class CleanActivity extends Activity {
     }
 
     private void appendLog(final String line) {
-        runOnUiThread(() -> log.append(log.length() == 0 ? line : "\n" + line));
+        runOnUiThread(() -> {
+            logCard.setVisibility(View.VISIBLE);
+            log.append(log.length() == 0 ? line : "\n" + line);
+        });
     }
 }

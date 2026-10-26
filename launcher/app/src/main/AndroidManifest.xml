@@ -68,7 +68,8 @@
             android:name=".CleanActivity"
             android:configChanges="keyboard|keyboardHidden|navigation|orientation|screenLayout|screenSize|smallestScreenSize|uiMode"
             android:exported="false"
-            android:label="@string/clean_title" />
+            android:label="@string/clean_title"
+            android:theme="@style/Theme.Halo.Phone" />
 
         <!-- Plan B sin ADB: si se abre el launcher de stock (botón HOME), se abre Halo -->
         <service
