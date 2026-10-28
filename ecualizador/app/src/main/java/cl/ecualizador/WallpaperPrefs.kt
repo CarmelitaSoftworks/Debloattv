@@ -1,8 +1,6 @@
 package cl.ecualizador
 
 import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.io.File
@@ -20,12 +18,36 @@ data class WallpaperSettings(
     val imageVersion: Long = 0,
 )
 
+/** Resolución con que se dibujó el fondo: superficie que dio el sistema, pantalla real y foto. */
+data class WallpaperRender(
+    val surfaceW: Int, val surfaceH: Int,
+    val displayW: Int, val displayH: Int,
+    /** Si el sistema dio una superficie más chica y se pidió una del tamaño de la pantalla. */
+    val enlarged: Boolean,
+) {
+    fun encode() = "$surfaceW,$surfaceH,$displayW,$displayH,$enlarged"
+
+    companion object {
+        fun decode(s: String?): WallpaperRender? = runCatching {
+            val p = s!!.split(',')
+            WallpaperRender(p[0].toInt(), p[1].toInt(), p[2].toInt(), p[3].toInt(), p[4].toBoolean())
+        }.getOrNull()
+    }
+}
+
 /** Opciones del fondo animado y la foto elegida (copiada a la app para no depender de la galería). */
 object WallpaperPrefs {
     val settings = MutableStateFlow(WallpaperSettings())
     private var loaded = false
 
-    fun imageFile(ctx: Context) = File(ctx.filesDir, "wallpaper.jpg")
+    /** La foto original tal como se eligió (JPEG, PNG, WebP o HEIF). */
+    fun imageFile(ctx: Context) = File(ctx.filesDir, "wallpaper-original")
+    /** Versiones anteriores guardaban aquí una copia reducida y recomprimida en JPEG. */
+    private fun legacyFile(ctx: Context) = File(ctx.filesDir, "wallpaper.jpg")
+    private const val MAX_IMAGE_BYTES = 80L shl 20
+
+    /** La foto que hay que dibujar: la original, o la copia de versiones anteriores si es lo único que hay. */
+    fun currentImage(ctx: Context): File? = imageFile(ctx).takeIf { it.exists() } ?: legacyFile(ctx).takeIf { it.exists() }
 
     fun load(ctx: Context): WallpaperSettings {
         if (!loaded) {
@@ -34,7 +56,7 @@ object WallpaperPrefs {
                 position = runCatching { WallpaperPosition.valueOf(p.getString("position", "BOTTOM")!!) }.getOrDefault(WallpaperPosition.BOTTOM),
                 height = p.getFloat("height", 0.25f),
                 dim = p.getFloat("dim", 0.25f),
-                hasImage = imageFile(ctx).exists(),
+                hasImage = currentImage(ctx) != null,
                 imageVersion = p.getLong("imageVersion", 0),
             )
             loaded = true
@@ -50,38 +72,59 @@ object WallpaperPrefs {
             .putLong("imageVersion", s.imageVersion).apply()
     }
 
-    /** Copia la foto elegida reduciéndola a un tamaño razonable de pantalla. */
+    /**
+     * Copia la foto elegida tal cual, byte a byte: sin recomprimir ni reducir, para no perder
+     * resolución. El giro de la cámara (EXIF) y el ajuste a la pantalla se hacen al dibujarla.
+     */
     fun saveImage(ctx: Context, uri: Uri): Boolean = runCatching {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        ctx.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
-        var sample = 1
-        while (maxOf(bounds.outWidth, bounds.outHeight) / (sample * 2) >= 2400) sample *= 2
-        val bmp = ctx.contentResolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, BitmapFactory.Options().apply { inSampleSize = sample })
-        } ?: return false
-        // Las fotos de cámara guardan el giro aparte (EXIF): se aplica para que no queden de lado.
-        val degrees = runCatching {
-            ctx.contentResolver.openInputStream(uri)?.use {
-                when (android.media.ExifInterface(it).getAttributeInt(
-                    android.media.ExifInterface.TAG_ORIENTATION, android.media.ExifInterface.ORIENTATION_NORMAL
-                )) {
-                    android.media.ExifInterface.ORIENTATION_ROTATE_90 -> 90
-                    android.media.ExifInterface.ORIENTATION_ROTATE_180 -> 180
-                    android.media.ExifInterface.ORIENTATION_ROTATE_270 -> 270
-                    else -> 0
+        val tmp = File(ctx.filesDir, "wallpaper.tmp")
+        val copied = ctx.contentResolver.openInputStream(uri)?.use { input ->
+            tmp.outputStream().use { out ->
+                val buf = ByteArray(64 shl 10)
+                var total = 0L
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    total += n
+                    if (total > MAX_IMAGE_BYTES) return@use false
+                    out.write(buf, 0, n)
                 }
+                true
             }
-        }.getOrNull() ?: 0
-        val upright = WallpaperImage.rotate(bmp, degrees)
-        imageFile(ctx).outputStream().use { upright.compress(Bitmap.CompressFormat.JPEG, 95, it) }
-        if (upright !== bmp) upright.recycle()
-        bmp.recycle()
+        } ?: false
+        // Solo se acepta si Android la puede abrir (p. ej. HEIC no se lee antes de Android 9)
+        if (!copied || WallpaperImage.uprightSize(tmp.path) == null) {
+            tmp.delete()
+            return false
+        }
+        if (!tmp.renameTo(imageFile(ctx))) {
+            tmp.delete()
+            return false
+        }
+        legacyFile(ctx).delete()
         update(ctx) { it.copy(hasImage = true, imageVersion = System.currentTimeMillis()) }
         true
     }.getOrDefault(false)
 
+    /** Cómo dibujó el fondo el teléfono la última vez (para mostrarlo en la app). */
+    val render = MutableStateFlow<WallpaperRender?>(null)
+
+    fun reportRender(ctx: Context, r: WallpaperRender) {
+        if (render.value == r) return
+        render.value = r
+        ctx.getSharedPreferences("wallpaper", Context.MODE_PRIVATE).edit().putString("render", r.encode()).apply()
+    }
+
+    fun loadRender(ctx: Context): WallpaperRender? {
+        if (render.value == null) {
+            render.value = WallpaperRender.decode(ctx.getSharedPreferences("wallpaper", Context.MODE_PRIVATE).getString("render", null))
+        }
+        return render.value
+    }
+
     fun removeImage(ctx: Context) {
         imageFile(ctx).delete()
+        legacyFile(ctx).delete()
         update(ctx) { it.copy(hasImage = false, imageVersion = System.currentTimeMillis()) }
     }
 }

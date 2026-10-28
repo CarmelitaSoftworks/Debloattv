@@ -617,10 +617,23 @@ private fun SpectrumCard(running: Boolean, error: String?, onToggle: (Boolean) -
 private fun WallpaperCard() {
     val ctx = LocalContext.current
     val ws by WallpaperPrefs.settings.collectAsState()
-    LaunchedEffect(Unit) { WallpaperPrefs.load(ctx) }
+    val render by WallpaperPrefs.render.collectAsState()
+    LaunchedEffect(Unit) { WallpaperPrefs.load(ctx); WallpaperPrefs.loadRender(ctx) }
     var message by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) message = if (WallpaperPrefs.saveImage(ctx, uri)) null else "No se pudo usar esa imagen."
+        if (uri == null) return@rememberLauncherForActivityResult
+        saving = true
+        scope.launch {
+            // La foto se copia entera (puede pesar decenas de MB): fuera del hilo principal
+            val ok = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { WallpaperPrefs.saveImage(ctx, uri) }
+            saving = false
+            message = if (ok) null else "No se pudo usar esa imagen."
+        }
+    }
+    val imageSize = remember(ws.imageVersion, ws.hasImage) {
+        WallpaperPrefs.currentImage(ctx)?.let { WallpaperImage.uprightSize(it.path) }
     }
     fun set(change: (WallpaperSettings) -> WallpaperSettings) = WallpaperPrefs.update(ctx, change)
 
@@ -635,10 +648,17 @@ private fun WallpaperCard() {
             fontSize = 12.sp, lineHeight = 16.sp, color = Muted
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedButton(onClick = {
+            OutlinedButton(enabled = !saving, onClick = {
                 picker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-            }) { Text(if (ws.hasImage) "Cambiar foto" else "Elegir foto") }
-            if (ws.hasImage) TextButton(onClick = { WallpaperPrefs.removeImage(ctx) }) { Text("Quitar foto") }
+            }) { Text(if (saving) "Guardando…" else if (ws.hasImage) "Cambiar foto" else "Elegir foto") }
+            if (ws.hasImage && !saving) TextButton(onClick = { WallpaperPrefs.removeImage(ctx) }) { Text("Quitar foto") }
+        }
+        if (ws.hasImage) imageSize?.let { (w, h) ->
+            val drawn = render?.let { r ->
+                " Se dibuja a ${r.surfaceW}×${r.surfaceH} (pantalla ${r.displayW}×${r.displayH})" +
+                    (if (r.enlarged) ", pedido a resolución completa porque el sistema daba menos." else ".")
+            } ?: " Pon el fondo para ver con qué resolución se dibuja."
+            Text("Foto original de ${w}×${h}, sin recomprimir.$drawn", fontSize = 12.sp, lineHeight = 16.sp, color = Muted)
         }
         Text("Posición del espectro", color = Muted, fontSize = 13.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

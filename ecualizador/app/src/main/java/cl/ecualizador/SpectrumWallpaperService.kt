@@ -32,6 +32,8 @@ class SpectrumWallpaperService : WallpaperService() {
         private var lastFrameNanos = 0L
         private var background: Bitmap? = null
         private var backgroundVersion = -1L
+        /** Ya se pidió una superficie del tamaño de la pantalla (se hace una sola vez). */
+        private var enlarged = false
         private var error: String? = null
         private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
         private val dimPaint = Paint()
@@ -48,7 +50,24 @@ class SpectrumWallpaperService : WallpaperService() {
         override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
             width = w; height = h
             backgroundVersion = -1 // reescalar la foto al nuevo tamaño
-            drawFrame()
+            val (dw, dh) = displaySize()
+            // Algunas capas de fabricante dan al fondo animado una superficie más chica que la pantalla
+            // y luego la amplían: la foto se ve pixelada. Se pide una vez una del tamaño real.
+            val full = if (!enlarged) WallpaperImage.fullResolutionSize(w, h, dw, dh) else null
+            if (full != null) {
+                enlarged = true
+                holder.setFixedSize(full.first, full.second)
+            }
+            WallpaperPrefs.reportRender(this@SpectrumWallpaperService, WallpaperRender(w, h, dw, dh, enlarged))
+            if (full == null) drawFrame()
+        }
+
+        /** Resolución física de la pantalla (no la de la ventana ni la escalada). */
+        private fun displaySize(): Pair<Int, Int> {
+            val display = getSystemService(android.hardware.display.DisplayManager::class.java)
+                ?.getDisplay(android.view.Display.DEFAULT_DISPLAY) ?: return 0 to 0
+            val mode = display.mode
+            return mode.physicalWidth to mode.physicalHeight
         }
 
         override fun onVisibilityChanged(isVisible: Boolean) {
@@ -96,16 +115,18 @@ class SpectrumWallpaperService : WallpaperService() {
             background?.recycle()
             background = null
             backgroundVersion = ws.imageVersion
-            val file = WallpaperPrefs.imageFile(this@SpectrumWallpaperService)
-            if (!ws.hasImage || !file.exists()) return
-            // Se decodifica cerca del tamaño de la pantalla y se reduce por pasos (ver WallpaperImage).
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(file.absolutePath, bounds)
-            val src = BitmapFactory.decodeFile(file.absolutePath, BitmapFactory.Options().apply {
-                inSampleSize = WallpaperImage.sampleSizeFor(bounds.outWidth, bounds.outHeight, width, height)
+            val file = WallpaperPrefs.currentImage(this@SpectrumWallpaperService) ?: return
+            if (!ws.hasImage) return
+            // La foto original se decodifica cerca del tamaño de la pantalla (nunca por debajo), se
+            // endereza y se reduce por pasos (ver WallpaperImage).
+            val (uw, uh) = WallpaperImage.uprightSize(file.path) ?: return
+            val src = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply {
+                inSampleSize = WallpaperImage.sampleSizeFor(uw, uh, width, height)
+                inPreferredConfig = Bitmap.Config.ARGB_8888
             }) ?: return
-            background = WallpaperImage.cover(src, width, height)
-            src.recycle()
+            val upright = WallpaperImage.rotate(src, WallpaperImage.exifDegrees(file.path))
+            background = WallpaperImage.cover(upright, width, height)
+            upright.recycle()
         }
 
         private fun drawFrame() {
