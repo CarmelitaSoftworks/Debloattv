@@ -3,9 +3,13 @@ package cl.ecualizador
 /**
  * Arma la ventana principal de un skin clásico (275×116) como la dibuja Winamp 2: MAIN.BMP de
  * fondo y encima la barra de título activa, los botones, la barra de posición, volumen, balance,
- * estéreo, el reloj (NUMBERS.BMP) y el título y los kbps/kHz con la fuente del skin (TEXT.BMP).
- * Las posiciones son las del Winamp original (las mismas que usa Webamp). Lo que falte en el skin
- * se deja como está en MAIN.BMP. El visor se dibuja aparte, en [VIS_X], [VIS_Y] de [VIS_W]×[VIS_H].
+ * estéreo y los kbps/kHz con la fuente del skin (TEXT.BMP). Las posiciones son las del Winamp
+ * original (las mismas que usa Webamp). Lo que falte en el skin se deja como está en MAIN.BMP.
+ *
+ * Lo que cambia con la música (título, reloj, reproducir/pausa y el indicador de posición) no va
+ * en la ventana: debajo de ella, en el mismo «atlas» de 275×[ATLAS_HEIGHT], van esas piezas del
+ * skin para que el visor las dibuje en cada cuadro (ver SpectrumRenderer). El visor va en
+ * [VIS_X], [VIS_Y] de [VIS_W]×[VIS_H].
  */
 object WinampWindow {
     const val WIDTH = 275
@@ -15,10 +19,76 @@ object WinampWindow {
     const val VIS_W = 76
     const val VIS_H = 16
 
-    fun compose(archive: SkinArchive, decoder: SkinImport.Decoder, title: String): IntArray? {
+    // Piezas debajo de la ventana: fuente (TEXT.BMP), dígitos (NUMBERS.BMP o NUMS_EX.BMP),
+    // reproducir/pausa/detener (PLAYPAUS.BMP), indicador de posición (POSBAR.BMP) y los botones
+    // presionados (segunda fila de CBUTTONS.BMP)
+    const val TEXT_Y = 116
+    const val NUMS_Y = TEXT_Y + 18
+    const val PLAYPAUS_Y = NUMS_Y + 13
+    const val THUMB_Y = PLAYPAUS_Y + 9
+    const val PRESSED_Y = THUMB_Y + 10
+    const val ATLAS_HEIGHT = PRESSED_Y + 18
+
+    // Dónde van en la ventana
+    const val TITLE_X = 111
+    const val TITLE_Y = 27
+    const val TITLE_W = 154
+    val CLOCK_X = intArrayOf(48, 60, 78, 90)
+    const val CLOCK_Y = 26
+    const val PLAYPAUS_X = 26
+    const val PLAYPAUS_WY = 28
+    const val POSBAR_X = 16
+    const val POSBAR_WY = 72
+    const val POSBAR_W = 248
+    const val THUMB_W = 29
+
+    /**
+     * Botones de la ventana: posición en la ventana y del botón presionado en CBUTTONS.BMP (misma
+     * columna, segunda fila).
+     */
+    enum class Button(val x: Int, val y: Int, val w: Int, val h: Int, val sx: Int) {
+        PREVIOUS(16, 88, 23, 18, 0),
+        PLAY(39, 88, 23, 18, 23),
+        PAUSE(62, 88, 23, 18, 46),
+        STOP(85, 88, 23, 18, 69),
+        NEXT(108, 88, 22, 18, 92),
+    }
+
+    /** Lo que se toca en el skin. */
+    sealed interface Hit {
+        data class Press(val button: Button) : Hit
+        /** Barra de posición: ir a esa fracción de la canción. */
+        data class Seek(val fraction: Float) : Hit
+        /** La pantalla (reloj o visor): reproducir/pausa. */
+        data object TogglePlay : Hit
+    }
+
+    /** Qué hay en el punto ([x], [y]) de la ventana (en píxeles del skin), dentro de la parte visible. */
+    fun hit(x: Float, y: Float, part: Part): Hit? {
+        if (x < part.x || y < part.y || x >= part.x + part.w || y >= part.y + part.h) return null
+        Button.entries.firstOrNull { x >= it.x && x < it.x + it.w && y >= it.y && y < it.y + it.h }?.let { return Hit.Press(it) }
+        // Barra de posición, con un poco de margen arriba y abajo para el dedo
+        if (x >= POSBAR_X && x < POSBAR_X + POSBAR_W && y >= POSBAR_WY - 3 && y < POSBAR_WY + 13) {
+            return Hit.Seek(((x - POSBAR_X - THUMB_W / 2f) / (POSBAR_W - THUMB_W)).coerceIn(0f, 1f))
+        }
+        // La pantalla del skin (reloj y visor)
+        if (x >= 9 && x < 107 && y >= 22 && y < 64) return Hit.TogglePlay
+        return null
+    }
+
+    /** Qué parte del skin se muestra. */
+    enum class Part(val x: Int, val y: Int, val w: Int, val h: Int) {
+        /** La ventana entera del reproductor. */
+        FULL(0, 0, WIDTH, HEIGHT),
+        /** Solo la pantalla: reloj, reproducir/pausa y el visor, con el marco del skin alrededor. */
+        DISPLAY(5, 17, 104, 48),
+    }
+
+    fun compose(archive: SkinArchive, decoder: SkinImport.Decoder): IntArray? {
         fun img(name: String) = archive.byName(name)?.let { runCatching { decoder.decode(it) }.getOrNull() }
         val main = img("main.bmp")?.takeIf { it.width >= WIDTH && it.height >= HEIGHT } ?: return null
-        val out = IntArray(WIDTH * HEIGHT) { main[it % WIDTH, it / WIDTH] or (0xFF shl 24) }
+        // Ventana opaca arriba; las piezas de abajo quedan transparentes donde el skin no las trae
+        val out = IntArray(WIDTH * ATLAS_HEIGHT) { i -> if (i < WIDTH * HEIGHT) main[i % WIDTH, i / WIDTH] or (0xFF shl 24) else 0 }
 
         /** Copia un recorte de [src] a la ventana; si el recorte no existe en esa imagen, no hace nada. */
         fun blit(src: Pixels?, sx: Int, sy: Int, w: Int, h: Int, dx: Int, dy: Int) {
@@ -26,7 +96,7 @@ object WinampWindow {
             if (sx < 0 || sy < 0 || sx + w > src.width || sy + h > src.height) return
             for (y in 0 until h) for (x in 0 until w) {
                 val tx = dx + x; val ty = dy + y
-                if (tx in 0 until WIDTH && ty in 0 until HEIGHT) out[ty * WIDTH + tx] = src[sx + x, sy + y] or (0xFF shl 24)
+                if (tx in 0 until WIDTH && ty in 0 until ATLAS_HEIGHT) out[ty * WIDTH + tx] = src[sx + x, sy + y] or (0xFF shl 24)
             }
         }
 
@@ -38,10 +108,10 @@ object WinampWindow {
             blit(b, 92, 0, 22, 18, 108, 88)
             blit(b, 114, 0, 22, 16, 136, 89)
         }
-        // Barra de posición con el indicador al inicio
+        // Barra de posición (el indicador va con las piezas, se mueve con la canción)
         img("posbar.bmp").let { p ->
-            blit(p, 0, 0, 248, 10, 16, 72)
-            blit(p, 248, 0, 29, 10, 16, 72)
+            blit(p, 0, 0, POSBAR_W, 10, POSBAR_X, POSBAR_WY)
+            blit(p, 248, 0, THUMB_W, 10, 0, THUMB_Y)
         }
         // Volumen (fondo al 75 %) y balance (centrado), con sus indicadores
         img("volume.bmp").let { v ->
@@ -64,23 +134,21 @@ object WinampWindow {
             blit(m, 0, 0, 29, 12, 239, 41)
             blit(m, 29, 12, 27, 12, 212, 41)
         }
-        // Indicador de reproducción
-        blit(img("playpaus.bmp"), 0, 0, 9, 9, 26, 28)
-        // Reloj 00:00 (NUMS_EX.BMP si lo trae, si no NUMBERS.BMP)
-        (img("nums_ex.bmp") ?: img("numbers.bmp")).let { n ->
-            for ((x, d) in listOf(48 to 0, 60 to 0, 78 to 0, 90 to 0)) blit(n, 9 * d, 0, 9, 13, x, 26)
-        }
-        // Título, kbps y kHz con la fuente del skin
+        // Piezas: botones presionados
+        img("cbuttons.bmp").let { b -> blit(b, 0, 18, 114, 18, 0, PRESSED_Y) }
+        // Piezas: reproducir, pausa y detener (9×9 cada una)
+        blit(img("playpaus.bmp"), 0, 0, 27, 9, 0, PLAYPAUS_Y)
+        // Dígitos 0–9 (NUMS_EX.BMP si lo trae, si no NUMBERS.BMP)
+        (img("nums_ex.bmp") ?: img("numbers.bmp")).let { n -> blit(n, 0, 0, 90, 13, 0, NUMS_Y) }
+        // Fuente completa, y los kbps/kHz fijos en la ventana
         img("text.bmp")?.let { t ->
-            fun write(text: String, x: Int, y: Int, maxChars: Int) {
-                text.take(maxChars).forEachIndexed { i, c ->
-                    val (col, row) = glyph(c)
-                    blit(t, col * 5, row * 6, 5, 6, x + i * 5, y)
-                }
+            blit(t, 0, 0, minOf(t.width, 155), minOf(t.height, 18), 0, TEXT_Y)
+            fun write(text: String, x: Int, y: Int) = text.forEachIndexed { i, c ->
+                val (col, row) = glyph(c)
+                blit(t, col * 5, row * 6, 5, 6, x + i * 5, y)
             }
-            write(("1. $title").padEnd(31), 111, 27, 31)
-            write("128", 111, 43, 3)
-            write("44", 156, 43, 2)
+            write("128", 111, 43)
+            write("44", 156, 43)
         }
         return out
     }

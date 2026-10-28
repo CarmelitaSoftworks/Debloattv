@@ -89,5 +89,15 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
             </intent-filter>
         </receiver>
+        <!-- Solo para ver qué suena (título y tiempo en el reproductor de Winamp); no lee notificaciones -->
+        <service
+            android:name=".NowPlayingService"
+            android:exported="true"
+            android:label="@string/now_playing_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
     </application>
 </manifest>

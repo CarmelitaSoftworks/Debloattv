@@ -258,4 +258,51 @@ class RendererStateTest {
         // Dentro del visor, el fondo del analizador (barras en cero)
         org.junit.Assert.assertEquals(skin.colors[0], bmp.getPixel((WinampWindow.VIS_X + 2) * 2, (WinampWindow.VIS_Y + 2) * 2))
     }
+
+    /** Lo que suena se dibuja con las piezas del skin: el reloj y el indicador cambian con la canción. */
+    @Test
+    fun nowPlayingIsDrawnLive() {
+        WinampWindows.init(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        val skin = WinampSkins.DEFAULT
+        fun render(): Bitmap {
+            val bmp = Bitmap.createBitmap(550, 232, Bitmap.Config.ARGB_8888)
+            SpectrumRenderer().draw(
+                Canvas(bmp), 550f, 232f, FloatArray(19), null,
+                SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = skin.name),
+            )
+            return bmp
+        }
+        fun region(b: Bitmap, x: Int, y: Int, w: Int, h: Int) = IntArray(w * h).also { b.getPixels(it, 0, w, x, y, w, h) }
+        NowPlaying.track.value = null
+        val idle = render()
+        val now = android.os.SystemClock.elapsedRealtime()
+        NowPlaying.track.value = PlayingTrack("Stumble", "Just Plain Ant", 225_000, 83_000, now, 1f, PlayingTrack.State.PAUSED)
+        val paused = render()
+        NowPlaying.track.value = null
+        // Reloj (48..99, 26..39 en la ventana, ×2): 00:00 contra 01:23
+        org.junit.Assert.assertFalse(region(idle, 96, 52, 104, 26).contentEquals(region(paused, 96, 52, 104, 26)))
+        // Indicador reproducir contra pausa (26, 28, 9×9)
+        org.junit.Assert.assertFalse(region(idle, 52, 56, 18, 18).contentEquals(region(paused, 52, 56, 18, 18)))
+        // Barra de posición: el indicador ya no está al inicio
+        org.junit.Assert.assertFalse(region(idle, 32, 144, 58, 20).contentEquals(region(paused, 32, 144, 58, 20)))
+    }
+
+    /** Los toques se traducen a la ventana del skin tal como quedó dibujada (aquí al doble). */
+    @Test
+    fun tapsMapToSkinButtons() {
+        WinampWindows.init(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        val r = SpectrumRenderer()
+        r.draw(
+            Canvas(Bitmap.createBitmap(550, 232, Bitmap.Config.ARGB_8888)), 550f, 232f, FloatArray(19), null,
+            SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = WinampSkins.DEFAULT.name),
+        )
+        org.junit.Assert.assertEquals(WinampWindow.Hit.Press(WinampWindow.Button.PLAY), r.hitAt(2 * 45f, 2 * 95f))
+        org.junit.Assert.assertEquals(WinampWindow.Hit.Press(WinampWindow.Button.NEXT), r.hitAt(2 * 115f, 2 * 95f))
+        // Con otro estilo no hay skin que tocar
+        r.draw(
+            Canvas(Bitmap.createBitmap(550, 232, Bitmap.Config.ARGB_8888)), 550f, 232f, FloatArray(19), null,
+            SpectrumSettings(style = SpectrumStyle.BARS),
+        )
+        org.junit.Assert.assertNull(r.hitAt(2 * 45f, 2 * 95f))
+    }
 }

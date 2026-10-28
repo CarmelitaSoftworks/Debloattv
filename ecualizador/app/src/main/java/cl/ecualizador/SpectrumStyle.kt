@@ -197,6 +197,8 @@ data class SpectrumSettings(
     val winampBars: Int = WINAMP_BARS_ORIGINAL,
     /** Líneas finas de «Winamp líneas» (el original tiene 75). */
     val winampLines: Int = WINAMP_LINES_ORIGINAL,
+    /** Parte del skin real que se muestra (no se guarda: la elige el fondo animado). */
+    val winampPart: WinampWindow.Part = WinampWindow.Part.FULL,
 ) {
     /** Barras que se dibujan con el estilo elegido. */
     val effectiveBars: Int

@@ -34,6 +34,10 @@ class SpectrumWallpaperService : WallpaperService() {
         private var backgroundVersion = -1L
         /** Ya se pidió una superficie del tamaño de la pantalla (se hace una sola vez). */
         private var enlarged = false
+        /** Dónde se dibujó el visor en el último cuadro, para traducir los toques. */
+        private var drawnX = 0f
+        private var drawnY = 0f
+        private var accessHintShown = false
         private var error: String? = null
         private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
         private val dimPaint = Paint()
@@ -60,6 +64,27 @@ class SpectrumWallpaperService : WallpaperService() {
             }
             WallpaperPrefs.reportRender(this@SpectrumWallpaperService, WallpaperRender(w, h, dw, dh, enlarged))
             if (full == null) drawFrame()
+        }
+
+        /**
+         * Toques en la pantalla de inicio: el launcher avisa al fondo cuando se toca una zona sin
+         * íconos. Si cae en un botón del skin, se controla el reproductor que suena.
+         */
+        override fun onCommand(action: String?, x: Int, y: Int, z: Int, extras: android.os.Bundle?, resultRequested: Boolean): android.os.Bundle? {
+            if (action == android.app.WallpaperManager.COMMAND_TAP) {
+                renderer.hitAt(x - drawnX, y - drawnY)?.let { hit ->
+                    val ctx = this@SpectrumWallpaperService
+                    when {
+                        !NowPlaying.hasAccess(ctx) -> if (!accessHintShown) {
+                            accessHintShown = true
+                            android.widget.Toast.makeText(ctx, "Para usar los botones, activa «Mostrar lo que suena» en Ecualizador", android.widget.Toast.LENGTH_LONG).show()
+                        }
+                        NowPlaying.perform(hit) -> (hit as? WinampWindow.Hit.Press)?.let { renderer.press(it.button) }
+                        else -> android.widget.Toast.makeText(ctx, "No hay música abierta", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+            return super.onCommand(action, x, y, z, extras, resultRequested)
         }
 
         /** Resolución física de la pantalla (no la de la ventana ni la escalada). */
@@ -156,8 +181,7 @@ class SpectrumWallpaperService : WallpaperService() {
                 val margin = 16 * density
                 val spectrum = ws.view.spectrumSettings(settings)
                 // El reproductor ocupa todo el ancho con su proporción; el espectro solo, el alto elegido
-                val h = if (ws.view == WallpaperView.PLAYER) WallpaperView.playerHeight(width - 2 * margin)
-                else height * ws.height.coerceIn(0.1f, 0.6f)
+                val h = ws.view.height(settings, width - 2 * margin, height.toFloat(), ws.height)
                 val top = when (ws.position) {
                     WallpaperPosition.TOP -> height * 0.12f
                     WallpaperPosition.CENTER -> (height - h) / 2
@@ -168,6 +192,7 @@ class SpectrumWallpaperService : WallpaperService() {
                     canvas.drawText(msg, width / 2f, top + h / 2, text)
                 }
                 smoother?.let { s ->
+                    drawnX = margin; drawnY = top
                     canvas.save()
                     canvas.translate(margin, top)
                     renderer.draw(canvas, width - 2 * margin, h, s.values, s.peaks, spectrum, density, Spectrum.wave.value)

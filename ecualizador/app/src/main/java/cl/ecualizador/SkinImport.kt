@@ -189,6 +189,6 @@ object SkinImport {
             vis, face, frame, accent, text, textBg,
             pl?.let { plEditColor(it, "normal") }, pl?.let { plEditColor(it, "current") }, pl?.let { plEditColor(it, "normalbg") },
         )
-        return WinampSkin(name, "importado", vis, chrome, group, windowPixels = WinampWindow.compose(archive, decoder, name))
+        return WinampSkin(name, "importado", vis, chrome, group, windowPixels = WinampWindow.compose(archive, decoder))
     }
 }

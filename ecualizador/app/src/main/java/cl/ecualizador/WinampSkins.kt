@@ -77,7 +77,7 @@ object WinampSkins {
     private fun saveWindow(ctx: Context, pixels: IntArray): String? = runCatching {
         val dir = File(ctx.filesDir, "skin-windows").apply { mkdirs() }
         val f = File(dir, "${System.nanoTime()}.png")
-        val bmp = android.graphics.Bitmap.createBitmap(pixels, WinampWindow.WIDTH, WinampWindow.HEIGHT, android.graphics.Bitmap.Config.ARGB_8888)
+        val bmp = android.graphics.Bitmap.createBitmap(pixels, WinampWindow.WIDTH, pixels.size / WinampWindow.WIDTH, android.graphics.Bitmap.Config.ARGB_8888)
         f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         bmp.recycle()
         f.path

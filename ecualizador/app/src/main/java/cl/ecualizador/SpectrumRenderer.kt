@@ -51,6 +51,7 @@ class SpectrumRenderer {
     ) {
         val n = values.size
         if (w <= 0 || h <= 0) return
+        hitPart = null // lo vuelve a fijar el skin real si se dibuja
         // Cada estilo deja sus ajustes en los pinceles compartidos: se reinician en cada cuadro.
         fill.shader = null; fill.alpha = 255
         stroke.shader = null; stroke.alpha = 255; stroke.strokeCap = Paint.Cap.ROUND
@@ -219,7 +220,7 @@ class SpectrumRenderer {
         val skin = WinampSkins.byName(s.winampSkin)
         val window = if (s.winampFrame) WinampWindows.bitmap(skin) else null
         val area = when {
-            window != null -> drawSkinWindow(canvas, w, h, window)
+            window != null -> drawSkinWindow(canvas, w, h, window, s.winampPart, skin)
             s.winampFrame -> drawWinampFrame(canvas, w, h, skin, density)
             else -> null
         }
@@ -296,27 +297,124 @@ class SpectrumRenderer {
         blit(canvas, w, h, pw)
     }
 
+    private val windowSrc = android.graphics.Rect()
     private val windowDst = android.graphics.RectF()
 
     /**
-     * Ventana real del skin (275×116) lo más grande que quepa, centrada; con factor entero si cabe
-     * al menos al doble, para que cada píxel del skin quede como un bloque parejo y nítido.
-     * Devuelve el recuadro del visor dentro de ella.
+     * Skin real (la ventana entera o solo su pantalla, según [part]) lo más grande que quepa,
+     * centrado; con factor entero si cabe al menos al doble, para que cada píxel del skin quede
+     * como un bloque parejo y nítido. Encima, lo que suena en vivo. Devuelve el recuadro del visor.
      */
-    private fun drawSkinWindow(canvas: Canvas, w: Float, h: Float, window: android.graphics.Bitmap): android.graphics.RectF {
-        val fit = minOf(w / WinampWindow.WIDTH, h / WinampWindow.HEIGHT)
+    private fun drawSkinWindow(
+        canvas: Canvas, w: Float, h: Float, atlas: android.graphics.Bitmap, part: WinampWindow.Part, skin: WinampSkin,
+    ): android.graphics.RectF {
+        val fit = minOf(w / part.w, h / part.h)
         val scale = if (fit >= 2f) kotlin.math.floor(fit) else fit
-        val ww = WinampWindow.WIDTH * scale
-        val wh = WinampWindow.HEIGHT * scale
-        val left = kotlin.math.round((w - ww) / 2)
-        val top = kotlin.math.round((h - wh) / 2)
-        windowDst.set(left, top, left + ww, top + wh)
-        canvas.drawBitmap(window, null, windowDst, pixelPaint)
+        val left = kotlin.math.round((w - part.w * scale) / 2)
+        val top = kotlin.math.round((h - part.h * scale) / 2)
+
+        /** Copia un recorte del atlas a la posición ([wx], [wy]) de la ventana del skin. */
+        fun blit(sx: Int, sy: Int, sw: Int, sh: Int, wx: Float, wy: Float) {
+            windowSrc.set(sx, sy, sx + sw, sy + sh)
+            val x = left + (wx - part.x) * scale
+            val y = top + (wy - part.y) * scale
+            windowDst.set(x, y, x + sw * scale, y + sh * scale)
+            canvas.drawBitmap(atlas, windowSrc, windowDst, pixelPaint)
+        }
+
+        hitPart = part; hitLeft = left; hitTop = top; hitScale = scale
+
+        canvas.save()
+        canvas.clipRect(left, top, left + part.w * scale, top + part.h * scale)
+        blit(part.x, part.y, part.w, part.h, part.x.toFloat(), part.y.toFloat())
+        // Las ventanas importadas antes de la 2.8 no traen las piezas: quedan como estaban
+        if (atlas.height >= WinampWindow.ATLAS_HEIGHT) {
+            drawNowPlaying(skin, ::blit)
+            // Botón recién tocado: la imagen «presionado» del skin por un instante
+            val b = pressed
+            if (b != null && android.os.SystemClock.elapsedRealtime() < pressedUntil) {
+                blit(b.sx, WinampWindow.PRESSED_Y, b.w, b.h, b.x.toFloat(), b.y.toFloat())
+            }
+        }
+        canvas.restore()
         frameArea.set(
-            left + WinampWindow.VIS_X * scale, top + WinampWindow.VIS_Y * scale,
-            left + (WinampWindow.VIS_X + WinampWindow.VIS_W) * scale, top + (WinampWindow.VIS_Y + WinampWindow.VIS_H) * scale,
+            left + (WinampWindow.VIS_X - part.x) * scale, top + (WinampWindow.VIS_Y - part.y) * scale,
+            left + (WinampWindow.VIS_X - part.x + WinampWindow.VIS_W) * scale,
+            top + (WinampWindow.VIS_Y - part.y + WinampWindow.VIS_H) * scale,
         )
         return frameArea
+    }
+
+    // Dónde quedó el skin en el último cuadro, para saber qué se toca
+    private var hitPart: WinampWindow.Part? = null
+    private var hitLeft = 0f
+    private var hitTop = 0f
+    private var hitScale = 1f
+    private var pressed: WinampWindow.Button? = null
+    private var pressedUntil = 0L
+
+    /**
+     * Qué hay del skin en ([x], [y]) (en las coordenadas en que se dibujó, como en [draw]), o null
+     * si no hay skin real o no se tocó nada.
+     */
+    fun hitAt(x: Float, y: Float): WinampWindow.Hit? {
+        val part = hitPart ?: return null
+        return WinampWindow.hit(part.x + (x - hitLeft) / hitScale, part.y + (y - hitTop) / hitScale, part)
+    }
+
+    /** Muestra [button] presionado un instante. */
+    fun press(button: WinampWindow.Button) {
+        pressed = button
+        pressedUntil = android.os.SystemClock.elapsedRealtime() + 180
+    }
+
+    private var titleSource = ""
+    private var titleGlyphs = IntArray(0)
+
+    /**
+     * Lo que suena, con las piezas del propio skin: reproducir/pausa, reloj, indicador de posición y
+     * el título que se desplaza como en Winamp. Sin acceso a lo que suena, el reloj queda en 00:00
+     * y el título es el nombre del skin.
+     */
+    private fun drawNowPlaying(skin: WinampSkin, blit: (Int, Int, Int, Int, Float, Float) -> Unit) {
+        val track = NowPlaying.track.value
+        val now = android.os.SystemClock.elapsedRealtime()
+        val state = track?.state ?: PlayingTrack.State.PLAYING
+        blit(state.ordinal * 9, WinampWindow.PLAYPAUS_Y, 9, 9, WinampWindow.PLAYPAUS_X.toFloat(), WinampWindow.PLAYPAUS_WY.toFloat())
+
+        val pos = track?.positionAt(now) ?: 0L
+        val secs = (pos / 1000).coerceAtMost(99 * 60 + 59)
+        val digits = intArrayOf((secs / 60 / 10).toInt(), (secs / 60 % 10).toInt(), (secs % 60 / 10).toInt(), (secs % 60 % 10).toInt())
+        for (k in 0 until 4) blit(digits[k] * 9, WinampWindow.NUMS_Y, 9, 13, WinampWindow.CLOCK_X[k].toFloat(), WinampWindow.CLOCK_Y.toFloat())
+
+        val progress = if (track != null && track.durationMs > 0) pos / track.durationMs.toFloat() else 0f
+        val thumbX = WinampWindow.POSBAR_X + (WinampWindow.POSBAR_W - WinampWindow.THUMB_W) * progress.coerceIn(0f, 1f)
+        blit(0, WinampWindow.THUMB_Y, WinampWindow.THUMB_W, 10, kotlin.math.floor(thumbX), WinampWindow.POSBAR_WY.toFloat())
+
+        // Título: «1. Artista - Título (3:45)»; si no cabe, se desplaza 1 píxel del skin cada 40 ms
+        val text = "1. " + (track?.winampTitle() ?: skin.name)
+        if (text != titleSource) {
+            titleSource = text
+            val plain = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+            titleGlyphs = IntArray(plain.length) { i -> WinampWindow.glyph(plain[i]).let { (c, r) -> c or (r shl 8) } }
+        }
+        val glyphs = if (titleGlyphs.size * 5 > WinampWindow.TITLE_W) titleGlyphs + MARQUEE_GAP else titleGlyphs
+        val total = glyphs.size * 5
+        val offset = if (glyphs === titleGlyphs) 0 else ((now / 40) % total).toInt()
+        val x0 = WinampWindow.TITLE_X
+        val x1 = x0 + WinampWindow.TITLE_W
+        for (copy in 0..1) {
+            for (i in glyphs.indices) {
+                val x = x0 - offset + copy * total + i * 5
+                if (x + 5 <= x0 || x >= x1) continue
+                // Recorte del glifo a la zona del título
+                val from = maxOf(0, x0 - x)
+                val to = minOf(5, x1 - x)
+                val g = glyphs[i]
+                blit((g and 0xFF) * 5 + from, WinampWindow.TEXT_Y + (g shr 8) * 6, to - from, 6, (x + from).toFloat(), WinampWindow.TITLE_Y.toFloat())
+            }
+            if (glyphs === titleGlyphs) break
+        }
     }
 
     private val frameFill = Paint().apply { isAntiAlias = false }
@@ -475,5 +573,10 @@ class SpectrumRenderer {
             val y = h - level * h
             canvas.drawRect(x, y - capH, x + bw - gap, y, fill)
         }
+    }
+
+    private companion object {
+        /** «  ***  » entre vueltas del título, como en Winamp. */
+        val MARQUEE_GAP: IntArray = "  ***  ".map { WinampWindow.glyph(it).let { (c, r) -> c or (r shl 8) } }.toIntArray()
     }
 }

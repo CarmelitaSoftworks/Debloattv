@@ -39,7 +39,8 @@ object WinampWindows {
         val bmp = runCatching {
             if (src.startsWith("asset:")) app?.assets?.open(src.removePrefix("asset:"))?.use { BitmapFactory.decodeStream(it, null, opts) }
             else BitmapFactory.decodeFile(src, opts)
-        }.getOrNull()?.takeIf { it.width == WinampWindow.WIDTH && it.height == WinampWindow.HEIGHT }
+        // Atlas con las piezas en vivo, o la ventana sola de los importados antes de la 2.8
+        }.getOrNull()?.takeIf { it.width == WinampWindow.WIDTH && (it.height == WinampWindow.ATLAS_HEIGHT || it.height == WinampWindow.HEIGHT) }
         cache[src] = bmp
         return bmp
     }

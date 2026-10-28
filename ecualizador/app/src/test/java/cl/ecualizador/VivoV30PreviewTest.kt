@@ -39,7 +39,12 @@ class VivoV30PreviewTest {
         val values = FloatArray(SpectrumSettings.WINAMP_BARS_ORIGINAL) { i -> (0.95f - i * 0.04f + 0.15f * kotlin.math.sin(i * 1.3f)).coerceIn(0.05f, 1f) }
         val peaks = FloatArray(values.size) { (values[it] + 0.1f).coerceAtMost(1f) }
         // Reproductor completo con cada skin y, al final, «Solo el espectro» con el primero
-        val modes = names.map { it to WallpaperView.PLAYER } + (names.first() to WallpaperView.SPECTRUM)
+        val modes = names.map { it to WallpaperView.PLAYER } + names.map { it to WallpaperView.SPECTRUM }
+        // Una canción sonando, con título largo para ver el desplazamiento
+        NowPlaying.track.value = PlayingTrack(
+            "Llama Whippin' Intro (versión extendida para el fondo)", "DJ Mike Llama", 225_000, 83_000,
+            android.os.SystemClock.elapsedRealtime(), 1f, PlayingTrack.State.PLAYING,
+        )
         val shots = modes.map { (name, view) ->
             val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
@@ -51,11 +56,12 @@ class VivoV30PreviewTest {
             // Misma geometría que SpectrumWallpaperService: margen de 16 dp, abajo; el reproductor a todo
             // el ancho con su proporción y el espectro solo con el 25 % de alto
             val margin = 16 * density
-            val sh = if (view == WallpaperView.PLAYER) WallpaperView.playerHeight(w - 2 * margin) else h * 0.25f
+            val base = SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = name)
+            val sh = view.height(base, w - 2 * margin, h.toFloat(), 0.25f)
             val top = h - sh - h * 0.14f
             c.save(); c.translate(margin, top)
             SpectrumRenderer().draw(c, w - 2 * margin, sh, values, peaks,
-                view.spectrumSettings(SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = name)), density)
+                view.spectrumSettings(base), density)
             c.restore()
             File(out, "v30_${view.name.lowercase()}_${name.replace(Regex("[^A-Za-z0-9]+"), "_")}.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bmp

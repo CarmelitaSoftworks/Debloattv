@@ -635,6 +635,32 @@ private fun SpectrumCard(running: Boolean, error: String?, onToggle: (Boolean) -
     if (customizing) SpectrumSettingsDialog(settings, running, onDismiss = { customizing = false })
 }
 
+/** Permiso para mostrar lo que suena (título, tiempo, reproducir/pausa) en el reproductor de Winamp. */
+@Composable
+private fun NowPlayingAccess() {
+    val ctx = LocalContext.current
+    // Se revisa al volver a la app (el permiso se da en Ajustes)
+    val state by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
+    val access = remember(state) { NowPlaying.hasAccess(ctx) }
+    val track by NowPlaying.track.collectAsState()
+    if (access) {
+        Text(
+            (track?.let { "Suena: ${it.winampTitle()}" } ?: "Muestra lo que suena en cualquier app. Pon música para verlo.") +
+                " En el fondo, los botones del skin controlan la música (toca una zona sin íconos).",
+            fontSize = 12.sp, color = Muted
+        )
+    } else {
+        Text(
+            "Para ver en el reproductor el título, el tiempo y si está en pausa, y para que sus botones controlen " +
+                "la música, Android pide el «acceso a las notificaciones». La app solo lo usa para eso: no lee tus notificaciones.",
+            fontSize = 12.sp, lineHeight = 16.sp, color = Muted
+        )
+        OutlinedButton(onClick = {
+            runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        }) { Text("Mostrar lo que suena") }
+    }
+}
+
 /** Fondo de pantalla animado: la única forma de tener el espectro a 60 fps en la pantalla de inicio. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -690,15 +716,20 @@ private fun WallpaperCard() {
                 FilterChip(selected = ws.view == v, onClick = { set { it.copy(view = v) } }, label = { Text(v.label) })
             }
         }
+        val spectrum by SpectrumPrefs.settings.collectAsState()
+        val winampLook = ws.view == WallpaperView.PLAYER || spectrum.style.winamp
         Text(
-            if (ws.view == WallpaperView.PLAYER) "La ventana del skin de Winamp elegido a todo el ancho, con el espectro en su visor. Funciona con todos los skins."
-            else "Solo el espectro, con el estilo y los colores del visor.",
+            when {
+                ws.view == WallpaperView.PLAYER -> "La ventana del skin de Winamp elegido a todo el ancho, con el espectro en su visor."
+                spectrum.style.winamp -> "La pantalla del skin (reloj y visor, con su marco) ampliada a todo el ancho."
+                else -> "Solo el espectro, con el estilo y los colores del visor."
+            },
             fontSize = 12.sp, color = Muted
         )
-        if (ws.view == WallpaperView.PLAYER) {
-            val spectrum by SpectrumPrefs.settings.collectAsState()
-            // Las miniaturas muestran el reproductor completo, como se verá en el fondo
-            WinampSkinPicker(spectrum.copy(winampFrame = true)) { change -> SpectrumPrefs.update(ctx, change) }
+        if (winampLook) {
+            // Las miniaturas muestran el skin como se verá en el fondo
+            WinampSkinPicker(ws.view.spectrumSettings(spectrum)) { change -> SpectrumPrefs.update(ctx, change) }
+            NowPlayingAccess()
         }
         Text("Posición", color = Muted, fontSize = 13.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -706,7 +737,7 @@ private fun WallpaperCard() {
                 FilterChip(selected = ws.position == p, onClick = { set { it.copy(position = p) } }, label = { Text(p.label) })
             }
         }
-        if (ws.view == WallpaperView.SPECTRUM) {
+        if (!winampLook) {
             LabeledSlider("Alto", ws.height, 0.1f..0.6f, "%.0f%%".format(ws.height * 100)) { v -> set { it.copy(height = v) } }
         }
         if (ws.hasImage) {

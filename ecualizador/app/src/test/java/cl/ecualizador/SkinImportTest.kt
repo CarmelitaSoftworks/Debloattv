@@ -82,11 +82,13 @@ class SkinImportTest {
         val skin = SkinImport.import(archive, "Prueba", SkinImport.ANDROID_DECODER).single()
         val px = skin.windowPixels!!
         fun at(x: Int, y: Int) = px[y * WinampWindow.WIDTH + x]
-        assertEquals(WinampWindow.WIDTH * WinampWindow.HEIGHT, px.size)
+        assertEquals(WinampWindow.WIDTH * WinampWindow.ATLAS_HEIGHT, px.size)
         assertEquals(bar, at(100, 5))          // barra de título
         assertEquals(buttons, at(20, 95))      // botón «anterior» en (16, 88)
         assertEquals(face, at(30, 50))         // MAIN.BMP donde no hay piezas (el visor)
         assertEquals(face, at(190, 95))        // sin SHUFREP.BMP («aleatorio» en 164..210) queda MAIN.BMP
+        assertEquals(face, at(60, 30))         // el reloj no va en la ventana: se dibuja en vivo
+        assertEquals(0, at(5, WinampWindow.NUMS_Y + 3)) // sin NUMBERS.BMP, la pieza queda transparente
     }
 
     @Test
@@ -168,13 +170,13 @@ class SkinImportTest {
         val dirs = (System.getProperty("classicWszDir")?.takeIf { it.isNotEmpty() } ?: return).split(File.pathSeparator).map(::File)
         val files = dirs.flatMap { it.listFiles().orEmpty().toList() }
         fun save(id: String, px: IntArray) {
-            val bmp = android.graphics.Bitmap.createBitmap(px, WinampWindow.WIDTH, WinampWindow.HEIGHT, android.graphics.Bitmap.Config.ARGB_8888)
+            val bmp = android.graphics.Bitmap.createBitmap(px, WinampWindow.WIDTH, WinampWindow.ATLAS_HEIGHT, android.graphics.Bitmap.Config.ARGB_8888)
             File(out, "$id.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
         }
         var n = 0
         WinampClassicSkins.ALL.forEach { skin ->
             val f = files.firstOrNull { it.nameWithoutExtension == skin.archiveId } ?: return@forEach
-            WinampWindow.compose(SkinArchive.read(f.inputStream()), SkinImport.ANDROID_DECODER, skin.name)?.let { save(skin.archiveId, it); n++ }
+            WinampWindow.compose(SkinArchive.read(f.inputStream()), SkinImport.ANDROID_DECODER)?.let { save(skin.archiveId, it); n++ }
         }
         // Skin base: los BITMAP de winamp.exe con su número de recurso
         System.getProperty("winampExeBitmaps")?.takeIf { it.isNotEmpty() }?.let { dir ->
@@ -186,7 +188,7 @@ class SkinImportTest {
             val archive = SkinArchive(ids.mapNotNull { (id, name) ->
                 (File(dir, "$id.png").takeIf { it.exists() } ?: File(dir, "$id.bmp").takeIf { it.exists() })?.let { name to it.readBytes() }
             }.toMap())
-            WinampWindow.compose(archive, SkinImport.ANDROID_DECODER, WinampSkins.DEFAULT.name)?.let { save(WinampSkins.DEFAULT.archiveId, it); n++ }
+            WinampWindow.compose(archive, SkinImport.ANDROID_DECODER)?.let { save(WinampSkins.DEFAULT.archiveId, it); n++ }
         }
         println("Ventanas generadas: $n")
         assertTrue(n > 0)
