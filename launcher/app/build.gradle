@@ -11,6 +11,12 @@ tasks.register('copyDebloatAssets', Sync) {
 }
 preBuild.dependsOn 'copyDebloatAssets'
 
+// Clave de release de Halo: datos en launcher/keystore.properties (fuera de git). Sin ese archivo
+// se firma con la clave de depuración, para que cualquiera pueda compilar e instalar su versión.
+def keystoreFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystoreFile.exists()) keystoreFile.withInputStream { keystoreProps.load(it) }
+
 android {
     namespace 'com.carmelita.halo'
     compileSdk 34
@@ -19,8 +25,19 @@ android {
         applicationId 'com.carmelita.halo'
         minSdk 23
         targetSdk 34
-        versionCode 13
-        versionName '2.4.0'
+        versionCode 14
+        versionName '2.4.1'
+    }
+
+    signingConfigs {
+        if (keystoreFile.exists()) {
+            release {
+                storeFile rootProject.file(keystoreProps.getProperty('storeFile'))
+                storePassword keystoreProps.getProperty('storePassword')
+                keyAlias keystoreProps.getProperty('keyAlias')
+                keyPassword keystoreProps.getProperty('keyPassword')
+            }
+        }
     }
 
     sourceSets {
@@ -33,9 +50,7 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt')
-            // Firmado con la clave de depuración para que el APK se pueda instalar directamente.
-            // Si vas a distribuirlo, crea tu propia keystore.
-            signingConfig signingConfigs.debug
+            signingConfig keystoreFile.exists() ? signingConfigs.release : signingConfigs.debug
         }
     }
 

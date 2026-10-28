@@ -1,1 +1,5 @@
 debloater/backups/
+# Firma de release de Halo y del Ecualizador: nunca en el repositorio
+*.jks
+*.keystore
+keystore.properties

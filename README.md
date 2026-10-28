@@ -196,7 +196,9 @@ cd launcher
 
 GitHub Actions compila el APK universal en cada cambio (pestaña *Actions → Compilar APK → Artifacts*). Empaqueta las listas de `debloater/lists/`.
 
-El APK release está firmado con la clave de depuración para que se pueda instalar directamente. Si compilas tu propia versión con otra clave, desinstala antes la de `dist/` (`adb uninstall com.carmelita.halo`), porque Android no deja actualizar una app firmada con una clave distinta.
+`dist/halo.apk` está firmado con la clave de release de Halo (desde la 2.4.1), que se guarda fuera del repositorio: Gradle la usa si existe `launcher/keystore.properties` (`storeFile`, `storePassword`, `keyAlias`, `keyPassword`). Sin ese archivo, como en GitHub Actions o en tu propio clon, el APK release se firma con la clave de depuración para que se pueda instalar directamente.
+
+Android no deja actualizar una app firmada con una clave distinta. Si tienes Halo 2.4.0 o anterior, o una versión que compilaste tú, desinstálala una vez antes de instalar la de `dist/` (`adb uninstall com.carmelita.halo`). Lo quitado en la TV sigue anotado en `/sdcard/DebloatTV`, así que «Restaurar todo» funciona igual.
 
 ## Decodificadores de operadores (Chile)
 
