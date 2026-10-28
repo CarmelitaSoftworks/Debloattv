@@ -50,6 +50,18 @@ data class PlayingTrack(
 object NowPlaying {
     val track = MutableStateFlow<PlayingTrack?>(null)
 
+    /** Si Android tiene conectado [NowPlayingService] (con el permiso dado, debería estarlo). */
+    val connected = MutableStateFlow(false)
+
+    /**
+     * Algunos teléfonos desconectan el servicio al actualizar la app y no lo reconectan hasta
+     * reiniciar, aunque el permiso siga dado: se le pide a Android que lo vuelva a conectar.
+     */
+    fun reconnect(ctx: Context) {
+        if (connected.value || !hasAccess(ctx)) return
+        runCatching { NotificationListenerService.requestRebind(ComponentName(ctx, NowPlayingService::class.java)) }
+    }
+
     /** La sesión que se muestra (la que reproduce, o la más reciente), para los botones del skin. */
     @Volatile
     var controller: MediaController? = null
@@ -168,6 +180,7 @@ class NowPlayingService : NotificationListenerService() {
     }
 
     override fun onListenerConnected() {
+        NowPlaying.connected.value = true
         NowPlaying.readVolume(this)
         runCatching {
             androidx.core.content.ContextCompat.registerReceiver(
@@ -185,6 +198,7 @@ class NowPlayingService : NotificationListenerService() {
     }
 
     override fun onListenerDisconnected() {
+        NowPlaying.connected.value = false
         runCatching { sessions?.removeOnActiveSessionsChangedListener(sessionsChanged) }
         follow(emptyList())
         NowPlaying.controller = null

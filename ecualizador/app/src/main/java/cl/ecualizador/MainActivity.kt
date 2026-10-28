@@ -643,6 +643,18 @@ private fun NowPlayingAccess() {
     val state by LocalLifecycleOwner.current.lifecycle.currentStateFlow.collectAsState()
     val access = remember(state) { NowPlaying.hasAccess(ctx) }
     val track by NowPlaying.track.collectAsState()
+    val connected by NowPlaying.connected.collectAsState()
+    LaunchedEffect(state, access) { if (access) NowPlaying.reconnect(ctx) }
+    if (access && !connected) {
+        Text(
+            "Permiso dado, pero Android aún no conecta el servicio que lee lo que suena. Espera unos segundos; " +
+                "si sigue así, desactiva y vuelve a activar el acceso o reinicia el teléfono.",
+            fontSize = 12.sp, lineHeight = 16.sp, color = Warn
+        )
+        OutlinedButton(onClick = {
+            runCatching { ctx.startActivity(android.content.Intent(android.provider.Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        }) { Text("Abrir el acceso a notificaciones") }
+    }
     if (access) {
         Text(
             (track?.let { "Suena: ${it.winampTitle()}" } ?: "Muestra lo que suena en cualquier app. Pon música para verlo.") +
