@@ -23,15 +23,15 @@ data class WinampSkin(
     val windowPixels: IntArray? = null,
 )
 
-/** Todos los skins: clásicos, temas de los skins modernos de Winamp 5.9 e importados por el usuario. */
+/** Todos los skins: los clásicos incluidos y los que importa el usuario (.wsz). */
 object WinampSkins {
     const val GROUP_CLASSIC = "Clásicos"
 
     val DEFAULT = WinampSkin("Winamp 2 (original)", "base-2.91", WinampColors.VIS)
 
-    val BUILT_IN: List<WinampSkin> = listOf(DEFAULT) + WinampClassicSkins.ALL + WinampModernSkins.ALL
+    val BUILT_IN: List<WinampSkin> = listOf(DEFAULT) + WinampClassicSkins.ALL
 
-    /** Skins importados desde archivos .wsz/.wal (se guardan en la app). */
+    /** Skins importados desde archivos .wsz (se guardan en la app). */
     val imported = MutableStateFlow<List<WinampSkin>>(emptyList())
 
     val ALL: List<WinampSkin> get() = BUILT_IN + imported.value

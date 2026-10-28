@@ -100,7 +100,8 @@ class SpectrumWallpaperService : WallpaperService() {
 
         override fun doFrame(frameTimeNanos: Long) {
             if (!visible) return
-            val settings = SpectrumPrefs.load(this@SpectrumWallpaperService)
+            val settings = WallpaperPrefs.load(this@SpectrumWallpaperService).view
+                .spectrumSettings(SpectrumPrefs.load(this@SpectrumWallpaperService))
             val dt = if (lastFrameNanos == 0L) 16L else (frameTimeNanos - lastFrameNanos) / 1_000_000
             lastFrameNanos = frameTimeNanos
             val s = smoother?.takeIf { it.size == settings.effectiveBars } ?: SpectrumSmoother(settings.effectiveBars).also { smoother = it }
@@ -153,7 +154,10 @@ class SpectrumWallpaperService : WallpaperService() {
                 }
                 val density = resources.displayMetrics.density
                 val margin = 16 * density
-                val h = height * ws.height.coerceIn(0.1f, 0.6f)
+                val spectrum = ws.view.spectrumSettings(settings)
+                // El reproductor ocupa todo el ancho con su proporción; el espectro solo, el alto elegido
+                val h = if (ws.view == WallpaperView.PLAYER) WallpaperView.playerHeight(width - 2 * margin)
+                else height * ws.height.coerceIn(0.1f, 0.6f)
                 val top = when (ws.position) {
                     WallpaperPosition.TOP -> height * 0.12f
                     WallpaperPosition.CENTER -> (height - h) / 2
@@ -166,7 +170,7 @@ class SpectrumWallpaperService : WallpaperService() {
                 smoother?.let { s ->
                     canvas.save()
                     canvas.translate(margin, top)
-                    renderer.draw(canvas, width - 2 * margin, h, s.values, s.peaks, settings.copy(grid = false), density, Spectrum.wave.value)
+                    renderer.draw(canvas, width - 2 * margin, h, s.values, s.peaks, spectrum, density, Spectrum.wave.value)
                     canvas.restore()
                 }
             } finally {

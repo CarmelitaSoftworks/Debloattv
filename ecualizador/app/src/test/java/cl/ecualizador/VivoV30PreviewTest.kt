@@ -38,7 +38,9 @@ class VivoV30PreviewTest {
         val photo = System.getProperty("wallpaperPhoto")?.takeIf { it.isNotEmpty() }?.let { BitmapFactory.decodeFile(it) }
         val values = FloatArray(SpectrumSettings.WINAMP_BARS_ORIGINAL) { i -> (0.95f - i * 0.04f + 0.15f * kotlin.math.sin(i * 1.3f)).coerceIn(0.05f, 1f) }
         val peaks = FloatArray(values.size) { (values[it] + 0.1f).coerceAtMost(1f) }
-        val shots = names.map { name ->
+        // Reproductor completo con cada skin y, al final, «Solo el espectro» con el primero
+        val modes = names.map { it to WallpaperView.PLAYER } + (names.first() to WallpaperView.SPECTRUM)
+        val shots = modes.map { (name, view) ->
             val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
             val c = Canvas(bmp)
             if (photo != null) {
@@ -46,15 +48,16 @@ class VivoV30PreviewTest {
                 c.drawBitmap(bg, 0f, 0f, null)
                 c.drawColor(0x40000000)
             } else c.drawColor(0xFF15131F.toInt())
-            // Misma geometría que el fondo animado: margen de 16 dp, 25 % de alto, abajo
+            // Misma geometría que SpectrumWallpaperService: margen de 16 dp, abajo; el reproductor a todo
+            // el ancho con su proporción y el espectro solo con el 25 % de alto
             val margin = 16 * density
-            val sh = h * 0.25f
+            val sh = if (view == WallpaperView.PLAYER) WallpaperView.playerHeight(w - 2 * margin) else h * 0.25f
             val top = h - sh - h * 0.14f
             c.save(); c.translate(margin, top)
             SpectrumRenderer().draw(c, w - 2 * margin, sh, values, peaks,
-                SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = name, grid = false), density)
+                view.spectrumSettings(SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = name)), density)
             c.restore()
-            File(out, "v30_${name.replace(Regex("[^A-Za-z0-9]+"), "_")}.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+            File(out, "v30_${view.name.lowercase()}_${name.replace(Regex("[^A-Za-z0-9]+"), "_")}.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
             bmp
         }
         // Hoja con las cuatro pantallas a la mitad, y un recorte a tamaño real del visor

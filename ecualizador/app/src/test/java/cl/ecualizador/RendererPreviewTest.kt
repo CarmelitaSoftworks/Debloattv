@@ -103,8 +103,6 @@ class RendererPreviewTest {
             File(out, file).outputStream().use { sk.compress(Bitmap.CompressFormat.PNG, 100, it) }
         }
         skinSheet(WinampSkins.BUILT_IN.filter { it.group == WinampSkins.GROUP_CLASSIC }, "skins_winamp.png")
-        skinSheet(WinampModernSkins.ALL.filter { it.group == "Winamp Modern" }, "temas_winamp_modern.png")
-        skinSheet(WinampModernSkins.ALL.filter { it.group == "Bento" }, "temas_bento.png")
 
         // Patrones de color: una fila por patrón, con cuatro skins distintos.
         val sample = listOf("Winamp 2 (original)", "Major Tom", "Denon Antique", "Purple Glow").map { WinampSkins.byName(it) }
@@ -131,7 +129,7 @@ class RendererPreviewTest {
         // Maqueta del tema de la app con distintos skins: fondo, tarjeta, título, deslizadores y botón.
         val themed = listOf(
             "Winamp 2 (original)", "Major Tom", "Denon Antique", "Mac OS clásico", "Commodore 64", "Purple Glow",
-            "Winamp Modern · Default", "Winamp Modern · Grapes", "Winamp Modern · Citrus", "Bento · Default", "Bento · Mint", "Bento · Lighten Up · Blue",
+            "Windows 95", "Pink Box", "Classic Green", "Onkyo", "Steel", "Red Cobra",
         ).map { WinampSkins.byName(it) }
         val tw = 260; val th = 200
         val app = Bitmap.createBitmap(3 * (tw + 10) + 10, 4 * (th + 36) + 10, Bitmap.Config.ARGB_8888)
@@ -216,10 +214,14 @@ class RendererStateTest {
         }
     }
 
-    /** Marco por colores (skins sin ventana, como los temas modernos): la esquina es la cara del skin. */
+    /** Marco por colores (skin sin ventana): la esquina es la cara del skin. */
     @Test
     fun skinFrameSurroundsAnalyzer() {
-        val skin = WinampSkins.byName("Bento · Mint")
+        val skin = WinampSkin("Sin ventana", "prueba", WinampColors.VIS, intArrayOf(
+            0xFF3060A0.toInt(), 0xFF203040.toInt(), 0xFFE0A020.toInt(), 0xFFFFFFFF.toInt(),
+            0xFF000000.toInt(), 0xFF00FF00.toInt(), 0xFFFFFFFF.toInt(), 0xFF000000.toInt(),
+        ), SkinImport.GROUP_IMPORTED)
+        WinampSkins.imported.value = listOf(skin)
         val values = FloatArray(19) { 1f }
         fun render(frame: Boolean): Bitmap {
             val bmp = Bitmap.createBitmap(300, 120, Bitmap.Config.ARGB_8888)
@@ -235,6 +237,7 @@ class RendererStateTest {
         org.junit.Assert.assertNotEquals(skin.chrome[WinampChrome.FACE], plain.getPixel(2, 60))
         // El centro (barras llenas) sigue mostrando colores del analizador del skin.
         org.junit.Assert.assertTrue(framed.getPixel(150, 100) in skin.colors.toList())
+        WinampSkins.imported.value = emptyList()
     }
 
     /** Con la ventana real del skin (assets), el visor queda dentro de su recuadro de 76×16. */

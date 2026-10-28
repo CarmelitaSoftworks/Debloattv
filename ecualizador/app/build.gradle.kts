@@ -13,8 +13,8 @@ android {
         applicationId = "cl.ecualizador"
         minSdk = 26
         targetSdk = 35
-        versionCode = 19
-        versionName = "2.6"
+        versionCode = 20
+        versionName = "2.7"
     }
     // Firma de release: datos en keystore.properties (fuera de git). Sin ese archivo, el APK de
     // release sale sin firmar.
@@ -46,7 +46,7 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
         unitTests.all {
-            listOf("previewDir", "winampModernDir", "modernSkinsOut", "classicWszDir", "winampExeBitmaps", "windowsOut", "importSkin", "wallpaperPhoto").forEach { k ->
+            listOf("previewDir", "classicWszDir", "winampExeBitmaps", "windowsOut", "importSkin", "wallpaperPhoto").forEach { k ->
                 it.systemProperty(k, System.getProperty(k) ?: "")
             }
         }

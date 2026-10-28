@@ -684,13 +684,31 @@ private fun WallpaperCard() {
             } ?: " Pon el fondo para ver con qué resolución se dibuja."
             Text("Foto original de ${w}×${h}, sin recomprimir.$drawn", fontSize = 12.sp, lineHeight = 16.sp, color = Muted)
         }
-        Text("Posición del espectro", color = Muted, fontSize = 13.sp)
+        Text("Qué se ve", color = Muted, fontSize = 13.sp)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            WallpaperView.entries.forEach { v ->
+                FilterChip(selected = ws.view == v, onClick = { set { it.copy(view = v) } }, label = { Text(v.label) })
+            }
+        }
+        Text(
+            if (ws.view == WallpaperView.PLAYER) "La ventana del skin de Winamp elegido a todo el ancho, con el espectro en su visor. Funciona con todos los skins."
+            else "Solo el espectro, con el estilo y los colores del visor.",
+            fontSize = 12.sp, color = Muted
+        )
+        if (ws.view == WallpaperView.PLAYER) {
+            val spectrum by SpectrumPrefs.settings.collectAsState()
+            // Las miniaturas muestran el reproductor completo, como se verá en el fondo
+            WinampSkinPicker(spectrum.copy(winampFrame = true)) { change -> SpectrumPrefs.update(ctx, change) }
+        }
+        Text("Posición", color = Muted, fontSize = 13.sp)
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             WallpaperPosition.entries.forEach { p ->
                 FilterChip(selected = ws.position == p, onClick = { set { it.copy(position = p) } }, label = { Text(p.label) })
             }
         }
-        LabeledSlider("Alto", ws.height, 0.1f..0.6f, "%.0f%%".format(ws.height * 100)) { v -> set { it.copy(height = v) } }
+        if (ws.view == WallpaperView.SPECTRUM) {
+            LabeledSlider("Alto", ws.height, 0.1f..0.6f, "%.0f%%".format(ws.height * 100)) { v -> set { it.copy(height = v) } }
+        }
         if (ws.hasImage) {
             LabeledSlider("Oscurecer foto", ws.dim, 0f..0.7f, "%.0f%%".format(ws.dim * 100)) { v -> set { it.copy(dim = v) } }
         }
@@ -823,8 +841,7 @@ private fun WinampSkinTile(skin: WinampSkin, settings: SpectrumSettings, onClick
     ) {
         WinampPreview(preview, Modifier.fillMaxWidth().height(if (settings.winampFrame) 52.dp else 36.dp).clip(RoundedCornerShape(4.dp)))
         Text(
-            // El grupo ya se ve en el filtro: «Winamp Modern · Blueberry» se muestra como «Blueberry»
-            skin.name.removePrefix(skin.group + " · "), fontSize = 11.sp, lineHeight = 13.sp, maxLines = 2,
+            skin.name, fontSize = 11.sp, lineHeight = 13.sp, maxLines = 2,
             overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
@@ -859,7 +876,8 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
                     val archive = ctx.contentResolver.openInputStream(uri)?.use { SkinArchive.read(it) }
                         ?: throw IllegalArgumentException("No se pudo abrir el archivo")
                     val skins = SkinImport.import(archive, fileName.substringBeforeLast('.').replace('_', ' '), SkinImport.ANDROID_DECODER)
-                    if (skins.isEmpty()) throw IllegalArgumentException("No es un skin de Winamp (no trae MAIN.BMP, VISCOLOR.TXT ni skin.xml)")
+                    if (SkinImport.isModern(archive)) throw IllegalArgumentException("Solo se aceptan skins clásicos (.wsz); los modernos (.wal) no.")
+                    if (skins.isEmpty()) throw IllegalArgumentException("No es un skin clásico de Winamp (no trae MAIN.BMP ni VISCOLOR.TXT)")
                     WinampSkins.add(ctx, skins)
                 }
             }
@@ -868,7 +886,7 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
             result.onSuccess { added ->
                 group = SkinImport.GROUP_IMPORTED
                 set { it.copy(winampSkin = added.first().name) }
-                message = if (added.size == 1) "Importado: ${added.first().name}" else "Importados ${added.size} temas de color de ${added.first().name.substringBefore(" · ")}"
+                message = "Importado: ${added.first().name}"
             }.onFailure { message = it.message ?: "No se pudo importar el skin" }
         }
     }
@@ -899,7 +917,7 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
     }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(enabled = !busy, onClick = { picker.launch(arrayOf("*/*")) }) {
-            Text(if (busy) "Importando…" else "Importar skin (.wsz / .wal)")
+            Text(if (busy) "Importando…" else "Importar skin (.wsz)")
         }
         if (selected.group == SkinImport.GROUP_IMPORTED) {
             TextButton(onClick = {
@@ -911,9 +929,8 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
     }
     message?.let { Text(it, fontSize = 12.sp, color = if (failed) Warn else Accent) }
     Text(
-        "Clásicos: colores originales de skins de Winamp 2 (VISCOLOR.TXT, MAIN.BMP, TEXT.BMP y PLEDIT.TXT). " +
-            "Winamp Modern y Bento: los temas de color que trae Winamp 5.9, aplicados como lo hace Winamp. " +
-            "Puedes importar tus propios skins clásicos (.wsz) o modernos (.wal): se guardan solo sus colores.",
+        "Skins clásicos de Winamp 2 con su ventana real y sus colores originales (VISCOLOR.TXT, MAIN.BMP, " +
+            "TEXT.BMP y PLEDIT.TXT). Puedes importar tus propios skins clásicos (.wsz); quedan solo en tu teléfono.",
         fontSize = 12.sp, lineHeight = 16.sp, color = Muted
     )
 }

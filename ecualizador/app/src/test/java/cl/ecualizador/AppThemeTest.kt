@@ -27,7 +27,7 @@ class AppThemeTest {
 
     @Test
     fun accentKeepsSkinIdentity() {
-        // Major Tom: rayo amarillo; Winamp Modern · Grapes: morado.
+        // Major Tom: rayo amarillo.
         val tom = AppTheme.from(WinampSkins.byName("Major Tom")).accent
         assertTrue(((tom shr 16) and 0xFF) > 150 && ((tom shr 8) and 0xFF) > 120 && (tom and 0xFF) < 100)
     }

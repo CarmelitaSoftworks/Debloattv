@@ -54,13 +54,11 @@ class SkinArchive(val files: Map<String, ByteArray>) {
 }
 
 /**
- * Convierte skins de Winamp en colores para el visor: clásicos (.wsz: VISCOLOR.TXT, MAIN.BMP,
- * TEXT.BMP y PLEDIT.TXT) y modernos (.wal: el `<vis>` del XML, los colores de sistema de Wasabi y
- * cada tema de color, aplicando sus «gamma groups» como lo hace Winamp).
+ * Convierte un skin clásico de Winamp (.wsz) en lo que usa el visor: los colores (VISCOLOR.TXT,
+ * MAIN.BMP, TEXT.BMP y PLEDIT.TXT) y su ventana real (ver [WinampWindow]).
  */
 object SkinImport {
     const val GROUP_IMPORTED = "Importados"
-    private const val MAX_CACHED_PIXELS = 6_000_000L
 
     fun interface Decoder { fun decode(bytes: ByteArray): Pixels? }
 
@@ -77,15 +75,16 @@ object SkinImport {
         }
     }
 
-    /** Todos los skins que salen del archivo: uno si es clásico, uno por tema de color si es moderno. */
+    /**
+     * El skin clásico que sale del archivo (vacío si no lo es). Los skins modernos (.wal, con
+     * skin.xml) no se aceptan: su ventana depende de un motor de diseño completo.
+     */
     fun import(archive: SkinArchive, fallbackName: String, decoder: Decoder, group: String = GROUP_IMPORTED): List<WinampSkin> {
-        val skinXml = archive.files.keys.filter { it.substringAfterLast('/') == "skin.xml" }.minByOrNull { it.length }
-        if (skinXml != null) {
-            val modern = modern(archive, skinXml, fallbackName, decoder, group)
-            if (modern.isNotEmpty()) return modern
-        }
+        if (isModern(archive)) return emptyList()
         return listOfNotNull(classic(archive, fallbackName, decoder, group))
     }
+
+    fun isModern(archive: SkinArchive) = archive.files.keys.any { it.substringAfterLast('/') == "skin.xml" }
 
     // ------------------------------------------------------------------ colores
 
@@ -191,199 +190,5 @@ object SkinImport {
             pl?.let { plEditColor(it, "normal") }, pl?.let { plEditColor(it, "current") }, pl?.let { plEditColor(it, "normalbg") },
         )
         return WinampSkin(name, "importado", vis, chrome, group, windowPixels = WinampWindow.compose(archive, decoder, name))
-    }
-
-    // ------------------------------------------------------------------ modernos (.wal)
-
-    /** Un «gamma group» de un tema: valor −4096..4096 por canal, gris (1 máx., 2 promedio) y realce. */
-    class Gamma(val r: Int, val g: Int, val b: Int, val gray: Int, val boost: Int) {
-        /** Misma fórmula que Winamp (y Webamp): canal × (1 + valor/4096), con gris y realce antes. */
-        fun apply(c: Int): Int {
-            var cr = r(c).toDouble(); var cg = g(c).toDouble(); var cb = b(c).toDouble()
-            if (gray != 0) {
-                val v = if (gray == 2) (cr + cg + cb) / 3 else maxOf(cr, cg, cb)
-                cr = v; cg = v; cb = v
-            }
-            val mult = if (boost == 2) 4 else 1
-            val bright = when (boost) { 1 -> 128; 2 -> 32; else -> 0 }
-            fun ch(v: Double, k: Int) = ((v + bright) * mult * (k / 4096.0 + 1.0)).toInt().coerceIn(0, 255)
-            return rgb(ch(cr, r), ch(cg, g), ch(cb, b))
-        }
-    }
-
-    private class Tag(val name: String, val attrs: Map<String, String>, val closing: Boolean)
-
-    private val tagRegex = Regex("""<(/?)([A-Za-z][\w.:-]*)([^<>]*?)/?>""")
-    private val attrRegex = Regex("""([\w.:-]+)\s*=\s*"([^"]*)"""")
-
-    /** Etiquetas de [path] y de sus `<include>` (rutas relativas al archivo que las incluye), en orden. */
-    private fun tags(archive: SkinArchive, path: String, seen: MutableSet<String> = HashSet(), out: MutableList<Tag> = ArrayList()): List<Tag> {
-        if (!seen.add(path) || seen.size > 300) return out
-        val bytes = archive.files[path] ?: return out
-        val text = String(bytes, Charsets.UTF_8).replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
-        val dir = path.substringBeforeLast('/', "")
-        for (m in tagRegex.findAll(text)) {
-            val attrs = attrRegex.findAll(m.groupValues[3]).associate { it.groupValues[1].lowercase() to it.groupValues[2] }
-            val tag = Tag(m.groupValues[2].lowercase(), attrs, m.groupValues[1] == "/")
-            if (tag.name == "include" && !tag.closing) attrs["file"]?.let { tags(archive, resolve(dir, it), seen, out) }
-            else out += tag
-        }
-        return out
-    }
-
-    private fun resolve(dir: String, file: String): String {
-        val parts = ArrayList<String>()
-        for (p in ("$dir/" + file.replace('\\', '/')).lowercase().split('/')) when (p) {
-            "", "." -> {}
-            ".." -> if (parts.isNotEmpty()) parts.removeAt(parts.size - 1)
-            else -> parts += p
-        }
-        return parts.joinToString("/")
-    }
-
-    private fun parseRgb(v: String?): Int? {
-        val n = v?.split(',')?.mapNotNull { it.trim().toIntOrNull() } ?: return null
-        return if (n.size >= 3) rgb(n[0], n[1], n[2]) else null
-    }
-
-    fun modern(archive: SkinArchive, skinXml: String, fallbackName: String, decoder: Decoder, group: String): List<WinampSkin> {
-        val root = skinXml.substringBeforeLast('/', "")
-        val all = tags(archive, skinXml)
-        val nameText = archive.files[skinXml]?.let { Regex("<name>([^<]{1,60})</name>").find(String(it, Charsets.UTF_8))?.groupValues?.get(1)?.trim() }
-        val skinName = nameText?.takeIf { it.isNotEmpty() } ?: fallbackName
-
-        // Temas de color.
-        val themes = LinkedHashMap<String, Map<String, Gamma>>()
-        var current: String? = null
-        var groups = HashMap<String, Gamma>()
-        for (t in all) when {
-            t.name == "gammaset" && !t.closing -> {
-                // Un tema sin «</gammaset>» se guarda igual al empezar el siguiente
-                current?.let { themes.putIfAbsent(it, groups) }
-                current = t.attrs["id"] ?: "Tema ${themes.size + 1}"
-                groups = HashMap()
-            }
-            t.name == "gammaset" && t.closing -> { current?.let { themes.putIfAbsent(it, groups) }; current = null }
-            t.name == "gammagroup" && current != null -> {
-                val v = t.attrs["value"]?.split(',')?.mapNotNull { it.trim().toIntOrNull() }.orEmpty()
-                val id = t.attrs["id"]?.lowercase()
-                if (id != null && v.size >= 3) groups[id] = Gamma(v[0], v[1], v[2], t.attrs["gray"]?.toIntOrNull() ?: 0, t.attrs["boost"]?.toIntOrNull() ?: 0)
-            }
-        }
-        current?.let { themes.putIfAbsent(it, groups) }
-        if (themes.isEmpty()) themes[""] = emptyMap()
-
-        // Colores con nombre (los valores pueden nombrar otro color).
-        val colors = HashMap<String, Pair<String, String?>>()
-        for (t in all) if (t.name == "color" && !t.closing) {
-            val id = t.attrs["id"]?.lowercase() ?: continue
-            colors.putIfAbsent(id, (t.attrs["value"] ?: "") to t.attrs["gammagroup"]?.lowercase())
-        }
-        fun rawColor(id: String, depth: Int = 0): Pair<Int, String?>? {
-            val (v, gg) = colors[id.lowercase()] ?: return null
-            parseRgb(v)?.let { return it to gg }
-            return if (depth < 5) rawColor(v, depth + 1)?.let { it.first to (gg ?: it.second) } else null
-        }
-
-        // Imágenes por gamma group: color dominante (y llamativo) de sus píxeles opacos. Aparte se
-        // guarda la imagen más grande de cada grupo (de preferencia de la ventana del reproductor,
-        // «player…»/«main…»): el mismo grupo suele teñir también botones y ventanas secundarias, y
-        // la cara de la ventana es la imagen grande, no la suma de los botones.
-        // Las hojas de sprites se usan en muchas etiquetas: se guardan decodificadas, pero solo hasta
-        // [MAX_CACHED_PIXELS] en total para que un .wal con imágenes grandes no agote la memoria.
-        val decoded = HashMap<String, Pixels?>()
-        var cachedPixels = 0L
-        fun image(path: String): Pixels? {
-            if (path in decoded) return decoded[path]
-            val img = archive.files[path]?.let { runCatching { decoder.decode(it) }.getOrNull() }
-            val size = img?.let { it.width.toLong() * it.height } ?: 0L
-            if (cachedPixels + size <= MAX_CACHED_PIXELS) { decoded[path] = img; cachedPixels += size }
-            return img
-        }
-        val samples = HashMap<String, MutableList<Int>>()
-        val largest = HashMap<String, Pair<Long, List<Int>>>()
-        fun offerLargest(group: String, player: Boolean, size: Long, pixels: List<Int>) {
-            val score = size + if (player) 1L shl 40 else 0L
-            if (pixels.isNotEmpty() && score > (largest[group]?.first ?: -1L)) largest[group] = score to pixels
-        }
-        val area = HashMap<String, Long>()
-        for (t in all) if (t.name == "bitmap" && !t.closing) {
-            val gg = t.attrs["gammagroup"]?.lowercase() ?: continue
-            val file = t.attrs["file"] ?: continue
-            val list = samples.getOrPut(gg) { ArrayList() }
-            val id = t.attrs["id"]?.lowercase().orEmpty()
-            val player = id.startsWith("player") || id.startsWith("main")
-            if (file.startsWith("$")) {
-                parseRgb(t.attrs["color"])?.let { c ->
-                    val n = ((t.attrs["w"]?.toIntOrNull() ?: 8) * (t.attrs["h"]?.toIntOrNull() ?: 8)).coerceIn(1, 4096)
-                    area.merge(gg, n.toLong(), Long::plus)
-                    repeat(minOf(n, 256)) { list += c }
-                    offerLargest(gg, player, n.toLong(), listOf(c))
-                }
-                continue
-            }
-            val path = resolve(root, file)
-            val img = image(path) ?: continue
-            val x0 = (t.attrs["x"]?.toIntOrNull() ?: 0).coerceIn(0, img.width - 1)
-            val y0 = (t.attrs["y"]?.toIntOrNull() ?: 0).coerceIn(0, img.height - 1)
-            val w = (t.attrs["w"]?.toIntOrNull() ?: img.width).coerceIn(1, img.width - x0)
-            val h = (t.attrs["h"]?.toIntOrNull() ?: img.height).coerceIn(1, img.height - y0)
-            area.merge(gg, w.toLong() * h, Long::plus)
-            // Misma densidad de muestreo en todas: las imágenes grandes pesan más.
-            val own = ArrayList<Int>()
-            for (y in y0 until y0 + h step 3) for (x in x0 until x0 + w step 3) {
-                val p = img[x, y]
-                if ((p ushr 24) > 200) own += p
-            }
-            list += own
-            offerLargest(gg, player, w.toLong() * h, own)
-        }
-        fun biggest(match: (String) -> Boolean) = area.keys.filter(match).maxByOrNull { area[it] ?: 0 }
-        val faceGroup = biggest { "background" in it && "list" !in it && "sel" !in it && "tooltip" !in it }
-        val displayGroup = biggest { "display" in it && listOf("text", "song", "element", "vis", "beat", "gradient").none { k -> k in it } }
-        val accentGroup = biggest { "bolt" in it } ?: biggest { "glow" in it }
-        fun dominantOf(group: String) = dominant(largest[group]?.second.orEmpty()) ?: dominant(samples[group].orEmpty())
-        val faceRaw = faceGroup?.let(::dominantOf)
-        val displayRaw = displayGroup?.let(::dominantOf)
-        val accentRaw = accentGroup?.let { accent(samples[it].orEmpty()) ?: dominant(samples[it].orEmpty()) }
-
-        // El visor: 16 bandas (1 = abajo), pico y 5 tonos de osciloscopio.
-        val visTag = all.firstOrNull { it.name == "vis" && !it.closing && it.attrs.keys.any { k -> k.startsWith("colorband") } }
-        val visGroup = visTag?.attrs?.get("gammagroup")?.lowercase()
-
-        val out = ArrayList<WinampSkin>()
-        for ((themeId, gammas) in themes) {
-            fun tone(c: Int, group: String?) = group?.let { gammas[it] }?.apply(c) ?: c
-            fun named(id: String) = rawColor(id)?.let { (c, gg) -> tone(c, gg) }
-            val listText = named("wasabi.list.text")
-            val listBg = named("wasabi.list.background")
-            val listCurrent = named("wasabi.list.text.current")
-            val display = displayRaw?.let { tone(it, displayGroup) } ?: listBg ?: 0xFF000000.toInt()
-            val face = faceRaw?.let { tone(it, faceGroup) } ?: WinampColors.mix(display, 0xFF808080.toInt(), 0.3f)
-            val text = named("font.display") ?: listText
-            val vis = IntArray(24)
-            vis[0] = display
-            val bands = (1..16).map { i -> visTag?.attrs?.get("colorband$i")?.let { parseRgb(it) }?.let { tone(it, visGroup) } }
-            val top = text ?: 0xFFFFFFFF.toInt()
-            for (row in 0 until 16) {
-                // VISCOLOR: índice 2 arriba … 17 abajo; colorband16 arriba … colorband1 abajo.
-                vis[2 + row] = bands[15 - row] ?: WinampColors.mix(top, display, row / 24f)
-            }
-            vis[1] = WinampColors.mix(display, vis[9], 0.18f)
-            for (k in 0 until 5) vis[18 + k] = visTag?.attrs?.get("colorosc${k + 1}")?.let { parseRgb(it) }?.let { tone(it, visGroup) } ?: vis[2 + k * 3]
-            vis[23] = visTag?.attrs?.get("colorbandpeak")?.let { parseRgb(it) }?.let { tone(it, visGroup) } ?: top
-            for (i in vis.indices) vis[i] = vis[i] or (0xFF shl 24)
-            // El tinte del tema se ve sobre todo en el visor: si sus barras tienen tono propio, ese es el
-            // acento; si son grises o blancas, el rayo (o el brillo de los botones) del skin.
-            fun colorful(c: Int) = maxOf(r(c), g(c), b(c)) - minOf(r(c), g(c), b(c)) > 60
-            val accent = vis.slice(2..9).firstOrNull { colorful(it) && distance(it, face) > 60 }
-                ?: accentRaw?.let { tone(it, accentGroup) }?.takeIf { distance(it, face) > 60 } ?: vis[23]
-            val frame = WinampColors.mix(face, display, 0.5f)
-            val chrome = finishChrome(vis, face, frame, accent, text, display, listText, listCurrent, listBg)
-            val theme = themeId.trim().trimStart('*').replace(" | ", " · ").trim()
-            out += WinampSkin(if (theme.isEmpty() || themes.size == 1) skinName else "$skinName · $theme", "importado", vis, chrome, group)
-        }
-        // Temas que dan exactamente los mismos colores aparecen una sola vez.
-        return out.distinctBy { it.colors.toList() + it.chrome.toList() }
     }
 }

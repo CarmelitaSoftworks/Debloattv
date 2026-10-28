@@ -7,10 +7,32 @@ import java.io.File
 
 enum class WallpaperPosition(val label: String) { BOTTOM("Abajo"), CENTER("Centro"), TOP("Arriba") }
 
+/** Qué se ve en el fondo animado. */
+enum class WallpaperView(val label: String) {
+    /** La ventana del skin de Winamp a todo el ancho, con el espectro en su visor. */
+    PLAYER("Reproductor completo"),
+    /** Solo el espectro, con el estilo y el alto elegidos. */
+    SPECTRUM("Solo el espectro");
+
+    /** Ajustes del visor para este modo (el reproductor siempre usa un estilo de Winamp y su ventana). */
+    fun spectrumSettings(s: SpectrumSettings): SpectrumSettings = when (this) {
+        PLAYER -> s.copy(
+            style = if (s.style.winamp) s.style else SpectrumStyle.WINAMP_CLASSIC, winampFrame = true, grid = false,
+        )
+        SPECTRUM -> s.copy(winampFrame = false, grid = false)
+    }
+
+    companion object {
+        /** Alto del reproductor para un ancho dado (la ventana de Winamp mide 275×116). */
+        fun playerHeight(width: Float) = width * WinampWindow.HEIGHT / WinampWindow.WIDTH
+    }
+}
+
 data class WallpaperSettings(
     val position: WallpaperPosition = WallpaperPosition.BOTTOM,
     /** Alto del espectro como fracción de la pantalla. */
     val height: Float = 0.25f,
+    val view: WallpaperView = WallpaperView.PLAYER,
     /** Oscurecer la foto para que el espectro resalte (0..0,7). */
     val dim: Float = 0.25f,
     val hasImage: Boolean = false,
@@ -54,6 +76,7 @@ object WallpaperPrefs {
             val p = ctx.getSharedPreferences("wallpaper", Context.MODE_PRIVATE)
             settings.value = WallpaperSettings(
                 position = runCatching { WallpaperPosition.valueOf(p.getString("position", "BOTTOM")!!) }.getOrDefault(WallpaperPosition.BOTTOM),
+                view = runCatching { WallpaperView.valueOf(p.getString("view", "PLAYER")!!) }.getOrDefault(WallpaperView.PLAYER),
                 height = p.getFloat("height", 0.25f),
                 dim = p.getFloat("dim", 0.25f),
                 hasImage = currentImage(ctx) != null,
@@ -68,7 +91,7 @@ object WallpaperPrefs {
         val s = change(load(ctx))
         settings.value = s
         ctx.getSharedPreferences("wallpaper", Context.MODE_PRIVATE).edit()
-            .putString("position", s.position.name).putFloat("height", s.height).putFloat("dim", s.dim)
+            .putString("position", s.position.name).putString("view", s.view.name).putFloat("height", s.height).putFloat("dim", s.dim)
             .putLong("imageVersion", s.imageVersion).apply()
     }
 

@@ -41,16 +41,6 @@ class SkinImportTest {
         return b.array()
     }
 
-    @Test
-    fun gammaMatchesWinampFormula() {
-        val white = c(255, 255, 255)
-        assertEquals(c(127, 255, 255), SkinImport.Gamma(-2048, 0, 0, 0, 0).apply(white))
-        // Gris por promedio y luego el tinte.
-        assertEquals(c(100, 100, 100), SkinImport.Gamma(0, 0, 0, 2, 0).apply(c(50, 100, 150)))
-        assertEquals(c(150, 150, 150), SkinImport.Gamma(0, 0, 0, 1, 0).apply(c(50, 100, 150)))
-        // Realce 1: suma 128 antes de multiplicar.
-        assertEquals(c(255, 255, 255), SkinImport.Gamma(4095, 4095, 4095, 0, 1).apply(c(0, 0, 0)))
-    }
 
     @Test
     fun importsClassicSkinFromVisColorAndPlaylist() {
@@ -114,26 +104,20 @@ class SkinImportTest {
         assertEquals(30 to 0, WinampWindow.glyph(' '))
     }
 
+    /** Los modernos (.wal, con skin.xml) no se aceptan. */
+    @Test
+    fun modernSkinsAreRejected() {
+        val archive = SkinArchive.read(zip("skin.xml" to "<WinampAbstractionLayer/>", "viscolor.txt" to "1,2,3").inputStream())
+        assertTrue(SkinImport.isModern(archive))
+        assertTrue(SkinImport.import(archive, "x", SkinImport.ANDROID_DECODER).isEmpty())
+    }
+
     @Test
     fun zipWithoutSkinFilesGivesNothing() {
         val archive = SkinArchive.read(zip("leeme.txt" to "hola").inputStream())
         assertTrue(SkinImport.import(archive, "x", SkinImport.ANDROID_DECODER).isEmpty())
     }
 
-    @Test
-    fun unclosedColorThemeIsKept() {
-        val archive = SkinArchive.read(
-            zip(
-                "skin.xml" to "<include file=\"c.xml\"/>",
-                "c.xml" to """<gammaset id="Uno"><gammagroup id="V" value="0,0,0"/>
-                    <gammaset id="Dos"><gammagroup id="V" value="-4096,0,0"/>
-                    <vis gammagroup="V" colorband16="200,200,200"/>""",
-            ).inputStream()
-        )
-        val skins = SkinImport.import(archive, "Roto", SkinImport.ANDROID_DECODER)
-        assertEquals(listOf("Roto · Uno", "Roto · Dos"), skins.map { it.name })
-        assertEquals(c(0, 200, 200), skins[1].colors[2])
-    }
 
     @Test
     fun shortVisColorIsCompletedWithOriginal() {
@@ -142,33 +126,6 @@ class SkinImportTest {
         assertEquals(WinampColors.VIS[23], v[23])
     }
 
-    @Test
-    fun importsEveryColorThemeOfModernSkin() {
-        val archive = SkinArchive.read(
-            zip(
-                "skin.xml" to "<WinampAbstractionLayer><skininfo><name>Prueba</name></skininfo><include file=\"xml/colors.xml\"/>" +
-                    "<include file=\"xml/player.xml\"/></WinampAbstractionLayer>",
-                "xml/colors.xml" to """
-                    <gammaset id="*Default"><gammagroup id="DisplayVis" value="0,0,0"/></gammaset>
-                    <gammaset id="Rojo | Fuerte"><gammagroup id="DisplayVis" value="0,-4096,-4096"/><gammagroup id="ListText" value="0,-4096,-4096"/></gammaset>
-                    <color id="color.text" value="200,200,200"/>
-                    <color id="wasabi.list.text" value="color.text" gammagroup="ListText"/>
-                    <color id="wasabi.list.background" value="10,10,30"/>
-                """.trimIndent(),
-                "xml/player.xml" to """<!-- <vis colorband1="1,1,1"/> comentario --><vis id="v" gammagroup="DisplayVis" ColorBand1="100,100,100" ColorBand16="255,255,255" colorbandpeak="255,255,255"/>""",
-            ).inputStream()
-        )
-        val skins = SkinImport.import(archive, "archivo", SkinImport.ANDROID_DECODER)
-        assertEquals(listOf("Prueba · Default", "Prueba · Rojo · Fuerte"), skins.map { it.name })
-        val (normal, red) = skins
-        assertEquals(c(255, 255, 255), normal.colors[2])
-        assertEquals(c(100, 100, 100), normal.colors[17])
-        assertEquals(c(255, 0, 0), red.colors[2])
-        assertEquals(c(255, 0, 0), red.colors[23])
-        assertEquals(c(200, 0, 0), red.chrome[WinampChrome.LIST_TEXT])
-        assertEquals(c(200, 200, 200), normal.chrome[WinampChrome.LIST_TEXT])
-        assertEquals(c(10, 10, 30), normal.colors[0])
-    }
 
     @Test(expected = IllegalArgumentException::class)
     fun rejectsFilesThatAreNotZip() {
@@ -200,32 +157,6 @@ class SkinImportTest {
         assertEquals(WinampClassicSkins.ALL.size, checked)
     }
 
-    /** Con -DwinampModernDir y -DmodernSkinsOut: genera WinampModernSkins.kt con los temas de Winamp 5.9. */
-    @Test
-    fun generateModernThemes() {
-        val dir = File(System.getProperty("winampModernDir")?.takeIf { it.isNotEmpty() } ?: return)
-        val out = File(System.getProperty("modernSkinsOut")?.takeIf { it.isNotEmpty() } ?: return)
-        fun folder(d: File) = SkinArchive(d.walkTopDown().filter { it.isFile }.associate { it.relativeTo(d).path.replace('\\', '/').lowercase() to it.readBytes() })
-        val skins = listOf("Winamp Modern" to "Winamp Modern", "Big Bento" to "Bento").flatMap { (folderName, group) ->
-            SkinImport.import(folder(File(dir, folderName)), group, SkinImport.ANDROID_DECODER, group)
-                .map { it.copy(name = it.name.replace("Big Bento", "Bento").replace("Winamp5 Base Skin", "Winamp Modern"), archiveId = "winamp-5.9.2/$folderName") }
-        }
-        fun hex(a: IntArray) = a.joinToString(", ") { "0x%06X".format(it and 0xFFFFFF) }
-        val sb = StringBuilder()
-        sb.append("package cl.ecualizador\n\n")
-        sb.append("/**\n * Temas de color de los skins modernos que trae Winamp 5.9.2 (Winamp Modern y Bento), convertidos\n")
-        sb.append(" * con [SkinImport] desde el instalador oficial: solo colores, sin imágenes del skin. Generado por\n")
-        sb.append(" * SkinImportTest.generateModernThemes; no editar a mano.\n */\n")
-        sb.append("object WinampModernSkins {\n    private fun rgb(vararg c: Int) = IntArray(c.size) { 0xFF000000.toInt() or c[it] }\n\n")
-        sb.append("    val ALL: List<WinampSkin> = listOf(\n")
-        skins.forEach { s ->
-            sb.append("        WinampSkin(\n            \"${s.name}\", \"${s.archiveId}\",\n")
-            sb.append("            rgb(${hex(s.colors)}),\n            rgb(${hex(s.chrome)}),\n            \"${s.group}\",\n        ),\n")
-        }
-        sb.append("    )\n}\n")
-        out.writeText(sb.toString())
-        println("Temas generados: ${skins.size}")
-    }
 
     /**
      * Con -DclassicWszDir, -DwinampExeBitmaps (BITMAP de winamp.exe extraídos) y -DwindowsOut: arma la
