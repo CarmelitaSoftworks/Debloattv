@@ -201,6 +201,8 @@ data class SpectrumSettings(
     val winampPart: WinampWindow.Part = WinampWindow.Part.FULL,
     /** Usar la ventana real del skin; si no, el marco simple con sus colores (no se guarda). */
     val winampWindow: Boolean = true,
+    /** Desplazar el título largo como Winamp (no en la notificación, que se dibuja por segundo). */
+    val winampMarquee: Boolean = true,
 ) {
     /** Barras que se dibujan con el estilo elegido. */
     val effectiveBars: Int

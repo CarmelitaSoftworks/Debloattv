@@ -31,7 +31,7 @@ class PlayerNotificationTest {
         WinampWindows.init(ctx)
         NowPlaying.controller = MediaSession(ctx, "prueba").controller
         NowPlaying.track.value = PlayingTrack(
-            "Llama Whippin' Intro", "DJ Mike Llama", 5_000, 2_000, android.os.SystemClock.elapsedRealtime(), 1f, PlayingTrack.State.PLAYING,
+            "My Way (feat. Monty)", "Fetty Wap, Monty", 213_000, 41_000, android.os.SystemClock.elapsedRealtime(), 1f, PlayingTrack.State.PLAYING,
         )
     }
 
@@ -42,6 +42,10 @@ class PlayerNotificationTest {
         val n = Shadows.shadowOf(nm).allNotifications.single()
         assertEquals(R.layout.player_expanded, n.bigContentView.layoutId)
         assertEquals(R.layout.player_collapsed, n.contentView.layoutId)
+        // Fuera de «Silenciadas»: prioridad normal, pero sin sonido
+        val channel = nm.getNotificationChannel(n.channelId)
+        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, channel.importance)
+        assertNull(channel.sound)
         // Sin música, se quita
         NowPlaying.track.value = null
         PlayerNotification.update(ctx)
@@ -84,6 +88,14 @@ class PlayerNotificationTest {
             c.drawRect(x.toFloat(), y.toFloat(), (x + v.width).toFloat(), (y + v.height).toFloat(), p)
         }
         File(out, "notificacion_reproductor.png").outputStream().use { bmp.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        // La plegada, a 330 dp (el ancho que queda junto al ícono de la app)
+        val small = n.contentView.apply(ctx, FrameLayout(ctx))
+        val sw = (330 * ctx.resources.displayMetrics.density).toInt()
+        small.measure(View.MeasureSpec.makeMeasureSpec(sw, View.MeasureSpec.EXACTLY), View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED))
+        small.layout(0, 0, small.measuredWidth, small.measuredHeight)
+        val sb = Bitmap.createBitmap(small.measuredWidth, small.measuredHeight, Bitmap.Config.ARGB_8888)
+        Canvas(sb).apply { drawColor(Color.rgb(40, 40, 44)); small.draw(this) }
+        File(out, "notificacion_plegada.png").outputStream().use { sb.compress(Bitmap.CompressFormat.PNG, 100, it) }
         NowPlaying.track.value = null; NowPlaying.controller = null
         assertNull(null)
     }

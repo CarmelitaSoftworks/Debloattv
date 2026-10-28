@@ -220,7 +220,7 @@ class SpectrumRenderer {
         val skin = WinampSkins.byName(s.winampSkin)
         val window = if (s.winampFrame && s.winampWindow) WinampWindows.bitmap(skin) else null
         val area = when {
-            window != null -> drawSkinWindow(canvas, w, h, window, s.winampPart, skin)
+            window != null -> drawSkinWindow(canvas, w, h, window, s.winampPart, skin, s.winampMarquee)
             s.winampFrame -> drawWinampFrame(canvas, w, h, skin, density)
             else -> null
         }
@@ -307,6 +307,7 @@ class SpectrumRenderer {
      */
     private fun drawSkinWindow(
         canvas: Canvas, w: Float, h: Float, atlas: android.graphics.Bitmap, part: WinampWindow.Part, skin: WinampSkin,
+        marquee: Boolean = true,
     ): android.graphics.RectF {
         val fit = minOf(w / part.w, h / part.h)
         val scale = if (fit >= 2f) kotlin.math.floor(fit) else fit
@@ -329,7 +330,7 @@ class SpectrumRenderer {
         blit(part.x, part.y, part.w, part.h, part.x.toFloat(), part.y.toFloat())
         // Las ventanas importadas antes de la 2.8 no traen las piezas: quedan como estaban
         if (atlas.height >= WinampWindow.ATLAS_HEIGHT) {
-            drawNowPlaying(skin, ::blit)
+            drawNowPlaying(skin, marquee, ::blit)
             // Botón recién tocado: la imagen «presionado» del skin por un instante
             val b = pressed
             if (b != null && android.os.SystemClock.elapsedRealtime() < pressedUntil) {
@@ -376,7 +377,7 @@ class SpectrumRenderer {
      * el título que se desplaza como en Winamp. Sin acceso a lo que suena, el reloj queda en 00:00
      * y el título es el nombre del skin.
      */
-    private fun drawNowPlaying(skin: WinampSkin, blit: (Int, Int, Int, Int, Float, Float) -> Unit) {
+    private fun drawNowPlaying(skin: WinampSkin, marquee: Boolean, blit: (Int, Int, Int, Int, Float, Float) -> Unit) {
         val track = NowPlaying.track.value
         val now = android.os.SystemClock.elapsedRealtime()
         val state = track?.state ?: PlayingTrack.State.PLAYING
@@ -408,7 +409,7 @@ class SpectrumRenderer {
             val plain = java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
             titleGlyphs = IntArray(plain.length) { i -> WinampWindow.glyph(plain[i]).let { (c, r) -> c or (r shl 8) } }
         }
-        val glyphs = if (titleGlyphs.size * 5 > WinampWindow.TITLE_W) titleGlyphs + MARQUEE_GAP else titleGlyphs
+        val glyphs = if (marquee && titleGlyphs.size * 5 > WinampWindow.TITLE_W) titleGlyphs + MARQUEE_GAP else titleGlyphs
         val total = glyphs.size * 5
         val offset = if (glyphs === titleGlyphs) 0 else ((now / 40) % total).toInt()
         val x0 = WinampWindow.TITLE_X

@@ -17,7 +17,9 @@ import android.widget.RemoteViews
  * mantiene al día [NowPlayingService] (el mismo acceso que «lo que suena»).
  */
 object PlayerNotification {
-    private const val CHANNEL = "player"
+    /** Prioridad normal sin sonido (el canal anterior, «player», era de prioridad baja: «Silenciadas»). */
+    private const val CHANNEL = "player_winamp"
+    private const val OLD_CHANNEL = "player"
     private const val ID = 7
     private const val PREFS = "player"
 
@@ -41,20 +43,25 @@ object PlayerNotification {
         }
         SpectrumPrefs.load(ctx)
         if (nm.getNotificationChannel(CHANNEL) == null) {
+            // Android no deja subir la prioridad de un canal existente: se crea otro y se borra el viejo
+            runCatching { nm.deleteNotificationChannel(OLD_CHANNEL) }
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL, ctx.getString(R.string.player_channel), NotificationManager.IMPORTANCE_LOW).apply {
+                NotificationChannel(CHANNEL, ctx.getString(R.string.player_channel), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    setSound(null, null)
+                    enableVibration(false)
+                    enableLights(false)
                     setShowBadge(false)
                 }
             )
         }
         val skinName = SpectrumPrefs.settings.value.winampSkin
         val skin = WinampSkins.byName(skinName)
-        val settings = SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = skinName, winampFrame = true)
+        // Sin desplazar el título: la notificación es una foto por segundo y quedaría cortado a la mitad
+        val settings = SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = skinName, winampFrame = true, winampMarquee = false)
         val bars = if (Spectrum.running.value) SpectrumShape.resample(Spectrum.bars.value, settings.effectiveBars) else FloatArray(settings.effectiveBars)
 
         // RGB 565: la mitad de memoria; las notificaciones tienen un límite de tamaño
         val window = render(2, WinampWindow.Part.FULL, settings, bars)
-        val display = render(2, WinampWindow.Part.DISPLAY, settings.copy(winampPart = WinampWindow.Part.DISPLAY), bars)
 
         val expanded = RemoteViews(ctx.packageName, R.layout.player_expanded).apply {
             setImageViewBitmap(R.id.player_window, window)
@@ -67,12 +74,12 @@ object PlayerNotification {
             openPlayer(ctx)?.let { setOnClickPendingIntent(R.id.player_eject, it) }
         }
         val playing = track.state == PlayingTrack.State.PLAYING
+        val pos = PlayingTrack.clock(track.positionAt(android.os.SystemClock.elapsedRealtime()))
+        val time = if (track.durationMs > 0) "$pos / ${PlayingTrack.clock(track.durationMs)}" else pos
         val collapsed = RemoteViews(ctx.packageName, R.layout.player_collapsed).apply {
-            setImageViewBitmap(R.id.player_display_image, display)
-            setTextViewText(R.id.player_title, track.winampTitle())
-            button(skin, WinampWindow.Button.PREVIOUS)?.let { setImageViewBitmap(R.id.player_previous_small, it) }
-            button(skin, if (playing) WinampWindow.Button.PAUSE else WinampWindow.Button.PLAY)?.let { setImageViewBitmap(R.id.player_toggle_small, it) }
-            button(skin, WinampWindow.Button.NEXT)?.let { setImageViewBitmap(R.id.player_next_small, it) }
+            setTextViewText(R.id.player_title, track.title)
+            setTextViewText(R.id.player_subtitle, if (track.artist.isBlank()) time else "${track.artist} · $time")
+            buttons(skin, playing)?.let { setImageViewBitmap(R.id.player_buttons, it) }
             setOnClickPendingIntent(R.id.player_previous_small, action(ctx, "previous"))
             setOnClickPendingIntent(R.id.player_toggle_small, action(ctx, "toggle"))
             setOnClickPendingIntent(R.id.player_next_small, action(ctx, "next"))
@@ -103,11 +110,21 @@ object PlayerNotification {
         return bmp
     }
 
-    /** Un botón del skin tal como se ve en su ventana, al doble. */
-    private fun button(skin: WinampSkin, b: WinampWindow.Button): Bitmap? {
+    /**
+     * Tira de botones del skin, tal como se ven en su ventana y juntos: anterior, reproducir (o pausa
+     * si suena) y siguiente, al triple para que se vean nítidos.
+     */
+    private fun buttons(skin: WinampSkin, playing: Boolean): Bitmap? {
         val atlas = WinampWindows.bitmap(skin) ?: return null
-        val crop = Bitmap.createBitmap(atlas, b.x, b.y, b.w, b.h)
-        return Bitmap.createScaledBitmap(crop, b.w * 2, b.h * 2, false)
+        val parts = listOf(WinampWindow.Button.PREVIOUS, if (playing) WinampWindow.Button.PAUSE else WinampWindow.Button.PLAY, WinampWindow.Button.NEXT)
+        val strip = Bitmap.createBitmap(parts.sumOf { it.w }, 18, Bitmap.Config.ARGB_8888)
+        val c = Canvas(strip)
+        var x = 0f
+        for (b in parts) {
+            c.drawBitmap(Bitmap.createBitmap(atlas, b.x, b.y, b.w, b.h), x, 0f, null)
+            x += b.w
+        }
+        return Bitmap.createScaledBitmap(strip, strip.width * 3, strip.height * 3, false)
     }
 
     /**
