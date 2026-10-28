@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Reproductor en la notificación: la ventana del skin (275×116) y encima zonas táctiles transparentes
+  en la posición de sus botones. Los pesos son píxeles del skin, así calzan a cualquier ancho.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <ImageView
+        android:id="@+id/player_window"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:adjustViewBounds="true"
+        android:contentDescription="@string/now_playing_name"
+        android:scaleType="fitXY" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <!-- Pantalla del skin (reloj y visor, y = 22..64): reproducir/pausa -->
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="22" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="42" android:orientation="horizontal">
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="9" />
+            <FrameLayout android:id="@+id/player_display" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="98" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="168" />
+        </LinearLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="24" />
+
+        <!-- Fila de botones: y = 88..106 -->
+        <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="18" android:orientation="horizontal">
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="16" />
+            <FrameLayout android:id="@+id/player_previous" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="23" />
+            <FrameLayout android:id="@+id/player_play" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="23" />
+            <FrameLayout android:id="@+id/player_pause" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="23" />
+            <FrameLayout android:id="@+id/player_stop" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="23" />
+            <FrameLayout android:id="@+id/player_next" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="22" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="6" />
+            <FrameLayout android:id="@+id/player_eject" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="22" />
+            <FrameLayout android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="117" />
+        </LinearLayout>
+        <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="10" />
+    </LinearLayout>
+</FrameLayout>

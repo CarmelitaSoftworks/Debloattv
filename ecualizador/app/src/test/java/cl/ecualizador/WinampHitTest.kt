@@ -37,4 +37,22 @@ class WinampHitTest {
         assertNull(WinampWindow.hit(45f, 95f, display))
         assertTrue(WinampWindow.ATLAS_HEIGHT > WinampWindow.PRESSED_Y)
     }
+
+    @Test
+    fun volumeEjectAndEqAreFunctional() {
+        val low = WinampWindow.hit(WinampWindow.VOLUME_X + 1f, 62f, full) as WinampWindow.Hit.Volume
+        val high = WinampWindow.hit(WinampWindow.VOLUME_X + WinampWindow.VOLUME_W - 1f, 62f, full) as WinampWindow.Hit.Volume
+        assertEquals(0f, low.fraction, 0.01f)
+        assertEquals(1f, high.fraction, 0.01f)
+        assertEquals(WinampWindow.Hit.OpenPlayer, WinampWindow.hit(145f, 95f, full))  // expulsar
+        assertEquals(WinampWindow.Hit.OpenPlayer, WinampWindow.hit(250f, 63f, full))  // PL
+        assertEquals(WinampWindow.Hit.OpenEqualizer, WinampWindow.hit(228f, 63f, full)) // EQ
+    }
+
+    @Test
+    fun notificationActionsMapToSkinButtons() {
+        assertEquals(WinampWindow.Hit.Press(WinampWindow.Button.NEXT), PlayerNotification.hitFor("cl.ecualizador.player.next"))
+        assertEquals(WinampWindow.Hit.TogglePlay, PlayerNotification.hitFor("cl.ecualizador.player.toggle"))
+        assertNull(PlayerNotification.hitFor("otra.cosa"))
+    }
 }

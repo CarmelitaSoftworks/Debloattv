@@ -21,6 +21,8 @@ data class WinampSkin(
     val windowFile: String? = null,
     /** Ventana recién armada al importar, antes de guardarla en [windowFile]. */
     val windowPixels: IntArray? = null,
+    /** El .wsz original del skin importado, para rearmar su ventana si cambia el formato. */
+    val sourceFile: String? = null,
 )
 
 /** Todos los skins: los clásicos incluidos y los que importa el usuario (.wsz). */
@@ -56,10 +58,41 @@ object WinampSkins {
         if (loaded) return
         loaded = true
         imported.value = runCatching { fromJson(file(ctx).readText()) }.getOrDefault(emptyList())
+        // Ventanas de un formato anterior: se rearman del .wsz guardado, sin bloquear el inicio
+        if (imported.value.any { it.sourceFile != null && WinampWindows.isOutdated(it) }) {
+            Thread { upgradeWindows(ctx.applicationContext) }.start()
+        }
     }
 
-    /** Agrega skins importados; los nombres repetidos llevan un número. Devuelve los agregados. */
-    fun add(ctx: Context, skins: List<WinampSkin>): List<WinampSkin> {
+    /** Vuelve a armar las ventanas desactualizadas de los skins que guardan su .wsz. */
+    @Synchronized
+    internal fun upgradeWindows(ctx: Context) {
+        var changed = false
+        val list = imported.value.map { s ->
+            val src = s.sourceFile?.let(::File)?.takeIf { it.exists() && WinampWindows.isOutdated(s) } ?: return@map s
+            val pixels = runCatching { WinampWindow.compose(SkinArchive.read(src.inputStream()), SkinImport.ANDROID_DECODER) }.getOrNull()
+                ?: return@map s
+            val window = saveWindow(ctx, pixels) ?: return@map s
+            s.windowFile?.let { File(it).delete() }
+            changed = true
+            s.copy(windowFile = window)
+        }
+        if (changed) {
+            save(ctx, list)
+            WinampWindows.clear()
+        }
+    }
+
+    /**
+     * Agrega skins importados; los nombres repetidos llevan un número. [source] es el archivo
+     * original, que se guarda para poder rearmar la ventana más adelante. Devuelve los agregados.
+     */
+    fun add(ctx: Context, skins: List<WinampSkin>, source: ByteArray? = null): List<WinampSkin> {
+        val sourceFile = source?.let { bytes ->
+            runCatching {
+                File(File(ctx.filesDir, "skin-windows").apply { mkdirs() }, "${System.nanoTime()}.wsz").also { it.writeBytes(bytes) }.path
+            }.getOrNull()
+        }
         load(ctx)
         val names = ALL.map { it.name }.toMutableSet()
         val added = skins.map { s ->
@@ -67,7 +100,10 @@ object WinampSkins {
             var k = 2
             while (n in names) n = "${s.name.take(55)} ($k)".also { k++ }
             names += n
-            s.copy(name = n, group = SkinImport.GROUP_IMPORTED, windowFile = s.windowPixels?.let { saveWindow(ctx, it) }, windowPixels = null)
+            s.copy(
+                name = n, group = SkinImport.GROUP_IMPORTED, windowFile = s.windowPixels?.let { saveWindow(ctx, it) },
+                windowPixels = null, sourceFile = sourceFile,
+            )
         }
         save(ctx, imported.value + added)
         return added
@@ -85,7 +121,10 @@ object WinampSkins {
 
     fun remove(ctx: Context, name: String) {
         load(ctx)
-        imported.value.firstOrNull { it.name == name }?.windowFile?.let { File(it).delete() }
+        imported.value.firstOrNull { it.name == name }?.let { s ->
+            s.windowFile?.let { File(it).delete() }
+            s.sourceFile?.let { File(it).delete() }
+        }
         save(ctx, imported.value.filterNot { it.name == name })
         last = DEFAULT
     }
@@ -99,7 +138,7 @@ object WinampSkins {
         list.forEach { s ->
             put(
                 JSONObject().put("name", s.name).put("colors", JSONArray(s.colors.toList())).put("chrome", JSONArray(s.chrome.toList()))
-                    .apply { s.windowFile?.let { put("window", it) } }
+                    .apply { s.windowFile?.let { put("window", it) }; s.sourceFile?.let { put("source", it) } }
             )
         }
     }.toString()
@@ -111,7 +150,10 @@ object WinampSkins {
             val colors = o.getJSONArray("colors").let { c -> IntArray(c.length()) { c.getInt(it) } }
             val chrome = o.getJSONArray("chrome").let { c -> IntArray(c.length()) { c.getInt(it) } }
             if (colors.size != 24 || chrome.size != 8) null
-            else WinampSkin(o.getString("name"), "importado", colors, chrome, SkinImport.GROUP_IMPORTED, o.optString("window").ifEmpty { null })
+            else WinampSkin(
+                o.getString("name"), "importado", colors, chrome, SkinImport.GROUP_IMPORTED,
+                windowFile = o.optString("window").ifEmpty { null }, sourceFile = o.optString("source").ifEmpty { null },
+            )
         }
     }
 }

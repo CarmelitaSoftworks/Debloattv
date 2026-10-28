@@ -387,6 +387,16 @@ class SpectrumRenderer {
         val digits = intArrayOf((secs / 60 / 10).toInt(), (secs / 60 % 10).toInt(), (secs % 60 / 10).toInt(), (secs % 60 % 10).toInt())
         for (k in 0 until 4) blit(digits[k] * 9, WinampWindow.NUMS_Y, 9, 13, WinampWindow.CLOCK_X[k].toFloat(), WinampWindow.CLOCK_Y.toFloat())
 
+        // Volumen de la música: el cuadro de fondo que corresponde y el indicador
+        val vol = NowPlaying.volume
+        if (vol >= 0f) {
+            val f = Math.round(vol.coerceIn(0f, 1f) * (WinampWindow.VOLUME_FRAMES - 1))
+            blit((f % 4) * WinampWindow.VOLUME_W, WinampWindow.VOLUME_Y + (f / 4) * 13, WinampWindow.VOLUME_W, 13,
+                WinampWindow.VOLUME_X.toFloat(), WinampWindow.VOLUME_WY.toFloat())
+            val tx = WinampWindow.VOLUME_X + (WinampWindow.VOLUME_W - WinampWindow.VOLUME_THUMB_W) * vol.coerceIn(0f, 1f)
+            blit(0, WinampWindow.VOLUME_THUMB_Y, WinampWindow.VOLUME_THUMB_W, 11, kotlin.math.floor(tx), WinampWindow.VOLUME_WY + 1f)
+        }
+
         val progress = if (track != null && track.durationMs > 0) pos / track.durationMs.toFloat() else 0f
         val thumbX = WinampWindow.POSBAR_X + (WinampWindow.POSBAR_W - WinampWindow.THUMB_W) * progress.coerceIn(0f, 1f)
         blit(0, WinampWindow.THUMB_Y, WinampWindow.THUMB_W, 10, kotlin.math.floor(thumbX), WinampWindow.POSBAR_WY.toFloat())

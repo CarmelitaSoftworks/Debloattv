@@ -54,9 +54,39 @@ object NowPlaying {
     @Volatile
     var controller: MediaController? = null
 
-    /** Ejecuta lo que se tocó en el skin sobre el reproductor que suena. Falso si no hay ninguno. */
-    fun perform(hit: WinampWindow.Hit): Boolean {
+    /** Volumen de la música (0..1), o −1 si aún no se leyó. Lo actualiza [readVolume]. */
+    @Volatile
+    var volume: Float = -1f
+
+    fun readVolume(ctx: Context) {
+        val am = ctx.getSystemService(android.media.AudioManager::class.java) ?: return
+        val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        volume = am.getStreamVolume(android.media.AudioManager.STREAM_MUSIC) / max.toFloat()
+    }
+
+    /**
+     * Ejecuta lo que se tocó en el skin. El volumen y el EQ no dependen de que haya música; lo demás
+     * actúa sobre el reproductor que suena (falso si no hay ninguno).
+     */
+    fun perform(ctx: Context, hit: WinampWindow.Hit): Boolean {
+        when (hit) {
+            is WinampWindow.Hit.Volume -> {
+                val am = ctx.getSystemService(android.media.AudioManager::class.java) ?: return false
+                val max = am.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
+                am.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, Math.round(hit.fraction * max), 0)
+                readVolume(ctx)
+                return true
+            }
+            WinampWindow.Hit.OpenEqualizer -> return open(ctx, android.content.Intent(ctx, MainActivity::class.java))
+            else -> {}
+        }
         val c = controller ?: return false
+        if (hit == WinampWindow.Hit.OpenPlayer) {
+            // La pantalla de la app de música (la que ella misma declara) o, si no, su ícono
+            c.sessionActivity?.let { pi -> if (runCatching { pi.send() }.isSuccess) return true }
+            val pkg = c.packageName ?: return false
+            return ctx.packageManager.getLaunchIntentForPackage(pkg)?.let { open(ctx, it) } ?: false
+        }
         val t = c.transportControls
         return runCatching {
             when (hit) {
@@ -73,9 +103,13 @@ object NowPlaying {
                 }
                 WinampWindow.Hit.TogglePlay ->
                     if (track.value?.state == PlayingTrack.State.PLAYING) t.pause() else t.play()
+                else -> {}
             }
         }.isSuccess
     }
+
+    private fun open(ctx: Context, intent: android.content.Intent): Boolean =
+        runCatching { ctx.startActivity(intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
 
     /** Si el usuario dio el acceso a las notificaciones a la app. */
     fun hasAccess(ctx: Context): Boolean =
@@ -118,8 +152,29 @@ class NowPlayingService : NotificationListenerService() {
         override fun onSessionDestroyed() = refresh()
     }
     private val sessionsChanged = MediaSessionManager.OnActiveSessionsChangedListener { list -> follow(list.orEmpty()) }
+    private val main = android.os.Handler(android.os.Looper.getMainLooper())
+    /** Mientras suena, el reproductor de la notificación avanza su reloj una vez por segundo. */
+    private val tick = object : Runnable {
+        override fun run() {
+            PlayerNotification.update(this@NowPlayingService)
+            if (NowPlaying.track.value?.state == PlayingTrack.State.PLAYING) main.postDelayed(this, 1000)
+        }
+    }
+    private val volumeChanged = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: android.content.Intent) {
+            NowPlaying.readVolume(context)
+            PlayerNotification.update(context)
+        }
+    }
 
     override fun onListenerConnected() {
+        NowPlaying.readVolume(this)
+        runCatching {
+            androidx.core.content.ContextCompat.registerReceiver(
+                this, volumeChanged, android.content.IntentFilter("android.media.VOLUME_CHANGED_ACTION"),
+                androidx.core.content.ContextCompat.RECEIVER_EXPORTED,
+            )
+        }
         val msm = getSystemService(MediaSessionManager::class.java) ?: return
         sessions = msm
         val me = ComponentName(this, NowPlayingService::class.java)
@@ -133,6 +188,9 @@ class NowPlayingService : NotificationListenerService() {
         runCatching { sessions?.removeOnActiveSessionsChangedListener(sessionsChanged) }
         follow(emptyList())
         NowPlaying.controller = null
+        main.removeCallbacks(tick)
+        runCatching { unregisterReceiver(volumeChanged) }
+        PlayerNotification.cancel(this)
         sessions = null
     }
 
@@ -150,5 +208,7 @@ class NowPlayingService : NotificationListenerService() {
         val chosen = tracks.firstOrNull { it.second.state == PlayingTrack.State.PLAYING } ?: tracks.firstOrNull()
         NowPlaying.controller = chosen?.first
         NowPlaying.track.value = chosen?.second
+        main.removeCallbacks(tick)
+        tick.run()
     }
 }

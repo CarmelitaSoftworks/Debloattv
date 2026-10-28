@@ -27,7 +27,17 @@ object WinampWindow {
     const val PLAYPAUS_Y = NUMS_Y + 13
     const val THUMB_Y = PLAYPAUS_Y + 9
     const val PRESSED_Y = THUMB_Y + 10
-    const val ATLAS_HEIGHT = PRESSED_Y + 18
+    /** Los 28 fondos del volumen (68×13 cada uno, de 0 a 100 %), de a 4 por fila. */
+    const val VOLUME_Y = PRESSED_Y + 18
+    const val VOLUME_FRAMES = 28
+    const val VOLUME_THUMB_Y = VOLUME_Y + 13 * 7
+    const val ATLAS_HEIGHT = VOLUME_THUMB_Y + 11
+
+    // Volumen en la ventana
+    const val VOLUME_X = 107
+    const val VOLUME_WY = 57
+    const val VOLUME_W = 68
+    const val VOLUME_THUMB_W = 14
 
     // Dónde van en la ventana
     const val TITLE_X = 111
@@ -61,12 +71,24 @@ object WinampWindow {
         data class Seek(val fraction: Float) : Hit
         /** La pantalla (reloj o visor): reproducir/pausa. */
         data object TogglePlay : Hit
+        /** Volumen de la música a esa fracción. */
+        data class Volume(val fraction: Float) : Hit
+        /** Expulsar o PL: abre la app de música que suena. */
+        data object OpenPlayer : Hit
+        /** EQ: abre el ecualizador. */
+        data object OpenEqualizer : Hit
     }
 
     /** Qué hay en el punto ([x], [y]) de la ventana (en píxeles del skin), dentro de la parte visible. */
     fun hit(x: Float, y: Float, part: Part): Hit? {
         if (x < part.x || y < part.y || x >= part.x + part.w || y >= part.y + part.h) return null
-        Button.entries.firstOrNull { x >= it.x && x < it.x + it.w && y >= it.y && y < it.y + it.h }?.let { return Hit.Press(it) }
+        fun inside(rx: Int, ry: Int, rw: Int, rh: Int) = x >= rx && x < rx + rw && y >= ry && y < ry + rh
+        Button.entries.firstOrNull { inside(it.x, it.y, it.w, it.h) }?.let { return Hit.Press(it) }
+        if (inside(136, 89, 22, 16) || inside(242, 58, 23, 12)) return Hit.OpenPlayer
+        if (inside(219, 58, 23, 12)) return Hit.OpenEqualizer
+        if (inside(VOLUME_X, VOLUME_WY - 2, VOLUME_W, 17)) {
+            return Hit.Volume(((x - VOLUME_X - VOLUME_THUMB_W / 2f) / (VOLUME_W - VOLUME_THUMB_W)).coerceIn(0f, 1f))
+        }
         // Barra de posición, con un poco de margen arriba y abajo para el dedo
         if (x >= POSBAR_X && x < POSBAR_X + POSBAR_W && y >= POSBAR_WY - 3 && y < POSBAR_WY + 13) {
             return Hit.Seek(((x - POSBAR_X - THUMB_W / 2f) / (POSBAR_W - THUMB_W)).coerceIn(0f, 1f))
@@ -113,10 +135,12 @@ object WinampWindow {
             blit(p, 0, 0, POSBAR_W, 10, POSBAR_X, POSBAR_WY)
             blit(p, 248, 0, THUMB_W, 10, 0, THUMB_Y)
         }
-        // Volumen (fondo al 75 %) y balance (centrado), con sus indicadores
+        // Volumen (fondo al 75 %, por si no se dibuja en vivo) y sus 28 cuadros con el indicador como
+        // piezas; balance centrado
         img("volume.bmp").let { v ->
-            blit(v, 0, 15 * 20, 68, 13, 107, 57)
-            blit(v, 15, 422, 14, 11, 107 + 40, 58)
+            blit(v, 0, 15 * 20, 68, 13, VOLUME_X, VOLUME_WY)
+            for (f in 0 until VOLUME_FRAMES) blit(v, 0, 15 * f, 68, 13, (f % 4) * 68, VOLUME_Y + (f / 4) * 13)
+            blit(v, 15, 422, VOLUME_THUMB_W, 11, 0, VOLUME_THUMB_Y)
         }
         img("balance.bmp").let { b ->
             blit(b, 9, 0, 38, 13, 177, 57)

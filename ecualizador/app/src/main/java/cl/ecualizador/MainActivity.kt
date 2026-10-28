@@ -649,6 +649,17 @@ private fun NowPlayingAccess() {
                 " En el fondo, los botones del skin controlan la música (toca una zona sin íconos).",
             fontSize = 12.sp, color = Muted
         )
+        var inShade by remember { mutableStateOf(PlayerNotification.isEnabled(ctx)) }
+        val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
+            if (ok) PlayerNotification.update(ctx)
+        }
+        OptionRow("Reproductor en la barra de notificaciones", inShade) { on ->
+            inShade = on
+            PlayerNotification.setEnabled(ctx, on)
+            if (on && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+            ) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
     } else {
         Text(
             "Para ver en el reproductor el título, el tiempo y si está en pausa, y para que sus botones controlen " +
@@ -904,12 +915,23 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
                 runCatching {
                     val fileName = ctx.contentResolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
                         ?.use { c -> if (c.moveToFirst()) c.getString(0) else null } ?: "Skin importado"
-                    val archive = ctx.contentResolver.openInputStream(uri)?.use { SkinArchive.read(it) }
-                        ?: throw IllegalArgumentException("No se pudo abrir el archivo")
+                    // Se guarda el original para rearmar la ventana si cambia el formato
+                    val bytes = ctx.contentResolver.openInputStream(uri)?.use { input ->
+                        val out = java.io.ByteArrayOutputStream()
+                        val buf = ByteArray(64 shl 10)
+                        while (true) {
+                            val n = input.read(buf)
+                            if (n < 0) break
+                            out.write(buf, 0, n)
+                            if (out.size() > 30 shl 20) throw IllegalArgumentException("El skin es demasiado grande")
+                        }
+                        out.toByteArray()
+                    } ?: throw IllegalArgumentException("No se pudo abrir el archivo")
+                    val archive = SkinArchive.read(bytes.inputStream())
                     val skins = SkinImport.import(archive, fileName.substringBeforeLast('.').replace('_', ' '), SkinImport.ANDROID_DECODER)
                     if (SkinImport.isModern(archive)) throw IllegalArgumentException("Solo se aceptan skins clásicos (.wsz); los modernos (.wal) no.")
                     if (skins.isEmpty()) throw IllegalArgumentException("No es un skin clásico de Winamp (no trae MAIN.BMP ni VISCOLOR.TXT)")
-                    WinampSkins.add(ctx, skins)
+                    WinampSkins.add(ctx, skins, bytes)
                 }
             }
             busy = false
@@ -959,6 +981,12 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
         }
     }
     message?.let { Text(it, fontSize = 12.sp, color = if (failed) Warn else Accent) }
+    if (selected.group == SkinImport.GROUP_IMPORTED && selected.sourceFile == null && remember(selected) { WinampWindows.isOutdated(selected) }) {
+        Text(
+            "Este skin se importó con una versión anterior: quítalo y vuelve a importarlo para ver lo que suena y usar sus botones.",
+            fontSize = 12.sp, lineHeight = 16.sp, color = Warn
+        )
+    }
     Text(
         "Skins clásicos de Winamp 2 con su ventana real y sus colores originales (VISCOLOR.TXT, MAIN.BMP, " +
             "TEXT.BMP y PLEDIT.TXT). Puedes importar tus propios skins clásicos (.wsz); quedan solo en tu teléfono.",

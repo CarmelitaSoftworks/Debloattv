@@ -99,5 +99,8 @@
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+        <receiver
+            android:name=".PlayerActionReceiver"
+            android:exported="false" />
     </application>
 </manifest>

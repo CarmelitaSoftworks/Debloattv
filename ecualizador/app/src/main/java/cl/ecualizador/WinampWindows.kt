@@ -31,6 +31,17 @@ object WinampWindows {
         return if (file in names) "asset:skins/$file" else null
     }
 
+    /** La ventana del skin importado es de un formato anterior (sin las piezas en vivo) o no existe. */
+    fun isOutdated(skin: WinampSkin): Boolean {
+        val f = skin.windowFile ?: return true
+        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(f, o)
+        return o.outHeight != WinampWindow.ATLAS_HEIGHT
+    }
+
+    @Synchronized
+    fun clear() = cache.clear()
+
     @Synchronized
     fun bitmap(skin: WinampSkin): Bitmap? {
         val src = sourceOf(skin) ?: return null

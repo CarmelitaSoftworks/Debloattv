@@ -91,6 +91,27 @@ class SkinImportTest {
         assertEquals(0, at(5, WinampWindow.NUMS_Y + 3)) // sin NUMBERS.BMP, la pieza queda transparente
     }
 
+    /** Se guarda el .wsz original y una ventana de formato anterior se rearma sola desde él. */
+    @Test
+    fun outdatedImportedWindowIsRebuiltFromSavedSkin() {
+        val ctx = androidx.test.core.app.ApplicationProvider.getApplicationContext<android.content.Context>()
+        val bytes = zipBytes("main.bmp" to bmp(275, 116, c(10, 20, 30)), "viscolor.txt" to "0,0,0".toByteArray())
+        val skins = SkinImport.import(SkinArchive.read(bytes.inputStream()), "Guardado", SkinImport.ANDROID_DECODER)
+        val added = WinampSkins.add(ctx, skins, bytes).single()
+        assertTrue(File(added.sourceFile!!).readBytes().contentEquals(bytes))
+        assertEquals(false, WinampWindows.isOutdated(added))
+        // Como una ventana de la 2.7: 275×116, sin piezas
+        File(added.windowFile!!).outputStream().use {
+            android.graphics.Bitmap.createBitmap(275, 116, android.graphics.Bitmap.Config.ARGB_8888).compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it)
+        }
+        assertTrue(WinampWindows.isOutdated(added))
+        WinampSkins.upgradeWindows(ctx)
+        val upgraded = WinampSkins.imported.value.single { it.name == added.name }
+        assertEquals(false, WinampWindows.isOutdated(upgraded))
+        WinampSkins.remove(ctx, added.name)
+        assertEquals(false, File(added.sourceFile!!).exists())
+    }
+
     @Test
     fun skinWithoutMainBitmapHasNoWindow() {
         val archive = SkinArchive.read(zip("viscolor.txt" to "1,2,3").inputStream())
