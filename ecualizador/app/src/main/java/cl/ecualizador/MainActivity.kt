@@ -664,6 +664,13 @@ private fun NowPlayingAccess() {
         var inShade by remember { mutableStateOf(PlayerNotification.isEnabled(ctx)) }
         val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { ok ->
             if (ok) PlayerNotification.update(ctx)
+            // Rechazado antes: Android ya no muestra el diálogo, se abren los ajustes de la app
+            else runCatching {
+                ctx.startActivity(
+                    android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                        .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                )
+            }
         }
         OptionRow("Reproductor en la barra de notificaciones", inShade) { on ->
             inShade = on
@@ -671,6 +678,28 @@ private fun NowPlayingAccess() {
             if (on && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                 ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
             ) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        // El interruptor viene encendido: si Android no deja mostrar notificaciones, se avisa
+        val canNotify = remember(state) {
+            ctx.getSystemService(android.app.NotificationManager::class.java)?.areNotificationsEnabled() == true
+        }
+        LaunchedEffect(state, canNotify) { if (canNotify) PlayerNotification.update(ctx) }
+        if (inShade && !canNotify) {
+            Text(
+                "Android no le permite a Ecualizador mostrar notificaciones, así que el reproductor no aparece en la barra.",
+                fontSize = 12.sp, lineHeight = 16.sp, color = Warn
+            )
+            OutlinedButton(onClick = {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ctx.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                ) notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                else runCatching {
+                    ctx.startActivity(
+                        android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                            .putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, ctx.packageName)
+                    )
+                }
+            }) { Text("Permitir notificaciones") }
         }
     } else {
         Text(

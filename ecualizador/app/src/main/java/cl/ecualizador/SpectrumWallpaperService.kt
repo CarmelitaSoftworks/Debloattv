@@ -49,6 +49,8 @@ class SpectrumWallpaperService : WallpaperService() {
             super.onCreate(surfaceHolder)
             // Algunos teléfonos crean el fondo en 16 bits (RGB 565): los degradados de la foto se ven con escalones.
             surfaceHolder.setFormat(PixelFormat.RGBA_8888)
+            // Para que los botones del skin respondan aunque el launcher no avise de los toques
+            setTouchEventsEnabled(true)
         }
 
         override fun onSurfaceChanged(holder: SurfaceHolder, format: Int, w: Int, h: Int) {
@@ -67,26 +69,48 @@ class SpectrumWallpaperService : WallpaperService() {
         }
 
         /**
-         * Toques en la pantalla de inicio: el launcher avisa al fondo cuando se toca una zona sin
-         * íconos. Si cae en un botón del skin, se controla el reproductor que suena.
+         * Toques en la pantalla de inicio. Hay dos caminos y se usan ambos: Android entrega al fondo
+         * los toques de la pantalla de inicio que lo deja ver ([onTouchEvent]), y algunos launchers
+         * además avisan de los toques en zonas sin íconos (COMMAND_TAP). Si llegan los dos, cuenta uno.
          */
         override fun onCommand(action: String?, x: Int, y: Int, z: Int, extras: android.os.Bundle?, resultRequested: Boolean): android.os.Bundle? {
-            if (action == android.app.WallpaperManager.COMMAND_TAP) {
-                renderer.hitAt(x - drawnX, y - drawnY)?.let { hit ->
-                    val ctx = this@SpectrumWallpaperService
-                    // El volumen y el EQ no dependen del reproductor que suena
-                    val needsSession = hit !is WinampWindow.Hit.Volume && hit != WinampWindow.Hit.OpenEqualizer
-                    when {
-                        needsSession && !NowPlaying.hasAccess(ctx) -> if (!accessHintShown) {
-                            accessHintShown = true
-                            android.widget.Toast.makeText(ctx, "Para usar los botones, activa «Mostrar lo que suena» en Ecualizador", android.widget.Toast.LENGTH_LONG).show()
-                        }
-                        NowPlaying.perform(ctx, hit) -> (hit as? WinampWindow.Hit.Press)?.let { renderer.press(it.button) }
-                        needsSession -> android.widget.Toast.makeText(ctx, "No hay música abierta", android.widget.Toast.LENGTH_SHORT).show()
-                    }
+            if (action == android.app.WallpaperManager.COMMAND_TAP) tap(x.toFloat(), y.toFloat())
+            return super.onCommand(action, x, y, z, extras, resultRequested)
+        }
+
+        private var downX = 0f
+        private var downY = 0f
+        private var downAt = 0L
+        private var lastTapAt = 0L
+
+        /** Un toque corto y sin desplazamiento (pasar de página no cuenta). */
+        override fun onTouchEvent(event: android.view.MotionEvent) {
+            when (event.actionMasked) {
+                android.view.MotionEvent.ACTION_DOWN -> { downX = event.x; downY = event.y; downAt = event.eventTime }
+                android.view.MotionEvent.ACTION_UP -> {
+                    val slop = android.view.ViewConfiguration.get(this@SpectrumWallpaperService).scaledTouchSlop
+                    if (event.eventTime - downAt < 350 && kotlin.math.hypot(event.x - downX, event.y - downY) < slop) tap(event.x, event.y)
                 }
             }
-            return super.onCommand(action, x, y, z, extras, resultRequested)
+            super.onTouchEvent(event)
+        }
+
+        private fun tap(x: Float, y: Float) {
+            val now = android.os.SystemClock.uptimeMillis()
+            if (now - lastTapAt < 400) return
+            val hit = renderer.hitAt(x - drawnX, y - drawnY) ?: return
+            lastTapAt = now
+            val ctx = this@SpectrumWallpaperService
+            // El volumen y el EQ no dependen del reproductor que suena
+            val needsSession = hit !is WinampWindow.Hit.Volume && hit != WinampWindow.Hit.OpenEqualizer
+            when {
+                needsSession && !NowPlaying.hasAccess(ctx) -> if (!accessHintShown) {
+                    accessHintShown = true
+                    android.widget.Toast.makeText(ctx, "Para usar los botones, activa «Mostrar lo que suena» en Ecualizador", android.widget.Toast.LENGTH_LONG).show()
+                }
+                NowPlaying.perform(ctx, hit) -> (hit as? WinampWindow.Hit.Press)?.let { renderer.press(it.button) }
+                needsSession -> android.widget.Toast.makeText(ctx, "No hay música abierta", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
 
         /** Resolución física de la pantalla (no la de la ventana ni la escalada). */
