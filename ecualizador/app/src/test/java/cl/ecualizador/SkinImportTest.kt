@@ -77,6 +77,43 @@ class SkinImportTest {
         assertEquals(face, s.chrome[WinampChrome.FACE])
     }
 
+    /** La ventana se arma como en Winamp: MAIN.BMP de fondo y cada pieza en su posición original. */
+    @Test
+    fun windowIsComposedFromSkinParts() {
+        val face = c(10, 20, 30); val buttons = c(200, 0, 0); val bar = c(0, 0, 200)
+        val archive = SkinArchive.read(
+            zipBytes(
+                "main.bmp" to bmp(275, 116, face),
+                "cbuttons.bmp" to bmp(136, 36, buttons),
+                "titlebar.bmp" to bmp(344, 87, bar),
+                "viscolor.txt" to "0,0,0".toByteArray(),
+            ).inputStream()
+        )
+        val skin = SkinImport.import(archive, "Prueba", SkinImport.ANDROID_DECODER).single()
+        val px = skin.windowPixels!!
+        fun at(x: Int, y: Int) = px[y * WinampWindow.WIDTH + x]
+        assertEquals(WinampWindow.WIDTH * WinampWindow.HEIGHT, px.size)
+        assertEquals(bar, at(100, 5))          // barra de título
+        assertEquals(buttons, at(20, 95))      // botón «anterior» en (16, 88)
+        assertEquals(face, at(30, 50))         // MAIN.BMP donde no hay piezas (el visor)
+        assertEquals(face, at(190, 95))        // sin SHUFREP.BMP («aleatorio» en 164..210) queda MAIN.BMP
+    }
+
+    @Test
+    fun skinWithoutMainBitmapHasNoWindow() {
+        val archive = SkinArchive.read(zip("viscolor.txt" to "1,2,3").inputStream())
+        assertEquals(null, SkinImport.import(archive, "x", SkinImport.ANDROID_DECODER).single().windowPixels)
+    }
+
+    @Test
+    fun textGlyphsFollowWinampFontLayout() {
+        assertEquals(0 to 0, WinampWindow.glyph('A'))
+        assertEquals(25 to 0, WinampWindow.glyph('z'))
+        assertEquals(7 to 1, WinampWindow.glyph('7'))
+        assertEquals(12 to 1, WinampWindow.glyph(':'))
+        assertEquals(30 to 0, WinampWindow.glyph(' '))
+    }
+
     @Test
     fun zipWithoutSkinFilesGivesNothing() {
         val archive = SkinArchive.read(zip("leeme.txt" to "hola").inputStream())
@@ -188,5 +225,39 @@ class SkinImportTest {
         sb.append("    )\n}\n")
         out.writeText(sb.toString())
         println("Temas generados: ${skins.size}")
+    }
+
+    /**
+     * Con -DclassicWszDir, -DwinampExeBitmaps (BITMAP de winamp.exe extraídos) y -DwindowsOut: arma la
+     * ventana de cada skin clásico incluido y la guarda como assets/skins/<archiveId>.png.
+     */
+    @Test
+    fun generateClassicWindows() {
+        val out = File(System.getProperty("windowsOut")?.takeIf { it.isNotEmpty() } ?: return).apply { mkdirs() }
+        val dirs = (System.getProperty("classicWszDir")?.takeIf { it.isNotEmpty() } ?: return).split(File.pathSeparator).map(::File)
+        val files = dirs.flatMap { it.listFiles().orEmpty().toList() }
+        fun save(id: String, px: IntArray) {
+            val bmp = android.graphics.Bitmap.createBitmap(px, WinampWindow.WIDTH, WinampWindow.HEIGHT, android.graphics.Bitmap.Config.ARGB_8888)
+            File(out, "$id.png").outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        }
+        var n = 0
+        WinampClassicSkins.ALL.forEach { skin ->
+            val f = files.firstOrNull { it.nameWithoutExtension == skin.archiveId } ?: return@forEach
+            WinampWindow.compose(SkinArchive.read(f.inputStream()), SkinImport.ANDROID_DECODER, skin.name)?.let { save(skin.archiveId, it); n++ }
+        }
+        // Skin base: los BITMAP de winamp.exe con su número de recurso
+        System.getProperty("winampExeBitmaps")?.takeIf { it.isNotEmpty() }?.let { dir ->
+            val ids = mapOf(
+                126 to "main.bmp", 127 to "cbuttons.bmp", 128 to "monoster.bmp", 129 to "playpaus.bmp", 130 to "shufrep.bmp",
+                132 to "numbers.bmp", 133 to "volume.bmp", 134 to "text.bmp", 135 to "posbar.bmp", 150 to "titlebar.bmp", 197 to "balance.bmp",
+            )
+            // «<id>.png» reemplaza al .bmp si el recurso venía dañado (p. ej. el RLE de la fuente, 134)
+            val archive = SkinArchive(ids.mapNotNull { (id, name) ->
+                (File(dir, "$id.png").takeIf { it.exists() } ?: File(dir, "$id.bmp").takeIf { it.exists() })?.let { name to it.readBytes() }
+            }.toMap())
+            WinampWindow.compose(archive, SkinImport.ANDROID_DECODER, WinampSkins.DEFAULT.name)?.let { save(WinampSkins.DEFAULT.archiveId, it); n++ }
+        }
+        println("Ventanas generadas: $n")
+        assertTrue(n > 0)
     }
 }

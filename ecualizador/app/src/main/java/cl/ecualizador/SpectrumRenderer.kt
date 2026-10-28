@@ -217,7 +217,12 @@ class SpectrumRenderer {
         s: SpectrumSettings, density: Float,
     ) {
         val skin = WinampSkins.byName(s.winampSkin)
-        val area = if (s.winampFrame) drawWinampFrame(canvas, w, h, skin, density) else null
+        val window = if (s.winampFrame) WinampWindows.bitmap(skin) else null
+        val area = when {
+            window != null -> drawSkinWindow(canvas, w, h, window)
+            s.winampFrame -> drawWinampFrame(canvas, w, h, skin, density)
+            else -> null
+        }
         if (area != null) {
             canvas.save()
             canvas.translate(area.left, area.top)
@@ -291,6 +296,29 @@ class SpectrumRenderer {
         blit(canvas, w, h, pw)
     }
 
+    private val windowDst = android.graphics.RectF()
+
+    /**
+     * Ventana real del skin (275×116) lo más grande que quepa, centrada; con factor entero si cabe
+     * al menos al doble, para que cada píxel del skin quede como un bloque parejo y nítido.
+     * Devuelve el recuadro del visor dentro de ella.
+     */
+    private fun drawSkinWindow(canvas: Canvas, w: Float, h: Float, window: android.graphics.Bitmap): android.graphics.RectF {
+        val fit = minOf(w / WinampWindow.WIDTH, h / WinampWindow.HEIGHT)
+        val scale = if (fit >= 2f) kotlin.math.floor(fit) else fit
+        val ww = WinampWindow.WIDTH * scale
+        val wh = WinampWindow.HEIGHT * scale
+        val left = kotlin.math.round((w - ww) / 2)
+        val top = kotlin.math.round((h - wh) / 2)
+        windowDst.set(left, top, left + ww, top + wh)
+        canvas.drawBitmap(window, null, windowDst, pixelPaint)
+        frameArea.set(
+            left + WinampWindow.VIS_X * scale, top + WinampWindow.VIS_Y * scale,
+            left + (WinampWindow.VIS_X + WinampWindow.VIS_W) * scale, top + (WinampWindow.VIS_Y + WinampWindow.VIS_H) * scale,
+        )
+        return frameArea
+    }
+
     private val frameFill = Paint().apply { isAntiAlias = false }
     private val frameText = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         typeface = android.graphics.Typeface.create(android.graphics.Typeface.MONOSPACE, android.graphics.Typeface.BOLD)
@@ -298,6 +326,8 @@ class SpectrumRenderer {
     private val frameArea = android.graphics.RectF()
     // Nombre del skin en mayúsculas y su ancho: se recalculan solo si cambian el skin o el tamaño
     private var labelSkin: WinampSkin? = null
+    private var labelBase = 0f
+    private var labelRoom = 0f
     private var labelSize = 0f
     private var label = ""
     private var labelWidth = 0f
@@ -331,13 +361,22 @@ class SpectrumRenderer {
         // Barra de título: rayas del color de acento y el nombre en la letra de la pantalla.
         val accent = c[WinampChrome.ACCENT]
         val ty = title / 2 + line / 2
-        frameText.textSize = title * 0.62f
-        if (labelSkin !== skin || labelSize != frameText.textSize) {
+        // Nombre del skin en mayúsculas; si no cabe en la barra de título se achica la letra en vez
+        // de salirse del marco. Se recalcula solo si cambian el skin, el tamaño o el espacio.
+        val baseSize = title * 0.62f
+        val room = w - 4 * pad
+        if (labelSkin !== skin || labelBase != baseSize || labelRoom != room) {
             labelSkin = skin
-            labelSize = frameText.textSize
+            labelBase = baseSize
+            labelRoom = room
             label = skin.name.uppercase()
+            frameText.textSize = baseSize
+            val natural = frameText.measureText(label)
+            labelSize = if (natural > room && natural > 0f) baseSize * room / natural else baseSize
+            frameText.textSize = labelSize
             labelWidth = frameText.measureText(label)
         }
+        frameText.textSize = labelSize
         val showText = frameText.textSize >= 7f * density
         val textW = if (showText) labelWidth + 2 * pad else 0f
         val mid = w / 2

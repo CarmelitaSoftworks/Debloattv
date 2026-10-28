@@ -193,16 +193,41 @@ data class SpectrumSettings(
     val winampFrame: Boolean = true,
     /** Tiñe toda la app con los colores del skin de Winamp elegido (ver [AppTheme]). */
     val appTheme: Boolean = false,
+    /** Bandas gruesas de «Winamp clásico» y «Winamp fuego» (el original tiene 19). */
+    val winampBars: Int = WINAMP_BARS_ORIGINAL,
+    /** Líneas finas de «Winamp líneas» (el original tiene 75). */
+    val winampLines: Int = WINAMP_LINES_ORIGINAL,
 ) {
-    /** Los estilos de Winamp tienen bandas fijas: 19 gruesas o 75 finas, como el original. */
+    /** Barras que se dibujan con el estilo elegido. */
     val effectiveBars: Int
         get() = when (style) {
-            SpectrumStyle.WINAMP_CLASSIC, SpectrumStyle.WINAMP_FIRE -> 19
-            SpectrumStyle.WINAMP_LINES -> 75
+            SpectrumStyle.WINAMP_CLASSIC, SpectrumStyle.WINAMP_FIRE -> winampBars
+            SpectrumStyle.WINAMP_LINES -> winampLines
             else -> bars
         }
 
+    /** Opciones de cantidad de barras para el estilo elegido (vacío si no se elige, como el osciloscopio). */
+    val barOptions: List<Int>
+        get() = when (style) {
+            SpectrumStyle.WINAMP_CLASSIC, SpectrumStyle.WINAMP_FIRE -> WINAMP_BAR_OPTIONS
+            SpectrumStyle.WINAMP_LINES -> WINAMP_LINE_OPTIONS
+            SpectrumStyle.WINAMP_SCOPE, SpectrumStyle.WAVE -> emptyList()
+            else -> BAR_OPTIONS
+        }
+
+    /** Cambia la cantidad de barras del estilo elegido. */
+    fun withBars(n: Int): SpectrumSettings = when (style) {
+        SpectrumStyle.WINAMP_CLASSIC, SpectrumStyle.WINAMP_FIRE -> copy(winampBars = n)
+        SpectrumStyle.WINAMP_LINES -> copy(winampLines = n)
+        else -> copy(bars = n)
+    }
+
     companion object {
+        const val WINAMP_BARS_ORIGINAL = 19
+        const val WINAMP_LINES_ORIGINAL = 75
+        // Hasta 96: es lo que entrega el analizador; con más, las barras se repetirían
+        val WINAMP_BAR_OPTIONS = listOf(10, WINAMP_BARS_ORIGINAL, 28, 38, 48)
+        val WINAMP_LINE_OPTIONS = listOf(38, WINAMP_LINES_ORIGINAL, 96)
         val BAR_OPTIONS = listOf(24, 32, 48, 64, 96)
         val FPS_OPTIONS = listOf(4, 8, 12)
         const val SOURCE_BARS = 96

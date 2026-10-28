@@ -216,10 +216,10 @@ class RendererStateTest {
         }
     }
 
-    /** Con la ventana del skin, la esquina es la cara del skin y el centro sigue siendo el analizador. */
+    /** Marco por colores (skins sin ventana, como los temas modernos): la esquina es la cara del skin. */
     @Test
     fun skinFrameSurroundsAnalyzer() {
-        val skin = WinampSkins.byName("Denon Antique")
+        val skin = WinampSkins.byName("Bento · Mint")
         val values = FloatArray(19) { 1f }
         fun render(frame: Boolean): Bitmap {
             val bmp = Bitmap.createBitmap(300, 120, Bitmap.Config.ARGB_8888)
@@ -235,5 +235,24 @@ class RendererStateTest {
         org.junit.Assert.assertNotEquals(skin.chrome[WinampChrome.FACE], plain.getPixel(2, 60))
         // El centro (barras llenas) sigue mostrando colores del analizador del skin.
         org.junit.Assert.assertTrue(framed.getPixel(150, 100) in skin.colors.toList())
+    }
+
+    /** Con la ventana real del skin (assets), el visor queda dentro de su recuadro de 76×16. */
+    @Test
+    fun realSkinWindowIsDrawnAroundVisualizer() {
+        WinampWindows.init(androidx.test.core.app.ApplicationProvider.getApplicationContext())
+        val skin = WinampSkins.DEFAULT
+        val window = WinampWindows.bitmap(skin)!!
+        // 550×232: cabe exactamente al doble, sin bordes
+        val bmp = Bitmap.createBitmap(550, 232, Bitmap.Config.ARGB_8888)
+        SpectrumRenderer().draw(
+            Canvas(bmp), 550f, 232f, FloatArray(19) { 0f }, null,
+            SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, winampSkin = skin.name),
+        )
+        // Fuera del visor, la ventana tal cual (cada píxel del skin ocupa 2×2)
+        org.junit.Assert.assertEquals(window.getPixel(260, 100), bmp.getPixel(520, 200))
+        org.junit.Assert.assertEquals(window.getPixel(5, 5), bmp.getPixel(11, 11))
+        // Dentro del visor, el fondo del analizador (barras en cero)
+        org.junit.Assert.assertEquals(skin.colors[0], bmp.getPixel((WinampWindow.VIS_X + 2) * 2, (WinampWindow.VIS_Y + 2) * 2))
     }
 }

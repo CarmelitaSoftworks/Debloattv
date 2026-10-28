@@ -19,7 +19,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,6 +55,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
@@ -107,7 +107,16 @@ class MainActivity : ComponentActivity() {
                         surfaceVariant = Track, onSurfaceVariant = Muted, outline = Muted, secondaryContainer = Track,
                     )
                 }
-                MaterialTheme(colorScheme = scheme) {
+                // Interlineado proporcional a la letra: el de Material (24 sp fijo) separa demasiado
+                // las líneas de los textos chicos
+                val base = Typography()
+                val typography = base.copy(
+                    bodyLarge = base.bodyLarge.copy(lineHeight = 1.4.em),
+                    bodyMedium = base.bodyMedium.copy(lineHeight = 1.4.em),
+                    bodySmall = base.bodySmall.copy(lineHeight = 1.4.em),
+                    labelLarge = base.labelLarge.copy(lineHeight = 1.3.em),
+                )
+                MaterialTheme(colorScheme = scheme, typography = typography) {
                     Surface(Modifier.fillMaxSize(), color = Bg, contentColor = Ink) { EqualizerScreen() }
                 }
             }
@@ -115,6 +124,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun EqualizerScreen() {
     val ctx = LocalContext.current
@@ -219,7 +229,7 @@ private fun EqualizerScreen() {
             ResponseGraph(gains)
         }
 
-        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             (EqCore.PRESETS.keys + eq.customPresets).forEach { name ->
                 FilterChip(selected = eq.preset == name, onClick = { engine.usePreset(name) }, label = { Text(name) })
             }
@@ -268,7 +278,7 @@ private fun EqualizerScreen() {
         ) {
             Text("Opciones", fontWeight = FontWeight.SemiBold)
             Text("Protección contra distorsión", fontSize = 14.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 EqCore.Headroom.entries.forEach { m ->
                     FilterChip(selected = eq.headroom == m, onClick = { engine.setHeadroom(m) }, label = { Text(m.label) })
                 }
@@ -661,7 +671,7 @@ private fun WallpaperCard() {
                 "Usa el mismo estilo y colores del visor, y se detiene cuando no se ve (con una app abierta o la pantalla apagada).",
             fontSize = 12.sp, lineHeight = 16.sp, color = Muted
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(enabled = !saving, onClick = {
                 picker.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
             }) { Text(if (saving) "Guardando…" else if (ws.hasImage) "Cambiar foto" else "Elegir foto") }
@@ -680,17 +690,9 @@ private fun WallpaperCard() {
                 FilterChip(selected = ws.position == p, onClick = { set { it.copy(position = p) } }, label = { Text(p.label) })
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Alto", Modifier.width(96.dp), fontSize = 14.sp)
-            Slider(value = ws.height, onValueChange = { v -> set { it.copy(height = v) } }, valueRange = 0.1f..0.6f, modifier = Modifier.weight(1f))
-            Text("%.0f%%".format(ws.height * 100), Modifier.width(44.dp), fontSize = 12.sp, textAlign = TextAlign.End)
-        }
+        LabeledSlider("Alto", ws.height, 0.1f..0.6f, "%.0f%%".format(ws.height * 100)) { v -> set { it.copy(height = v) } }
         if (ws.hasImage) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Oscurecer foto", Modifier.width(96.dp), fontSize = 14.sp)
-                Slider(value = ws.dim, onValueChange = { v -> set { it.copy(dim = v) } }, valueRange = 0f..0.7f, modifier = Modifier.weight(1f))
-                Text("%.0f%%".format(ws.dim * 100), Modifier.width(44.dp), fontSize = 12.sp, textAlign = TextAlign.End)
-            }
+            LabeledSlider("Oscurecer foto", ws.dim, 0f..0.7f, "%.0f%%".format(ws.dim * 100)) { v -> set { it.copy(dim = v) } }
         }
         Button(onClick = {
             val intent = android.content.Intent(android.app.WallpaperManager.ACTION_CHANGE_LIVE_WALLPAPER).putExtra(
@@ -786,10 +788,9 @@ private object WinampDemo {
         (0.9f - 0.55f * x + 0.18f * kotlin.math.sin(x * 17f)).coerceIn(0.1f, 1f)
     }
     private fun peaksOf(v: FloatArray) = FloatArray(v.size) { (v[it] + 0.12f).coerceAtMost(1f) }
-    val values19 = shape(19)
-    val peaks19 = peaksOf(values19)
-    val values75 = shape(75)
-    val peaks75 = peaksOf(values75)
+    private val cache = HashMap<Int, Pair<FloatArray, FloatArray>>()
+    /** Valores y picos de muestra para [n] barras. */
+    fun of(n: Int): Pair<FloatArray, FloatArray> = cache.getOrPut(n) { shape(n).let { it to peaksOf(it) } }
     val wave = FloatArray(256) { i -> (0.7f * kotlin.math.sin(i * 0.11f) * kotlin.math.cos(i * 0.023f)) }
 }
 
@@ -799,14 +800,9 @@ private fun WinampPreview(settings: SpectrumSettings, modifier: Modifier) {
     val renderer = remember { SpectrumRenderer() }
     val density = androidx.compose.ui.platform.LocalDensity.current.density
     Canvas(modifier) {
-        val thin = settings.style == SpectrumStyle.WINAMP_LINES
+        val (values, peaks) = WinampDemo.of(settings.effectiveBars)
         drawIntoCanvas { c ->
-            renderer.draw(
-                c.nativeCanvas, size.width, size.height,
-                if (thin) WinampDemo.values75 else WinampDemo.values19,
-                if (thin) WinampDemo.peaks75 else WinampDemo.peaks19,
-                settings, density, WinampDemo.wave,
-            )
+            renderer.draw(c.nativeCanvas, size.width, size.height, values, peaks, settings, density, WinampDemo.wave)
         }
     }
 }
@@ -827,7 +823,9 @@ private fun WinampSkinTile(skin: WinampSkin, settings: SpectrumSettings, onClick
     ) {
         WinampPreview(preview, Modifier.fillMaxWidth().height(if (settings.winampFrame) 52.dp else 36.dp).clip(RoundedCornerShape(4.dp)))
         Text(
-            skin.name, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            // El grupo ya se ve en el filtro: «Winamp Modern · Blueberry» se muestra como «Blueberry»
+            skin.name.removePrefix(skin.group + " · "), fontSize = 11.sp, lineHeight = 13.sp, maxLines = 2,
+            overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
         )
     }
@@ -837,6 +835,7 @@ private fun WinampSkinTile(skin: WinampSkin, settings: SpectrumSettings, onClick
  * Selector de skins de Winamp: filtros por grupo, grilla de miniaturas, importar .wsz/.wal desde el
  * teléfono y quitar los importados.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings) -> SpectrumSettings) -> Unit) {
     val ctx = LocalContext.current
@@ -876,7 +875,7 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
 
     Text("Skin de Winamp", color = Muted, fontSize = 13.sp)
     val groups = remember(all) { all.map { it.group }.distinct() }
-    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         groups.forEach { g ->
             FilterChip(selected = group == g, onClick = { group = g }, label = { Text("$g (${all.count { it.group == g }})") })
         }
@@ -885,11 +884,13 @@ private fun WinampSkinPicker(settings: SpectrumSettings, set: ((SpectrumSettings
     val gridState = rememberLazyGridState(
         initialFirstVisibleItemIndex = shown.indexOfFirst { it.name == settings.winampSkin }.coerceAtLeast(0)
     )
+    // Alto de cada fila: miniatura + dos líneas de nombre al tamaño de letra del teléfono
+    val rows = if (shown.size > 8) 3 else 2
+    val nameHeight = with(androidx.compose.ui.platform.LocalDensity.current) { 26.sp.toDp() }
+    val tileHeight = (if (settings.winampFrame) 52.dp else 36.dp) + nameHeight + 8.dp
     LazyHorizontalGrid(
-        rows = GridCells.Fixed(if (shown.size > 8) 3 else 2), state = gridState,
-        modifier = Modifier.fillMaxWidth().height(
-            ((if (shown.size > 8) 3 else 2) * (if (settings.winampFrame) 76 else 60) + 12).dp
-        ),
+        rows = GridCells.Fixed(rows), state = gridState,
+        modifier = Modifier.fillMaxWidth().height(tileHeight * rows + 6.dp * (rows - 1) + 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         items(shown, key = { it.name }) { skin ->
@@ -981,14 +982,23 @@ private fun SpectrumSettingsDialog(settings: SpectrumSettings, running: Boolean,
                 }
                 OptionRow("Mostrar la ventana del skin", settings.winampFrame) { v -> set { it.copy(winampFrame = v) } }
                 Text(
-                    "Las bandas son las del original: 19 gruesas o 75 finas en 16 píxeles de alto.",
+                    "Como el original: 16 píxeles de alto; el Winamp original tiene 19 bandas gruesas o 75 finas.",
                     fontSize = 12.sp, lineHeight = 16.sp, color = Muted
                 )
-            } else {
+            }
+            if (settings.barOptions.isNotEmpty()) {
                 Text("Cantidad de barras", color = Muted, fontSize = 13.sp)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SpectrumSettings.BAR_OPTIONS.forEach { b ->
-                        FilterChip(selected = settings.bars == b, onClick = { set { it.copy(bars = b) } }, label = { Text("$b") })
+                    val original = when (settings.style) {
+                        SpectrumStyle.WINAMP_CLASSIC, SpectrumStyle.WINAMP_FIRE -> SpectrumSettings.WINAMP_BARS_ORIGINAL
+                        SpectrumStyle.WINAMP_LINES -> SpectrumSettings.WINAMP_LINES_ORIGINAL
+                        else -> -1
+                    }
+                    settings.barOptions.forEach { b ->
+                        FilterChip(
+                            selected = settings.effectiveBars == b, onClick = { set { it.withBars(b) } },
+                            label = { Text(if (b == original) "$b (original)" else "$b") }
+                        )
                     }
                 }
             }
@@ -998,10 +1008,8 @@ private fun SpectrumSettingsDialog(settings: SpectrumSettings, running: Boolean,
                     FilterChip(selected = settings.fall == f, onClick = { set { it.copy(fall = f) } }, label = { Text(f.label) })
                 }
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Sensibilidad", Modifier.width(96.dp), fontSize = 14.sp)
-                Slider(value = settings.sensitivity, onValueChange = { v -> set { it.copy(sensitivity = v) } }, valueRange = 0.5f..2.5f, modifier = Modifier.weight(1f))
-                Text("×%.1f".format(settings.sensitivity), Modifier.width(44.dp), fontSize = 12.sp, textAlign = TextAlign.End)
+            LabeledSlider("Sensibilidad", settings.sensitivity, 0.5f..2.5f, "×%.1f".format(settings.sensitivity)) { v ->
+                set { it.copy(sensitivity = v) }
             }
             OptionRow("Mostrar picos", settings.peaks) { v -> set { it.copy(peaks = v) } }
             OptionRow("Mostrar guías de frecuencia", settings.grid) { v -> set { it.copy(grid = v) } }
@@ -1108,10 +1116,14 @@ private fun BandSlider(value: Float, label: String, onChange: (Float) -> Unit) {
 
 @Composable
 private fun LabeledSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, display: String, onChange: (Float) -> Unit) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(label, Modifier.width(104.dp), fontSize = 14.sp)
-        Slider(value = value, onValueChange = onChange, valueRange = range, modifier = Modifier.weight(1f))
-        Text(display, Modifier.width(64.dp), fontSize = 12.sp, textAlign = TextAlign.End)
+    // Etiqueta y valor arriba, el deslizador a todo el ancho: con letra grande nada se corta ni se
+    // parte a mitad de palabra (con un ancho fijo para la etiqueta sí pasaba)
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(label, Modifier.weight(1f), fontSize = 14.sp)
+            Text(display, Modifier.padding(start = 8.dp), fontSize = 13.sp, color = Muted, softWrap = false)
+        }
+        Slider(value = value, onValueChange = onChange, valueRange = range, modifier = Modifier.fillMaxWidth())
     }
 }
 

@@ -33,6 +33,24 @@ class WinampTest {
         assertEquals(19, SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, bars = 96).effectiveBars)
         assertEquals(75, SpectrumSettings(style = SpectrumStyle.WINAMP_LINES).effectiveBars)
         assertEquals(32, SpectrumSettings(style = SpectrumStyle.BARS, bars = 32).effectiveBars)
+    }
+
+    /** Los estilos Winamp también permiten elegir cuántas barras, sin tocar la de los otros estilos. */
+    @Test
+    fun winampBarCountCanBeChosen() {
+        val classic = SpectrumSettings(style = SpectrumStyle.WINAMP_CLASSIC, bars = 64).withBars(38)
+        assertEquals(38, classic.effectiveBars)
+        assertEquals(64, classic.bars)
+        assertEquals(38, classic.copy(style = SpectrumStyle.WINAMP_FIRE).effectiveBars)
+        val lines = SpectrumSettings(style = SpectrumStyle.WINAMP_LINES).withBars(96)
+        assertEquals(96, lines.effectiveBars)
+        assertEquals(SpectrumSettings.WINAMP_BARS_ORIGINAL, lines.winampBars)
+        assertEquals(48, SpectrumSettings(style = SpectrumStyle.BARS).withBars(48).effectiveBars)
+        // Todas las opciones caben en lo que entrega el analizador y el osciloscopio no tiene opción
+        SpectrumStyle.entries.forEach { st ->
+            SpectrumSettings(style = st).barOptions.forEach { assertTrue("$st $it", it in 1..SpectrumSettings.SOURCE_BARS) }
+        }
+        assertTrue(SpectrumSettings(style = SpectrumStyle.WINAMP_SCOPE).barOptions.isEmpty())
         assertTrue(SpectrumPalette.entries.size >= 16)
     }
 }

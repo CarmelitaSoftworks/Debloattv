@@ -11,6 +11,7 @@ object SpectrumPrefs {
     fun load(ctx: Context): SpectrumSettings {
         if (!loaded) {
             WinampSkins.load(ctx)
+            WinampWindows.init(ctx)
             val p = ctx.getSharedPreferences("spectrum", Context.MODE_PRIVATE)
             val d = SpectrumSettings()
             settings.value = SpectrumSettings(
@@ -27,6 +28,8 @@ object SpectrumPrefs {
                     .getOrDefault(d.winampPattern),
                 winampFrame = p.getBoolean("winampFrame", d.winampFrame),
                 appTheme = p.getBoolean("appTheme", d.appTheme),
+                winampBars = p.getInt("winampBars", d.winampBars).takeIf { it in SpectrumSettings.WINAMP_BAR_OPTIONS } ?: d.winampBars,
+                winampLines = p.getInt("winampLines", d.winampLines).takeIf { it in SpectrumSettings.WINAMP_LINE_OPTIONS } ?: d.winampLines,
             )
             loaded = true
         }
@@ -43,6 +46,7 @@ object SpectrumPrefs {
             .putInt("widgetFps", s.widgetFps).putString("winampSkin", s.winampSkin)
             .putString("winampPattern", s.winampPattern.name).putBoolean("winampFrame", s.winampFrame)
             .putBoolean("appTheme", s.appTheme)
+            .putInt("winampBars", s.winampBars).putInt("winampLines", s.winampLines)
             .apply()
     }
 }

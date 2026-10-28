@@ -17,6 +17,10 @@ data class WinampSkin(
     val colors: IntArray,
     val chrome: IntArray = WinampChrome.DEFAULT,
     val group: String = WinampSkins.GROUP_CLASSIC,
+    /** Ventana del skin importado (PNG de 275×116 en los archivos de la app); ver [WinampWindows]. */
+    val windowFile: String? = null,
+    /** Ventana recién armada al importar, antes de guardarla en [windowFile]. */
+    val windowPixels: IntArray? = null,
 )
 
 /** Todos los skins: clásicos, temas de los skins modernos de Winamp 5.9 e importados por el usuario. */
@@ -63,14 +67,25 @@ object WinampSkins {
             var k = 2
             while (n in names) n = "${s.name.take(55)} ($k)".also { k++ }
             names += n
-            s.copy(name = n, group = SkinImport.GROUP_IMPORTED)
+            s.copy(name = n, group = SkinImport.GROUP_IMPORTED, windowFile = s.windowPixels?.let { saveWindow(ctx, it) }, windowPixels = null)
         }
         save(ctx, imported.value + added)
         return added
     }
 
+    /** Guarda la ventana armada como PNG en los archivos de la app y devuelve su ruta. */
+    private fun saveWindow(ctx: Context, pixels: IntArray): String? = runCatching {
+        val dir = File(ctx.filesDir, "skin-windows").apply { mkdirs() }
+        val f = File(dir, "${System.nanoTime()}.png")
+        val bmp = android.graphics.Bitmap.createBitmap(pixels, WinampWindow.WIDTH, WinampWindow.HEIGHT, android.graphics.Bitmap.Config.ARGB_8888)
+        f.outputStream().use { bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        bmp.recycle()
+        f.path
+    }.getOrNull()
+
     fun remove(ctx: Context, name: String) {
         load(ctx)
+        imported.value.firstOrNull { it.name == name }?.windowFile?.let { File(it).delete() }
         save(ctx, imported.value.filterNot { it.name == name })
         last = DEFAULT
     }
@@ -82,7 +97,10 @@ object WinampSkins {
 
     fun toJson(list: List<WinampSkin>): String = JSONArray().apply {
         list.forEach { s ->
-            put(JSONObject().put("name", s.name).put("colors", JSONArray(s.colors.toList())).put("chrome", JSONArray(s.chrome.toList())))
+            put(
+                JSONObject().put("name", s.name).put("colors", JSONArray(s.colors.toList())).put("chrome", JSONArray(s.chrome.toList()))
+                    .apply { s.windowFile?.let { put("window", it) } }
+            )
         }
     }.toString()
 
@@ -93,7 +111,7 @@ object WinampSkins {
             val colors = o.getJSONArray("colors").let { c -> IntArray(c.length()) { c.getInt(it) } }
             val chrome = o.getJSONArray("chrome").let { c -> IntArray(c.length()) { c.getInt(it) } }
             if (colors.size != 24 || chrome.size != 8) null
-            else WinampSkin(o.getString("name"), "importado", colors, chrome, SkinImport.GROUP_IMPORTED)
+            else WinampSkin(o.getString("name"), "importado", colors, chrome, SkinImport.GROUP_IMPORTED, o.optString("window").ifEmpty { null })
         }
     }
 }
