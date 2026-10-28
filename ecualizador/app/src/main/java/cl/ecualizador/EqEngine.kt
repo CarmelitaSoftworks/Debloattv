@@ -29,7 +29,7 @@ data class EqUiState(
     /** DynamicsProcessing activo: permite refuerzo de volumen y balance. */
     val advanced: Boolean = false,
     val preset: String? = "Plano",
-    val avoidClipping: Boolean = true,
+    val headroom: EqCore.Headroom = EqCore.Headroom.BALANCED,
     /** Compensación de volumen bajo (loudness). */
     val loudness: Boolean = false,
     val canUndo: Boolean = false,
@@ -219,29 +219,27 @@ class EqEngine private constructor(private val ctx: Context) {
 
     private fun push(gains: List<Float>) {
         appliedGains = gains
-        val s = if (bypass) state.value.copy(boost = 0f, balance = 0f, avoidClipping = false) else state.value
+        // En la comparación A/B (bypass) todo queda neutro: sin preamplificador, refuerzo ni limitador
+        val s = if (bypass) state.value.copy(boost = 0f, balance = 0f, headroom = EqCore.Headroom.LOUD) else state.value
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) runCatching {
             dp?.let { d ->
                 val cut = EqCore.cutoffs()
                 val eq = DynamicsProcessing.Eq(true, true, EqCore.BANDS)
                 for (i in 0 until EqCore.BANDS) eq.setBand(i, DynamicsProcessing.EqBand(true, cut[i], gains[i]))
                 d.setPreEqAllChannelsTo(eq)
-                val (left, right) = EqCore.channelGains(
-                    if (s.avoidClipping) EqCore.autoPreamp(gains) else 0f, s.boost, s.balance
-                )
+                val (left, right) = EqCore.channelGains(EqCore.preamp(gains, s.headroom, hasLimiter = true), s.boost, s.balance)
                 d.setInputGainbyChannel(0, left)
                 d.setInputGainbyChannel(1, right)
-                // El limitador siempre actúa si se potencia el volumen, para que no distorsione.
-                d.setLimiterAllChannelsTo(
-                    DynamicsProcessing.Limiter(true, s.avoidClipping || s.boost > 0f, 0, 1f, 60f, 10f, -1f, 0f)
-                )
+                // El limitador es lo que evita la saturación cuando no se baja todo el volumen: siempre
+                // activo, salvo en la comparación A/B.
+                d.setLimiterAllChannelsTo(DynamicsProcessing.Limiter(true, !bypass, 0, 1f, 60f, 10f, -1f, 0f))
             }
         }
         runCatching {
             legacy?.let { e ->
                 val range = e.bandLevelRange
                 // Sin preamplificador ni limitador: para evitar distorsión se baja toda la curva.
-                val shift = if (s.avoidClipping) EqCore.autoPreamp(gains) else 0f
+                val shift = EqCore.preamp(gains, s.headroom, hasLimiter = false)
                 for (b in 0 until e.numberOfBands) {
                     val hz = e.getCenterFreq(b.toShort()) / 1000f
                     val mb = ((EqCore.interpolate(gains, hz) + shift) * 100).toInt().coerceIn(range[0].toInt(), range[1].toInt())
@@ -364,10 +362,10 @@ class EqEngine private constructor(private val ctx: Context) {
         if (!state.value.enabled) setEnabled(true)
     }
 
-    fun setAvoidClipping(on: Boolean) {
-        prefs.edit().putBoolean("avoidClipping", on).apply()
-        state.update { it.copy(avoidClipping = on) }
-        apply()
+    fun setHeadroom(mode: EqCore.Headroom) {
+        prefs.edit().putString("headroom", mode.name).apply()
+        state.update { it.copy(headroom = mode) }
+        apply(smooth = true)
     }
 
     fun setLoudness(on: Boolean) {
@@ -413,12 +411,20 @@ class EqEngine private constructor(private val ctx: Context) {
         state.update { it.copy(customPresets = customPresets().keys.toList()) }
     }
 
+    /**
+     * Modo guardado. Antes era «Evitar distorsión» sí/no: activado (bajar todo, lo que hacía perder
+     * volumen con los graves) pasa a «Equilibrada»; desactivado, a «Volumen».
+     */
+    private fun savedHeadroom(): EqCore.Headroom =
+        prefs.getString("headroom", null)?.let { runCatching { EqCore.Headroom.valueOf(it) }.getOrNull() }
+            ?: if (prefs.getBoolean("avoidClipping", true)) EqCore.Headroom.BALANCED else EqCore.Headroom.LOUD
+
     // Va al final: Kotlin inicializa en orden y el bloque usa propiedades declaradas arriba.
     init {
         state.update {
             it.copy(
                 enabled = prefs.getBoolean("enabled", false),
-                avoidClipping = prefs.getBoolean("avoidClipping", true),
+                headroom = savedHeadroom(),
                 autoReclaim = prefs.getBoolean("autoReclaim", true),
                 loudness = prefs.getBoolean("loudness", false),
                 customPresets = customPresets().keys.toList(),

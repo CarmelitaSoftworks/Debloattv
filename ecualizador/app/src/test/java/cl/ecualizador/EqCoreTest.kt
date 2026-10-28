@@ -29,6 +29,22 @@ class EqCoreTest {
         assertEquals(0f, EqCore.autoPreamp(listOf(-2f, -1f)), 0.001f)
     }
 
+    /** Graves al máximo (+9 dB): antes se bajaba todo 9 dB; en equilibrado solo 3 dB. */
+    @Test
+    fun headroomModesDecideHowMuchVolumeIsLost() {
+        val bass = EqCore.finalGains(List(EqCore.BANDS) { 0f }, 1f)
+        assertEquals(9f, bass.max(), 0.001f)
+        assertEquals(-9f, EqCore.preamp(bass, EqCore.Headroom.FULL, hasLimiter = true), 0.001f)
+        assertEquals(-3f, EqCore.preamp(bass, EqCore.Headroom.BALANCED, hasLimiter = true), 0.001f)
+        assertEquals(0f, EqCore.preamp(bass, EqCore.Headroom.LOUD, hasLimiter = true), 0.001f)
+        // Subidas pequeñas no restan volumen en equilibrado
+        assertEquals(0f, EqCore.preamp(listOf(2f, 3f, -1f), EqCore.Headroom.BALANCED, hasLimiter = true), 0.001f)
+        // Sin limitador, equilibrado tiene que bajar todo para no saturar
+        assertEquals(-9f, EqCore.preamp(bass, EqCore.Headroom.BALANCED, hasLimiter = false), 0.001f)
+        // Si nada sube, nunca se baja el volumen
+        assertEquals(0f, EqCore.preamp(listOf(-4f, -2f), EqCore.Headroom.FULL, hasLimiter = true), 0.001f)
+    }
+
     @Test
     fun interpolationMatchesBands() {
         val levels = EqCore.PRESETS.getValue("Graves y agudos")

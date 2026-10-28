@@ -97,7 +97,7 @@ object Spectrum {
 
     private fun create(): String? = try {
         val v = Visualizer(0)
-        v.captureSize = Visualizer.getCaptureSizeRange()[1].coerceAtMost(2048)
+        configureCaptureSize(v)
         v.setDataCaptureListener(object : Visualizer.OnDataCaptureListener {
             override fun onWaveFormDataCapture(vis: Visualizer?, waveform: ByteArray?, samplingRate: Int) {
                 waveform ?: return
@@ -123,6 +123,25 @@ object Spectrum {
         "Este teléfono no permite ver el espectro (${t.message ?: t.javaClass.simpleName})."
     }
 
+    /**
+     * El Visualizer de la sesión 0 es un solo efecto compartido con otras apps (y con la animación de
+     * audio del sistema en algunos teléfonos). Si ya está activado, Android no deja cambiar el tamaño
+     * de captura («setCaptureSize() called in wrong state: 2»): se intenta pausarlo un instante para
+     * cambiarlo y, si quien lo controla es otra app, se usa el tamaño que ya tiene (el analizador
+     * acepta cualquiera) en vez de no mostrar el espectro.
+     */
+    private fun configureCaptureSize(v: Visualizer) {
+        configureCaptureSize(object : CaptureControl {
+            override var enabled: Boolean
+                get() = v.enabled
+                set(value) { v.enabled = value }
+            override var captureSize: Int
+                get() = v.captureSize
+                set(value) { v.captureSize = value }
+        }, Visualizer.getCaptureSizeRange()[1].coerceAtMost(2048))
+    }
+
+
     /** Recrea el Visualizer cuando quedó sin datos tras pausar y reanudar. */
     @Synchronized
     private fun restart() {
@@ -142,4 +161,17 @@ object Spectrum {
         running.value = false
         bars.value = FloatArray(SpectrumSettings.SOURCE_BARS)
     }
+}
+
+/** Lo mínimo del Visualizer que se usa para configurarlo (permite probarlo sin el efecto nativo). */
+internal interface CaptureControl {
+    var enabled: Boolean
+    var captureSize: Int
+}
+
+/** Deja [wanted] como tamaño de captura si Android lo permite; si no, conserva el actual sin fallar. */
+internal fun configureCaptureSize(v: CaptureControl, wanted: Int) {
+    if (v.captureSize == wanted) return
+    if (v.enabled) runCatching { v.enabled = false }
+    runCatching { v.captureSize = wanted }
 }

@@ -40,6 +40,33 @@ object EqCore {
     /** Preamplificador negativo que compensa la banda más alta, para no saturar (como Equalizer APO). */
     fun autoPreamp(gains: List<Float>): Float = -(gains.maxOrNull() ?: 0f).coerceAtLeast(0f)
 
+    /**
+     * Cuánto volumen se baja para que subir bandas no sature. Con DynamicsProcessing hay además un
+     * limitador que impide la saturación digital, así que no hace falta bajar todo lo que sube la
+     * banda más alta (eso es lo que hace perder volumen al subir los graves).
+     */
+    enum class Headroom(val label: String, val description: String) {
+        FULL("Máxima", "Baja todo el volumen lo que suba la banda más alta: nunca satura, pero subir los graves resta volumen."),
+        BALANCED("Equilibrada", "Los primeros 3 dB no restan volumen y del resto se compensa la mitad; el limitador contiene los picos."),
+        LOUD("Volumen", "No baja nada: el limitador contiene los picos. Con graves muy altos y música fuerte puede notarse que comprime."),
+    }
+
+    /** Dentro de este margen subir una banda no resta volumen en el modo equilibrado. */
+    const val FREE_HEADROOM_DB = 3f
+
+    /**
+     * Preamplificador (≤ 0 dB) según el modo. Sin limitador (ecualizador básico) solo se puede evitar
+     * la saturación bajando todo, salvo que se elija «Volumen».
+     */
+    fun preamp(gains: List<Float>, mode: Headroom, hasLimiter: Boolean): Float {
+        val peak = -autoPreamp(gains)
+        return when (mode) {
+            Headroom.FULL -> -peak
+            Headroom.BALANCED -> if (hasLimiter) -((peak - FREE_HEADROOM_DB).coerceAtLeast(0f) / 2) else -peak
+            Headroom.LOUD -> 0f
+        }
+    }
+
     /** Valor de la curva en una frecuencia cualquiera (interpolación lineal en escala logarítmica). */
     fun interpolate(levels: List<Float>, freqHz: Float): Float {
         if (freqHz <= CENTERS.first()) return levels.first()

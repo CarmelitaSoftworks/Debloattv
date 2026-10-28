@@ -267,7 +267,21 @@ private fun EqualizerScreen() {
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Text("Opciones", fontWeight = FontWeight.SemiBold)
-            OptionRow("Evitar distorsión (preamplificador + limitador)", eq.avoidClipping, engine::setAvoidClipping)
+            Text("Protección contra distorsión", fontSize = 14.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                EqCore.Headroom.entries.forEach { m ->
+                    FilterChip(selected = eq.headroom == m, onClick = { engine.setHeadroom(m) }, label = { Text(m.label) })
+                }
+            }
+            Text(
+                eq.headroom.description + when {
+                    eq.advanced || eq.engine.isEmpty() -> ""
+                    eq.headroom == EqCore.Headroom.LOUD -> " Este teléfono no tiene limitador: puede distorsionar."
+                    eq.headroom == EqCore.Headroom.BALANCED -> " Este teléfono no tiene limitador: aquí equivale a «Máxima»."
+                    else -> ""
+                },
+                fontSize = 12.sp, lineHeight = 16.sp, color = Muted
+            )
             OptionRow("Recuperar el control si otra app lo toma", eq.autoReclaim, engine::setAutoReclaim)
             OptionRow("Compensar volumen bajo (más graves y agudos al bajar el volumen)", eq.loudness, engine::setLoudness)
             Row {
