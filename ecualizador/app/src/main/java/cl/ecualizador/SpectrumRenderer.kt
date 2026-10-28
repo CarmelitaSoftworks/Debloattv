@@ -218,7 +218,7 @@ class SpectrumRenderer {
         s: SpectrumSettings, density: Float,
     ) {
         val skin = WinampSkins.byName(s.winampSkin)
-        val window = if (s.winampFrame) WinampWindows.bitmap(skin) else null
+        val window = if (s.winampFrame && s.winampWindow) WinampWindows.bitmap(skin) else null
         val area = when {
             window != null -> drawSkinWindow(canvas, w, h, window, s.winampPart, skin)
             s.winampFrame -> drawWinampFrame(canvas, w, h, skin, density)
@@ -433,7 +433,7 @@ class SpectrumRenderer {
     }
     private val frameArea = android.graphics.RectF()
     // Nombre del skin en mayúsculas y su ancho: se recalculan solo si cambian el skin o el tamaño
-    private var labelSkin: WinampSkin? = null
+    private var labelSource = ""
     private var labelBase = 0f
     private var labelRoom = 0f
     private var labelSize = 0f
@@ -473,15 +473,30 @@ class SpectrumRenderer {
         // de salirse del marco. Se recalcula solo si cambian el skin, el tamaño o el espacio.
         val baseSize = title * 0.62f
         val room = w - 4 * pad
-        if (labelSkin !== skin || labelBase != baseSize || labelRoom != room) {
-            labelSkin = skin
+        // Lo que suena y el tiempo («ARTISTA - TÍTULO  1:23/3:45»); sin música, el nombre del skin
+        val track = NowPlaying.track.value
+        val source = track?.let { t ->
+            val name = if (t.artist.isBlank()) t.title else "${t.artist} - ${t.title}"
+            val pos = PlayingTrack.clock(t.positionAt(android.os.SystemClock.elapsedRealtime()))
+            if (t.durationMs > 0) "$name  $pos/${PlayingTrack.clock(t.durationMs)}" else "$name  $pos"
+        } ?: skin.name
+        if (labelSource != source || labelBase != baseSize || labelRoom != room) {
+            labelSource = source
             labelBase = baseSize
             labelRoom = room
-            label = skin.name.uppercase()
+            label = source.uppercase()
             frameText.textSize = baseSize
-            val natural = frameText.measureText(label)
-            labelSize = if (natural > room && natural > 0f) baseSize * room / natural else baseSize
+            var natural = frameText.measureText(label)
+            // Se achica hasta el 70 %; si aún no cabe, se corta el nombre con «…» y se deja el tiempo
+            labelSize = if (natural > room && natural > 0f) maxOf(baseSize * room / natural, baseSize * 0.7f) else baseSize
             frameText.textSize = labelSize
+            natural = frameText.measureText(label)
+            if (natural > room) {
+                val tail = label.substringAfterLast("  ", "")
+                var head = label.removeSuffix(tail).trimEnd()
+                while (head.isNotEmpty() && frameText.measureText("$head…  $tail") > room) head = head.dropLast(1)
+                label = if (tail.isEmpty()) "$head…" else "$head…  $tail"
+            }
             labelWidth = frameText.measureText(label)
         }
         frameText.textSize = labelSize

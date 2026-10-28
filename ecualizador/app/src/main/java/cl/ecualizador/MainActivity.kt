@@ -744,7 +744,7 @@ private fun WallpaperCard() {
         Text(
             when {
                 ws.view == WallpaperView.PLAYER -> "La ventana del skin de Winamp elegido a todo el ancho, con el espectro en su visor."
-                spectrum.style.winamp -> "La pantalla del skin (reloj y visor, con su marco) ampliada a todo el ancho."
+                spectrum.style.winamp -> "El espectro con el marco y los colores del skin; arriba, lo que suena y el tiempo."
                 else -> "Solo el espectro, con el estilo y los colores del visor."
             },
             fontSize = 12.sp, color = Muted
@@ -760,7 +760,7 @@ private fun WallpaperCard() {
                 FilterChip(selected = ws.position == p, onClick = { set { it.copy(position = p) } }, label = { Text(p.label) })
             }
         }
-        if (!winampLook) {
+        if (ws.view == WallpaperView.SPECTRUM) {
             LabeledSlider("Alto", ws.height, 0.1f..0.6f, "%.0f%%".format(ws.height * 100)) { v -> set { it.copy(height = v) } }
         }
         if (ws.hasImage) {

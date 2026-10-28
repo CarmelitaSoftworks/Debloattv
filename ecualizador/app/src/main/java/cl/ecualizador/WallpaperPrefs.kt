@@ -16,24 +16,20 @@ enum class WallpaperView(val label: String) {
 
     /**
      * Ajustes del visor para este modo. El reproductor siempre usa un estilo de Winamp y la ventana
-     * entera; «Solo el espectro» con un estilo de Winamp muestra la pantalla del skin (reloj y visor
-     * con su marco) a todo el ancho.
+     * entera; «Solo el espectro» usa el marco simple con los colores del skin y, arriba, lo que suena.
      */
     fun spectrumSettings(s: SpectrumSettings): SpectrumSettings = when (this) {
         PLAYER -> s.copy(
             style = if (s.style.winamp) s.style else SpectrumStyle.WINAMP_CLASSIC, winampFrame = true, grid = false,
             winampPart = WinampWindow.Part.FULL,
         )
-        SPECTRUM -> s.copy(winampFrame = true, grid = false, winampPart = WinampWindow.Part.DISPLAY)
+        SPECTRUM -> s.copy(winampFrame = true, grid = false, winampWindow = false)
     }
 
-    /**
-     * Alto del visor en el fondo: con un estilo de Winamp, el de la parte del skin a ese ancho (su
-     * proporción); con los demás estilos, la fracción [heightFraction] de la pantalla.
-     */
-    fun height(s: SpectrumSettings, width: Float, screenHeight: Float, heightFraction: Float): Float {
-        val e = spectrumSettings(s)
-        return if (e.style.winamp) width * e.winampPart.h / e.winampPart.w else screenHeight * heightFraction.coerceIn(0.1f, 0.6f)
+    /** Alto del visor en el fondo: el reproductor, con su proporción; el espectro, el alto elegido. */
+    fun height(s: SpectrumSettings, width: Float, screenHeight: Float, heightFraction: Float): Float = when (this) {
+        PLAYER -> width * WinampWindow.HEIGHT / WinampWindow.WIDTH
+        SPECTRUM -> screenHeight * heightFraction.coerceIn(0.1f, 0.6f)
     }
 }
 

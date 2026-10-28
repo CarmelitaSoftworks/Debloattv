@@ -199,6 +199,8 @@ data class SpectrumSettings(
     val winampLines: Int = WINAMP_LINES_ORIGINAL,
     /** Parte del skin real que se muestra (no se guarda: la elige el fondo animado). */
     val winampPart: WinampWindow.Part = WinampWindow.Part.FULL,
+    /** Usar la ventana real del skin; si no, el marco simple con sus colores (no se guarda). */
+    val winampWindow: Boolean = true,
 ) {
     /** Barras que se dibujan con el estilo elegido. */
     val effectiveBars: Int
