@@ -204,7 +204,7 @@ Las herramientas reconocen los decodificadores Android TV de los operadores chil
 
 El perfil se elige solo cuando se reconoce el decodificador. Para operadores sin decodificador Android propio (Movistar, DIRECTV) o si usas su app en otro TV box, elígelo a mano: botón **Operador** en la app, o `--operador movistar` / `-Operador Movistar` en los scripts.
 
-> Al quitar las apps del operador **dejarás de ver sus canales en ese equipo**. Es reversible: «Restaurar todo lo quitado» (o `--restore tv`) las devuelve, y un restablecimiento de fábrica también. En una TV normal no se aplica ningún perfil salvo que lo elijas.
+> Al quitar las apps del operador **dejarás de ver sus canales en ese equipo**. Es reversible: «Restaurar todo» (o `--restore tv`) las devuelve, y un restablecimiento de fábrica también. En una TV normal no se aplica ningún perfil salvo que lo elijas.
 
 | Operador | Equipo | Fabricante · chip · Android TV | Notas |
 |---|---|---|---|

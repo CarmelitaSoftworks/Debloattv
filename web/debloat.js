@@ -461,10 +461,17 @@
   /**
    * Script automático para «adb shell»: reconoce en la propia TV la marca y el decodificador
    * (como la app) y quita lo del nivel elegido de Google, la marca y el operador.
+   * options.skip: paquetes que el usuario desmarcó (no se quitan en ninguna lista).
+   * options.operator: operador elegido a mano (Movistar, DIRECTV… no tienen decodificador propio
+   * que reconocer); si se da, se usa ese en vez de detectarlo.
    */
-  function autoScript(lists, level) {
+  function autoScript(lists, level, options) {
+    const skip = new Set((options && options.skip) || []);
+    const chosen = options && options.operator
+      ? operators(lists).find((o) => o.name.toLowerCase() === options.operator.toLowerCase()) : null;
     const stem = (f) => f.replace(/\.txt$/, '').replace(/[^A-Za-z0-9]/g, '_');
     const out = ['# DebloatTV automático (nivel ' + (level || 'recomendado') + '): pégalo en «adb shell». Reconoce la TV solo.'];
+    if (skip.size) out.push('# Se ' + (skip.size === 1 ? 'deja 1 app que desmarcaste.' : 'dejan ' + skip.size + ' apps que desmarcaste.'));
     out.push(...quitarFunction());
     // Una función por lista con lo que se quita en el nivel recomendado
     const files = ['google.txt', ...VENDORS.filter((v) => v.file).map((v) => v.file), ...operators(lists).map((o) => o.file)];
@@ -472,7 +479,7 @@
       const pkgs = [];
       for (const line of lines(lists[file])) {
         const m = line.match(/^(\S+)\s+(\S+)/);
-        if (m && levelRank(m[1]) && levelRank(m[1]) <= levelRank(level || 'recomendado') && !PROTECTED.has(m[2])) pkgs.push(m[2]);
+        if (m && levelRank(m[1]) && levelRank(m[1]) <= levelRank(level || 'recomendado') && !PROTECTED.has(m[2]) && !skip.has(m[2])) pkgs.push(m[2]);
       }
       out.push('lista_' + stem(file) + '() {', '  :', ...pkgs.map((p) => '  ' + quitarLine(p)), '}');
     }
@@ -481,6 +488,7 @@
       'ID=$(echo "$MARCA $(getprop ro.product.model) $(getprop ro.product.device) $(getprop ro.product.name)" | tr "A-Z" "a-z")',
       'SISTEMA=$(pm list packages -s)',
       'V=""; OP=""; EQUIPO=""');
+    if (chosen) out.push('OP=' + stem(chosen.file) + '; EQUIPO=' + shQuote(chosen.name + ' (elegido en la web)'));
     out.push('case "$MARCA" in');
     for (const v of VENDORS) if (v.file) out.push('  ' + v.match.map((m) => '*' + shQuote(m) + '*').join('|') + ') V=' + stem(v.file) + ';;');
     out.push('esac');

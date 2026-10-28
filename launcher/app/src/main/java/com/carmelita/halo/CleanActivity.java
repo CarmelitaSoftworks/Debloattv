@@ -57,7 +57,7 @@ public class CleanActivity extends Activity {
     private View connDot;
     private TextView status;
     private View levels;
-    private final TextView[] levelPills = new TextView[3];
+    private final android.widget.RadioButton[] levelPills = new android.widget.RadioButton[3];
     private TextView listHeader;
     private LinearLayout packageList;
     private TextView log;
@@ -245,16 +245,14 @@ public class CleanActivity extends Activity {
                 : level == 3 ? R.string.level_agresivo_desc : R.string.level_recomendado_desc);
         levelDesc.setTextColor(getColor(level == 3 ? R.color.status_warn : R.color.text_secondary));
         levels.setVisibility(ready ? View.VISIBLE : View.GONE);
+        // Los botones de Launcher y Deshacer se muestran con su tarjeta; aquí solo se activan o no
         launcherCard.setVisibility(auto ? View.VISIBLE : View.GONE);
         restoreCard.setVisibility(auto && tv.hasBackup() ? View.VISIBLE : View.GONE);
+        for (View b : new View[] {chooseHome, installLtv, restoreLauncher, restoreAll}) b.setEnabled(!busy);
         if (ready) operatorButton.setText(getString(R.string.operator_button, operatorLabel()));
         show(operatorButton, ready);
-        for (int i = 0; i < levelPills.length; i++) ((android.widget.RadioButton) levelPills[i]).setChecked(level == i + 1);
+        for (int i = 0; i < levelPills.length; i++) levelPills[i].setChecked(level == i + 1);
         show(remove, auto);
-        show(chooseHome, auto);
-        show(installLtv, auto);
-        show(restoreAll, auto && tv.hasBackup());
-        show(restoreLauncher, auto);
         show(homeButton, manual);
         show(retry, manual);
         help.setVisibility(manual ? View.VISIBLE : View.GONE);
@@ -388,7 +386,7 @@ public class CleanActivity extends Activity {
         if (selected.isEmpty()) return;
         new AlertDialog.Builder(this, android.R.style.Theme_Material_Dialog_Alert)
                 .setTitle("¿" + getResources().getQuantityString(R.plurals.clean_remove_n, selected.size(), selected.size()) + "?")
-                .setMessage("Se pueden recuperar en cualquier momento con «Restaurar todo lo quitado».")
+                .setMessage("Se pueden recuperar en cualquier momento con «" + getString(R.string.phone_restore_all) + "».")
                 .setNegativeButton("Cancelar", null)
                 .setPositiveButton("Quitar", (dlg, w) -> runTask(() -> {
                     int n = tv.remove(selected);
@@ -488,7 +486,9 @@ public class CleanActivity extends Activity {
                     refreshUi();
                     View focus = getCurrentFocus();
                     if (focus == null || !focus.isEnabled() || !focus.isShown()) {
-                        (remove.getVisibility() == View.VISIBLE ? remove : retry).requestFocus();
+                        // Arriba de la pantalla (en automático, el nivel elegido, justo bajo el estado; si
+                        // no, «Reintentar» del estado), no al final de la lista
+                        (remove.getVisibility() == View.VISIBLE ? levelPills[Math.max(0, Math.min(2, level - 1))] : retry).requestFocus();
                     }
                 });
             }
